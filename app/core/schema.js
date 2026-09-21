@@ -156,6 +156,8 @@ export const TABELAS = {
       f("stage", "Status", "select", { options: "lead_stage", default: "novo", list: true }),
       f("loss_reason", "Motivo de perda", "select", { options: "loss_reason", default: "" }),
       f("expected_close", "Previsão de fechamento", "date"),
+      f("wa_chat_id", "Conversa ligada (WhatsApp/Instagram/Messenger)", "text", { readonly: true }),
+      f("wa_provider", "Canal da conversa", "text", { readonly: true }),
       f("tags", "Etiquetas", "tags"),
       f("notes", "Observações", "textarea"),
     ],

@@ -10,6 +10,7 @@ relatórios, concorrentes e configurações. Funciona em computador e celular, i
 
 | Área | O que faz |
 |---|---|
+| **Conversas** | WhatsApp, Instagram e Messenger na mesma tela pela API da [api-wa.me](https://api-wa.me): lista de conversas com não lidas, histórico, envio com respostas rápidas, e o lead ao lado (etapa, follow-up, anotação, registrar venda). Conversa de quem não está no CRM vira lead sozinha, já ligada à campanha quando a mensagem vem de um anúncio |
 | **Hoje** | responde rápido: gastei, vendi, lucrei, leads, vendas, melhor/pior campanha, produto mais vendido, campanha gastando sem vender, lead parado, tarefa urgente |
 | **Dashboard** | investimento, faturamento, lucro bruto e após anúncios, ROAS, ROI, leads, vendas, conversão, CPL, CPA, ticket, CTR, CPC, CPM, campanhas e anúncios ativos, com variação vs período anterior e avaliação (Excelente/Bom/Atenção/Ruim) pelas metas; gráficos por dia; metas com barra de progresso; valor por etapa; negócios parados; agenda; fecha em breve |
 | **Central de Decisões** | "O que precisa da minha atenção hoje?" por prioridade (urgente/alta/média/baixa); oportunidades de campanha; alertas automáticos; Analista de Tráfego IA (texto explicativo, nunca decide sozinho) |
@@ -35,6 +36,9 @@ relatórios, concorrentes e configurações. Funciona em computador e celular, i
   Claude 08:30) e grava `dados/meta.json`. O CRM transforma isso em campanhas, conjuntos,
   anúncios, criativos e métricas diárias, sem apagar o que você editou (produto, decisão, notas).
 - **Google, TikTok e outras**: lançamento manual em Campanhas ou importação CSV/XLSX.
+- **Conversas**: WhatsApp, Instagram e Messenger pela api-wa.me, lidos direto pelo navegador.
+  Configure em Configurações → Mensagens colando a *key* da instância. A chave fica só naquele
+  aparelho (fora do backup e da nuvem), então cada pessoa cola a dela no próprio celular.
 - **Leads e vendas**: lançados no CRM (é daí que saem faturamento, lucro, ROAS e CPA).
 - **Dados de demonstração**: entram na primeira abertura, marcados como `[DEMO]`, e podem ser
   removidos em Configurações → Dados.
@@ -57,6 +61,7 @@ app/core/metrics.js   todos os indicadores
 app/core/rules.js     classificações, alertas, oportunidades, decisões, analista
 app/core/ui.js        componentes (kpi, tabela, kanban, formulário, gráficos, modal)
 app/core/sync.js      Meta (dados/meta.json) e nuvem GitHub
+app/core/wame.js      conversas (WhatsApp, Instagram, Messenger) pela api-wa.me
 app/core/importer.js  CSV / XLSX
 app/core/auth.js      perfis e permissões
 app/core/automations.js  fluxos automáticos (follow-up, tarefa, etiqueta, nota)

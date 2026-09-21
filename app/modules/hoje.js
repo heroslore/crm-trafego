@@ -5,6 +5,7 @@ import { cartao, vazio, itemLista, badge, prioridadeBadge } from "../core/ui.js"
 import { esc, brl, inteiro, mult, dataBR, hoje, diasEntre, pct } from "../core/format.js";
 import { bannerDemo, agendaDoDia } from "./comum.js";
 import { situacaoCampanha } from "../core/rules.js";
+import * as W from "../core/wame.js";
 
 export default {
   id: "hoje", titulo: "Hoje", icone: "☀️",
@@ -34,6 +35,7 @@ export default {
         ${P("Qual campanha está pior?", pior ? `<a href="#/campanhas/${pior.id}">${esc(pior.nome)}</a>` : "—", pior ? `${brl(pior.k.spend)} gastos · ROAS ${mult(pior.k.roas)}` : "sem investimento registrado hoje")}
         ${P("Qual produto mais vendeu?", prods[0] ? `<a href="#/produtos/${prods[0].id}">${esc(prods[0].nome)}</a>` : "—", prods[0] ? `${inteiro(prods[0].k.quantity)} unidade(s) · ${brl(prods[0].k.revenue)}` : "nenhuma venda hoje")}
         ${P("Campanha gastando sem vender?", semVenda.length ? `<span style="color:var(--vermelho)">${semVenda.length} sim</span>` : `<span style="color:var(--verde)">Não</span>`, semVenda.map((x) => esc(x.nome) + " (" + brl(x.k.spend) + ")").join(", "))}
+        ${W.configurado() ? P("Conversas sem responder?", W.estado.naoLidas ? `<span style="color:var(--laranja)">${W.estado.naoLidas}</span>` : `<span style="color:var(--verde)">Nenhuma</span>`, W.estado.naoLidas ? `mensagem(ns) não lida(s) · <a href="#/inbox">abrir conversas</a>` : "tudo respondido") : ""}
         ${P("Existe lead parado?", leadsParadosHoje.length ? `<span style="color:var(--vermelho)">${leadsParadosHoje.length}</span>` : `<span style="color:var(--verde)">Não</span>`, leadsParadosHoje.length ? "novos sem resposta há mais de 1 dia · <a href='#/leads'>abrir funil</a>" : "")}
         ${P("Tarefa urgente?", urgentes.length ? `<span style="color:var(--laranja)">${urgentes.length}</span>` : `<span style="color:var(--verde)">Não</span>`, urgentes.slice(0, 3).map((t) => esc(t.title)).join(" · ") + (urgentes.length ? " · <a href='#/tarefas'>ver</a>" : ""))}
       </div>
