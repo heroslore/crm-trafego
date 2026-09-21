@@ -290,3 +290,7 @@ a.msg-midia { color:inherit; text-decoration:underline; }
 
 .lateral .rodape .versao { font-size:.66rem; color:var(--mudo); margin-top:6px; padding-left:6px; }
 .lateral .rodape .versao a { color:var(--mudo); text-decoration:underline; }
+
+.msg-link { color:inherit; text-decoration:underline; word-break:break-all; }
+.msg.dele .msg-link { color:var(--acento2); }
+.msg-txt.mudo { opacity:.65; }
