@@ -75,6 +75,11 @@ function montarMenu() {
   const contadores = contagensMenu();
   $("menu").innerHTML = SECOES.map(([titulo, ids]) => `${titulo ? `<div class="secao">${titulo}</div>` : `<div class="secao"></div>`}${ids.map((id) => MODULOS.find((m) => m.id === id)).filter((m) => m && pode(m.id)).map((m) => `<a href="#/${m.id}" data-modulo="${m.id}"><span class="ico">${m.icone}</span><span>${m.titulo}</span>${contadores[m.id] ? `<span class="cont">${contadores[m.id]}</span>` : ""}</a>`).join("")}`).join("");
   const u = usuario();
+  const mv = document.querySelector('meta[name="crm-versao"]');
+  const rodape = document.querySelector(".lateral .rodape");
+  if (rodape && !rodape.querySelector(".versao")) { const d = document.createElement("div"); d.className = "versao"; rodape.appendChild(d); }
+  const dv = rodape && rodape.querySelector(".versao");
+  if (dv) dv.innerHTML = `<span title="Versão publicada">versão ${esc(mv ? mv.content : "local")}</span> · <a href="#/config?aba=dados">atualizar</a>`;
   $("usuarioNome").textContent = u ? u.name : "—"; $("usuarioPapel").textContent = u ? rotuloOpcao("role", u.role) : ""; $("avatar").textContent = (u && u.name ? u.name : "?").trim()[0].toUpperCase();
   const sel = $("empresaSel"); const emps = db.all("companies");
   sel.innerHTML = `<option value="">Todas as empresas / lojas</option>` + emps.map((e) => `<option value="${esc(e.id)}"${db.empresa() === e.id ? " selected" : ""}>${esc(e.name)}</option>`).join("");

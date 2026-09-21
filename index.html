@@ -14,6 +14,29 @@
 <link rel="apple-touch-icon" href="icone.svg">
 <link rel="stylesheet" href="app/styles.css">
 <script>try{var t=localStorage.getItem("crm-trafego-tema");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
+<script>
+// Confere se existe versão mais nova publicada e recarrega uma única vez.
+// Sem isso, o navegador pode ficar servindo a página antiga do cache por horas.
+(function () {
+  try {
+    var meta = document.querySelector('meta[name="crm-versao"]');
+    var atual = meta ? meta.content : "";
+    if (!atual || !window.fetch) return;
+    fetch("versao.json?_=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.versao || j.versao === atual) return;
+        var chave = "crm-recarga-" + j.versao;
+        if (sessionStorage.getItem(chave)) return;   // evita laço de recarga
+        sessionStorage.setItem(chave, "1");
+        var u = new URL(location.href);
+        u.searchParams.set("v", j.versao);
+        location.replace(u.toString());
+      })
+      .catch(function () {});
+  } catch (e) {}
+})();
+</script>
 </head>
 <body>
 <div class="app">
