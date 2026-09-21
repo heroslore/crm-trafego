@@ -1,14 +1,15 @@
-import { db, inserirDemonstracao } from "../core/db.js?v=c59cb573";
-import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, abas, toast, modal, fecharModal, kpi } from "../core/ui.js?v=c59cb573";
-import { esc, dataBR, horaCurta, brl, inteiro } from "../core/format.js?v=c59cb573";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=c59cb573";
-import { PERMISSOES, ehAdmin, podeEditar, usuario } from "../core/auth.js?v=c59cb573";
-import { nuvem, nuvemLigada, conectar, desconectar, sincronizar, carregarMeta, META } from "../core/sync.js?v=c59cb573";
-import { lerCSV, lerXLSX, mapearColunas, importar, CAMPOS_IMPORT } from "../core/importer.js?v=c59cb573";
-import * as W from "../core/wame.js?v=c59cb573";
+import { db, inserirDemonstracao } from "../core/db.js?v=6e46ccb4";
+import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, abas, toast, modal, fecharModal, kpi } from "../core/ui.js?v=6e46ccb4";
+import { esc, dataBR, horaCurta, brl, inteiro } from "../core/format.js?v=6e46ccb4";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=6e46ccb4";
+import { PERMISSOES, ehAdmin, podeEditar, usuario } from "../core/auth.js?v=6e46ccb4";
+import { nuvem, nuvemLigada, conectar, desconectar, sincronizar, carregarMeta, META } from "../core/sync.js?v=6e46ccb4";
+import { lerCSV, lerXLSX, mapearColunas, importar, CAMPOS_IMPORT } from "../core/importer.js?v=6e46ccb4";
+import * as W from "../core/wame.js?v=6e46ccb4";
 
 let aba = "empresa", importState = null;
-const METAS = [["faturamento_mes", "Meta de faturamento mensal (R$)"], ["faturamento_semana", "Meta de faturamento semanal (R$)"], ["vendas_mes", "Meta de vendas no mês"], ["leads_mes", "Meta de leads no mês"], ["roas_min", "ROAS mínimo"], ["cpa_max", "CPA máximo (R$)"], ["cpl_max", "CPL máximo (R$)"], ["ticket_medio", "Ticket médio desejado (R$)"], ["investimento_max_mes", "Investimento máximo mensal (R$)"], ["ctr_min", "CTR mínimo (%)"]];
+const METAS = [["faturamento_mes", "Meta de faturamento mensal (R$)"], ["faturamento_semana", "Meta de faturamento semanal (R$)"], ["vendas_mes", "Meta de vendas no mês"], ["leads_mes", "Meta de leads no mês"], ["roas_min", "ROAS mínimo"], ["cpa_max", "CPA máximo (R$)"], ["cpl_max", "CPL máximo (R$)"], ["ticket_medio", "Ticket médio desejado (R$)"], ["investimento_max_mes", "Investimento máximo mensal (R$)"], ["ctr_min", "CTR mínimo (%)"], ["sla_minutos", "Tempo máximo para o primeiro atendimento (minutos)"], ["taxa_contato_min", "Taxa mínima de leads atendidos (%)"], ["ltv_meta", "LTV desejado por cliente (R$)"]];
+const PAGAMENTOS = [["pix", "Pix"], ["cartao", "Cartão"], ["boleto", "Boleto"], ["dinheiro", "Dinheiro"], ["crediario", "Crediário"], ["outro", "Outro"]];
 
 function abaEmpresa(ctx) {
   const emps = db.all("companies");
@@ -21,7 +22,9 @@ function abaUsuarios() {
 }
 function abaMetas() {
   const cfg = db.settings();
-  return cartao("Metas", `<p class="sub" style="margin-bottom:10px">As metas definem os indicadores Excelente / Bom / Atenção / Ruim, as barras de progresso e os alertas.</p><div class="form-grade">${METAS.map(([k, l]) => `<div class="campo"><label>${l}</label><input type="number" step="any" inputmode="decimal" data-meta="${k}" value="${esc(db.goal(k, 0) || "")}"></div>`).join("")}</div><h3>Regras dos alertas</h3><div class="form-grade">${[["gasto_sem_venda", "Alertar campanha que gastou mais que (R$) sem lead/venda", 100], ["cpa_alta_pct", "Alertar quando o CPA subir mais que (%)", 30], ["limite_freq", "Frequência que indica saturação", 3], ["dias_produto_parado", "Dias sem venda para produto parado", 15]].map(([k, l, d]) => `<div class="campo"><label>${l}</label><input type="number" step="any" data-cfg="${k}" value="${esc(cfg[k] != null ? cfg[k] : d)}"></div>`).join("")}</div>${podeEditar() ? `<button class="btn btn-primario" data-salvar-metas style="margin-top:12px">💾 Salvar metas e regras</button>` : ""}`);
+  return cartao("Metas", `<p class="sub" style="margin-bottom:10px">As metas definem os indicadores Excelente / Bom / Atenção / Ruim, as barras de progresso e os alertas.</p><div class="form-grade">${METAS.map(([k, l]) => `<div class="campo"><label>${l}</label><input type="number" step="any" inputmode="decimal" data-meta="${k}" value="${esc(db.goal(k, 0) || "")}"></div>`).join("")}</div><h3>Regras dos alertas</h3><div class="form-grade">${[["gasto_sem_venda", "Alertar campanha que gastou mais que (R$) sem lead/venda", 100], ["cpa_alta_pct", "Alertar quando o CPA subir mais que (%)", 30], ["limite_freq", "Frequência que indica saturação", 3], ["dias_produto_parado", "Dias sem venda para produto parado", 15]].map(([k, l, d]) => `<div class="campo"><label>${l}</label><input type="number" step="any" data-cfg="${k}" value="${esc(cfg[k] != null ? cfg[k] : d)}"></div>`).join("")}</div><h3>Taxas por forma de pagamento</h3><p class="sub">Usadas para calcular o lucro real quando a venda não tem a taxa preenchida à mão.</p>
+    <div class="form-grade">${PAGAMENTOS.map(([k, l]) => `<div class="campo"><label>${l} (%)</label><input type="number" step="0.01" data-taxa="${k}" value="${esc((cfg.taxas || {})[k] != null ? (cfg.taxas || {})[k] : "")}"></div>`).join("")}</div>
+    ${podeEditar() ? `<button class="btn btn-primario" data-salvar-metas style="margin-top:12px">💾 Salvar metas, regras e taxas</button>` : ""}`);
 }
 function abaAutomacoes() {
   const lista = db.all("automations");
@@ -135,7 +138,9 @@ export default {
     on("[data-editar-emp]", "click", (el) => abrirFormulario("companies", el.dataset.editarEmp, { onSave: ctx.rerender, onDelete: ctx.rerender }));
     on("[data-novo-user]", "click", () => abrirFormulario("users", null, { onSave: ctx.rerender }));
     on("[data-editar-user]", "click", (el) => abrirFormulario("users", el.dataset.editarUser, { onSave: ctx.rerender, onDelete: ctx.rerender, permitirApagar: el.dataset.editarUser !== (usuario() || {}).id }));
-    on("[data-salvar-metas]", "click", () => { root.querySelectorAll("[data-meta]").forEach((i) => db.setGoal(i.dataset.meta, METAS.find((m) => m[0] === i.dataset.meta)[1], Number(i.value) || 0)); const cfg = {}; root.querySelectorAll("[data-cfg]").forEach((i) => cfg[i.dataset.cfg] = Number(i.value) || 0); db.setSettings(cfg); toast("Metas salvas."); ctx.rerender(); });
+    on("[data-salvar-metas]", "click", () => { root.querySelectorAll("[data-meta]").forEach((i) => db.setGoal(i.dataset.meta, METAS.find((m) => m[0] === i.dataset.meta)[1], Number(i.value) || 0)); const cfg = {}; root.querySelectorAll("[data-cfg]").forEach((i) => cfg[i.dataset.cfg] = Number(i.value) || 0);
+      const taxas = {}; root.querySelectorAll("[data-taxa]").forEach((i) => taxas[i.dataset.taxa] = Number(i.value) || 0);
+      db.setSettings({ ...cfg, taxas }); toast("Metas, regras e taxas salvas."); ctx.rerender(); });
     on("[data-nova-auto]", "click", () => abrirFormulario("automations", null, { onSave: ctx.rerender }));
     on("[data-editar-auto]", "click", (el) => abrirFormulario("automations", el.dataset.editarAuto, { onSave: ctx.rerender, onDelete: ctx.rerender }));
     on("#impArquivo", "change", async (el) => { const f = el.files[0]; if (!f) return; try { const r = /\.xlsx?$/i.test(f.name) ? await lerXLSX(f) : lerCSV(await f.text()); importState = { ...r, mapa: mapearColunas(r.cabecalho) }; toast(`${r.linhas.length} linha(s) lidas.`); ctx.rerender(); } catch (e) { toast("Não consegui ler: " + e.message, "erro"); } });

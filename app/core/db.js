@@ -1,7 +1,7 @@
 // Banco de dados do navegador: tabelas em memória, persistência, eventos e dados de demonstração.
 // Módulos usam só esta API; o adaptador de armazenamento pode ser trocado sem mexer neles.
-import { TABELAS, TABELAS_COM_EMPRESA } from "./schema.js?v=c59cb573";
-import { uid, agora, hoje, somaDias } from "./format.js?v=c59cb573";
+import { TABELAS, TABELAS_COM_EMPRESA } from "./schema.js?v=6e46ccb4";
+import { uid, agora, hoje, somaDias } from "./format.js?v=6e46ccb4";
 
 const CHAVE = "crm-trafego-db";
 const VERSAO = 1;
@@ -120,6 +120,7 @@ export const db = {
 // ------------------------------------------------------------ dados iniciais
 export function garantirBase() {
   if (!db.get("settings", "app")) db.insert("settings", { id: "app", data: { empresa: "Minha empresa", limite_custo_msg: 15, limite_freq: 3, gasto_sem_venda: 100, dias_produto_parado: 15, cpa_alta_pct: 30 } });
+  if (!db.settings().taxas) db.setSettings({ taxas: { pix: 0, dinheiro: 0, cartao: 4.5, boleto: 2, crediario: 0, outro: 0 } });
   if (!db.count("users")) db.insert("users", { id: "u-admin", name: "Administrador", role: "admin", active: true });
   if (!db.count("companies")) db.insert("companies", { id: "emp-principal", name: "Minha loja", segment: "", currency: "BRL", timezone: "America/Bahia", keywords: [] });
   if (!db.count("automations") && !db.settings().automacoes_criadas) {
@@ -130,7 +131,8 @@ export function garantirBase() {
     db.setSettings({ automacoes_criadas: true });
   }
   const metasPadrao = [["faturamento_mes", "Meta de faturamento mensal (R$)", 0], ["faturamento_semana", "Meta de faturamento semanal (R$)", 0], ["vendas_mes", "Meta de vendas no mês", 0], ["leads_mes", "Meta de leads no mês", 0],
-    ["roas_min", "ROAS mínimo", 3], ["cpa_max", "CPA máximo (R$)", 0], ["cpl_max", "CPL máximo (R$)", 15], ["ticket_medio", "Ticket médio desejado (R$)", 0], ["investimento_max_mes", "Investimento máximo mensal (R$)", 0], ["ctr_min", "CTR mínimo (%)", 1]];
+    ["roas_min", "ROAS mínimo", 3], ["cpa_max", "CPA máximo (R$)", 0], ["cpl_max", "CPL máximo (R$)", 15], ["ticket_medio", "Ticket médio desejado (R$)", 0], ["investimento_max_mes", "Investimento máximo mensal (R$)", 0], ["ctr_min", "CTR mínimo (%)", 1],
+    ["sla_minutos", "Tempo máximo para o primeiro atendimento (minutos)", 15], ["taxa_contato_min", "Taxa mínima de leads atendidos (%)", 90], ["ltv_meta", "LTV desejado por cliente (R$)", 0]];
   for (const [k, l, v] of metasPadrao) if (!db.get("marketing_goals", k)) db.insert("marketing_goals", { id: k, key: k, label: l, value: v });
   const plano = {
     1: ["Analisar resultados do final de semana", "Ver produtos com maior saída", "Ver produtos com menor saída", "Ver estoque", "Definir campanhas da semana"],
@@ -172,11 +174,26 @@ export function inserirDemonstracao() {
   const etapas = ["novo", "contato", "respondeu", "interessado", "negociacao", "venda", "venda", "perdido", "followup", "venda", "aguardando_pagamento", "perdido"];
   nomes.forEach((n, i) => {
     const camp = i % 3 === 0 ? c2 : c1; const prod = i % 3 === 0 ? p2 : p1;
-    const lead = db.insert("leads", marca({ id: `demo-lead-${i}`, name: `${n} (demo)`, whatsapp: `7399990${String(i).padStart(4, "0")}`, product_id: prod.id, source: camp.platform, campaign_id: camp.id, ad_id: camp === c1 ? a1.id : a2.id, creative_id: camp === c1 ? cr1.id : cr2.id, entered_at: d(15 - i), owner_user_id: i % 2 ? u1.id : u2.id, potential_value: prod.price, stage: etapas[i], loss_reason: etapas[i] === "perdido" ? (i % 2 ? "caro" : "nao_respondeu") : "", next_followup: etapas[i] === "followup" ? d(1) : "" }));
-    if (etapas[i] === "venda") db.insert("sales", marca({ id: `demo-sale-${i}`, date: d(12 - i < 0 ? 0 : 12 - i), product_id: prod.id, quantity: 1, value: prod.price, product_cost: prod.cost, lead_id: lead.id, seller_user_id: lead.owner_user_id, source: camp.platform, campaign_id: camp.id, ad_id: lead.ad_id, creative_id: lead.creative_id, payment: i % 2 ? "pix" : "cartao" }));
+    const chegou = new Date(Date.now() - (15 - i) * 86400000 - (i * 137 % 600) * 60000).toISOString();
+    const esperou = [3, 8, 22, 45, 6, 90, 12, 2, 140, 18, 7, 30][i] || 15;
+    const atendido = etapas[i] !== "novo";
+    const lead = db.insert("leads", marca({ id: `demo-lead-${i}`, name: `${n} (demo)`, whatsapp: `7399990${String(i).padStart(4, "0")}`, product_id: prod.id, source: camp.platform, campaign_id: camp.id, ad_set_id: "", ad_id: camp === c1 ? a1.id : a2.id, creative_id: camp === c1 ? cr1.id : cr2.id,
+      entered_at: d(15 - i), arrived_at: chegou,
+      first_contact_at: atendido ? new Date(new Date(chegou).getTime() + esperou * 60000).toISOString() : "",
+      first_reply_at: ["respondeu", "interessado", "negociacao", "aguardando_pagamento", "venda"].includes(etapas[i]) ? new Date(new Date(chegou).getTime() + (esperou + 25) * 60000).toISOString() : "",
+      temperature: ["quente", "morno", "frio"][i % 3], qualified: ["venda", "negociacao", "aguardando_pagamento", "interessado"].includes(etapas[i]) ? "sim" : (etapas[i] === "perdido" ? "nao" : ""),
+      disqualify_reason: etapas[i] === "perdido" && i % 2 ? "sem_verba" : "", buy_intent: ["alta", "media", "baixa"][i % 3], buy_horizon: ["hoje", "semana", "mes", "sem_prazo"][i % 4],
+      utm_source: camp.platform, utm_medium: "paid", utm_campaign: camp.name, utm_content: (camp === c1 ? cr1 : cr2).name, first_touch: "Anúncio " + camp.platform, last_touch: "Anúncio " + camp.platform, landing: "WhatsApp da loja",
+      owner_user_id: i % 2 ? u1.id : u2.id, potential_value: prod.price, stage: etapas[i], loss_reason: etapas[i] === "perdido" ? (i % 2 ? "caro" : "nao_respondeu") : "", next_followup: etapas[i] === "followup" ? d(1) : "" }));
+    if (etapas[i] === "venda") db.insert("sales", marca({ id: `demo-sale-${i}`, date: d(12 - i < 0 ? 0 : 12 - i), product_id: prod.id, quantity: 1, value: prod.price, discount: i % 3 === 0 ? 100 : 0, product_cost: prod.cost, payment_fee: "", platform_fee: 0, shipping_cost: i % 2 ? 0 : 25, status: "confirmada", lead_id: lead.id, seller_user_id: lead.owner_user_id, source: camp.platform, campaign_id: camp.id, ad_id: lead.ad_id, creative_id: lead.creative_id, payment: i % 2 ? "pix" : "cartao" }));
   });
+  const leadRecompra = db.where("leads", (l) => l.demo && l.stage === "venda")[0];
+  if (leadRecompra) db.insert("sales", marca({ id: "demo-sale-recompra", date: d(2), product_id: p3.id, quantity: 1, value: p3.price, product_cost: p3.cost, status: "confirmada", lead_id: leadRecompra.id, seller_user_id: leadRecompra.owner_user_id, source: leadRecompra.source, campaign_id: leadRecompra.campaign_id, payment: "pix" }));
+  db.insert("sales", marca({ id: "demo-sale-cancel", date: d(4), product_id: p2.id, quantity: 1, value: p2.price, product_cost: p2.cost, status: "cancelada", canceled_at: d(3), source: c2.platform, campaign_id: c2.id, payment: "boleto" }));
+  db.insert("campaign_decisions", marca({ id: "demo-dec-1", campaign_id: c1.id, at: new Date(Date.now() - 9 * 86400000).toISOString(), type: "orcamento", de: "R$ 25,00", para: "R$ 40,00", reason: "ROAS acima de 5 por três dias seguidos.", user_id: u1.id }));
+  db.insert("campaign_decisions", marca({ id: "demo-dec-2", campaign_id: c2.id, at: new Date(Date.now() - 5 * 86400000).toISOString(), type: "criativo", de: "Carrossel oferta", para: "Vídeo depoimento", reason: "CTR caindo pela terceira semana.", user_id: u2.id }));
   db.insert("tasks", marca({ id: "demo-task-1", title: "[DEMO] Subir criativo novo do Produto A", product_id: p1.id, campaign_id: c1.id, owner_user_id: u1.id, priority: "alta", due_date: d(-2), status: "aguardando_criativo" }));
-  db.insert("tasks", marca({ id: "demo-task-2", title: "[DEMO] Revisar orçamento da campanha B", campaign_id: c2.id, owner_user_id: u2.id, priority: "urgente", due_date: d(1), status: "a_fazer" }));
+  db.insert("tasks", marca({ id: "demo-task-2", title: "[DEMO] Revisar orçamento da campanha B", campaign_id: c2.id, owner_user_id: u2.id, priority: "urgente", due_date: d(1), status: "a_fazer", recurrence: "semanal", checklist: [{ id: "c1", texto: "Ver gasto x meta", feito: true }, { id: "c2", texto: "Comparar CPA com a média", feito: false }, { id: "c3", texto: "Decidir escalar ou reduzir", feito: false }] }));
   db.insert("ab_tests", marca({ id: "demo-ab-1", name: "[DEMO] Vídeo x Carrossel", campaign_id: c1.id, product_id: p1.id, hypothesis: "Vídeo com depoimento gera CTR maior que carrossel de oferta.", start: d(10), end: d(3), creative_a_id: cr1.id, creative_b_id: cr2.id, spend: 300, a_ctr: 2.1, b_ctr: 1.4, a_cpa: 45, b_cpa: 62, a_conv: 6, b_conv: 4, a_roas: 5.2, b_roas: 3.8, result: "a", learning: "Depoimento em vídeo converte melhor.", apply_next: "Priorizar vídeos com prova social nos próximos criativos." }));
   db.insert("competitors", marca({ id: "demo-comp-1", company: "[DEMO] Concorrente X", instagram: "https://instagram.com/", product: "Produto similar ao A", price: 2450, promotion: "10% no Pix", ad_type: "Reels com influenciador", analyzed_at: d(3) }));
   db.insert("ideas", marca({ id: "demo-idea-1", title: "[DEMO] Reels 'antes e depois'", type: "video", product_id: p1.id, status: "avaliar" }));

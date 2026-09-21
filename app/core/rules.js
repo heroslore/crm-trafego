@@ -1,9 +1,9 @@
 // Classificações automáticas, alertas, oportunidades, central de decisões e textos do analista.
 // Nada aqui altera dados: só lê e sugere.
-import { db } from "./db.js?v=c59cb573";
-import { kpis, comparar, porEntidade, resumoProduto, mediaCampanhas, avaliar, serieDiaria, leadsNoPeriodo } from "./metrics.js?v=c59cb573";
-import { intervalo, anterior } from "./periods.js?v=c59cb573";
-import { brl, pct, mult, dec, inteiro, hoje, somaDias, diasEntre, dataBR, variacao, num } from "./format.js?v=c59cb573";
+import { db } from "./db.js?v=6e46ccb4";
+import { kpis, comparar, porEntidade, resumoProduto, mediaCampanhas, avaliar, serieDiaria, leadsNoPeriodo, atendimento, filaDeAtendimento, pacing, minutosEsperando } from "./metrics.js?v=6e46ccb4";
+import { intervalo, anterior } from "./periods.js?v=6e46ccb4";
+import { brl, pct, mult, dec, inteiro, hoje, somaDias, diasEntre, dataBR, variacao, num } from "./format.js?v=6e46ccb4";
 
 const cfg = () => db.settings();
 
@@ -56,6 +56,17 @@ export function classificarCriativo(c, iv, media) {
   return { classe, rotulo: CLASSES_CRIATIVO[classe][0], cor: CLASSES_CRIATIVO[classe][1], k, kAnt, flags };
 }
 
+// Separa "o gancho não segura" de "a oferta não converte": os dois parecem
+// o mesmo criativo ruim no relatório, mas pedem correções opostas.
+export function diagnosticoVideo(k) {
+  if (!k || !k.tem_video || k.impressions < 500) return null;
+  const gancho = k.hook_rate, retencao = k.retencao_50, converteu = (k.sales || 0) > 0 || (k.leads_base || 0) > 0;
+  if (gancho != null && gancho < 0.15) return { prioridade: "media", titulo: "gancho fraco", texto: `Só ${pct(gancho)} de quem viu passou dos 3 segundos. O problema está no começo do vídeo, não na oferta.`, acao: "Trocar gancho" };
+  if (gancho != null && gancho >= 0.25 && retencao != null && retencao >= 0.4 && !converteu && k.spend >= 30) return { prioridade: "media", titulo: "prende, mas não converte", texto: `O vídeo segura a atenção (${pct(gancho)} passam de 3s, ${pct(retencao)} chegam à metade), mas não gerou lead nem venda. O problema é a oferta ou a chamada.`, acao: "Revisar oferta" };
+  if (retencao != null && retencao < 0.15 && gancho != null && gancho >= 0.2) return { prioridade: "baixa", titulo: "cai no meio", texto: `As pessoas entram (${pct(gancho)} passam de 3s) mas abandonam cedo: só ${pct(retencao)} chegam à metade. Vale encurtar.`, acao: "Encurtar vídeo" };
+  return null;
+}
+
 // ---------------------------------------------------------------- campanhas
 export function situacaoCampanha(c, iv, media) {
   const k = kpis(iv, { campaign_id: c.id }), kAnt = kpis(anterior(iv), { campaign_id: c.id });
@@ -100,6 +111,17 @@ export function alertas(iv) {
     if (cl.classe === "saturando") add(`cr:${c.id}:sat`, "media", "Criativo", `${c.name} apresenta sinais de saturação (${cl.flags.includes("frequencia") ? "frequência " + dec(cl.k.frequency, 1) : "CTR caindo: " + pct(cl.kAnt.ctr) + " → " + pct(cl.k.ctr)}).`, `#/criativos/${c.id}`);
     if (cl.classe === "pausar") add(`cr:${c.id}:pausar`, "alta", "Criativo", `${c.name} gastou ${brl(cl.k.spend)} sem lead nem venda: avaliar pausar.`, `#/criativos/${c.id}`);
   }
+  // Atendimento: o lead esperando é a perda mais cara e mais fácil de evitar.
+  const fila = filaDeAtendimento();
+  if (fila.foraSla.length) {
+    const pior = fila.foraSla[0];
+    add(`sla:${h}:${fila.foraSla.length}`, "urgente", "Atendimento", `${fila.foraSla.length} lead(s) esperando há mais de ${fila.sla} min sem nenhum contato. O mais antigo: ${pior.lead.name}, há ${formatoMinutos(pior.minutos)}.`, "#/leads");
+  } else if (fila.esperando.length) {
+    add(`sla:fila:${h}:${fila.esperando.length}`, "alta", "Atendimento", `${fila.esperando.length} lead(s) aguardando o primeiro contato.`, "#/leads");
+  }
+  const at = atendimento(iv);
+  if (at.total >= 5 && at.taxaContato != null && at.taxaContato < 0.8) add(`sla:taxa:${h}`, "alta", "Atendimento", `Só ${pct(at.taxaContato)} dos leads do período foram atendidos: ${at.naoAtendidos} ficaram sem nenhum contato.`, "#/dashboard");
+  if (at.medidos >= 5 && at.tempoMedio != null && at.tempoMedio > at.sla) add(`sla:tempo:${h}`, "media", "Atendimento", `Tempo médio até o primeiro atendimento: ${formatoMinutos(at.tempoMedio)}, acima da meta de ${at.sla} min.`, "#/dashboard");
   const semResposta = db.where("leads", (l) => l.stage === "novo" && diasEntre(l.entered_at, h) >= 1);
   if (semResposta.length) add(`leads:novos:${h}`, semResposta.length >= 3 ? "urgente" : "alta", "Leads", `${semResposta.length} lead(s) novo(s) sem resposta há mais de 1 dia.`, "#/leads");
   const followups = db.where("leads", (l) => l.next_followup && l.next_followup <= h && !["venda", "perdido"].includes(l.stage));
@@ -107,8 +129,12 @@ export function alertas(iv) {
   const atrasadas = db.where("tasks", (t) => t.due_date && t.due_date < h && t.status !== "finalizado");
   for (const t of atrasadas) add(`task:${t.id}:atraso`, t.priority === "urgente" ? "urgente" : "alta", "Tarefa", `Tarefa atrasada: ${t.title} (venceu ${dataBR(t.due_date)}).`, "#/tarefas");
   for (const e of alertasCalendario()) add(`cal:${e.id}:${e.faltam}`, e.faltam <= 3 ? "alta" : e.faltam <= 7 ? "media" : "baixa", "Calendário", `${e.title} em ${e.faltam} dia(s) (${dataBR(e.date)}).`, "#/calendario");
-  const kMes = kpis(intervalo({ tipo: "mes" })), invMax = db.goal("investimento_max_mes", 0);
-  if (invMax && kMes.spend > invMax) add(`meta:inv:${h.slice(0, 7)}`, "alta", "Meta", `Investimento do mês (${brl(kMes.spend)}) passou do limite de ${brl(invMax)}.`, "#/financeiro");
+  const pc = pacing(intervalo({ tipo: "mes" }));
+  if (pc.meta) {
+    if (pc.gasto > pc.meta) add(`meta:inv:${h.slice(0, 7)}`, "alta", "Meta", `Investimento do mês (${brl(pc.gasto)}) passou do limite de ${brl(pc.meta)}.`, "#/financeiro");
+    else if (pc.projecao > pc.meta * 1.08) add(`meta:ritmo:${h}`, "media", "Meta", `No ritmo atual o mês fecha em ${brl(pc.projecao)}, acima do limite de ${brl(pc.meta)}. Diário sugerido: ${brl(pc.diarioSugerido)}.`, "#/dashboard");
+    else if (pc.projecao < pc.meta * 0.8 && pc.decorridos >= 7) add(`meta:sobra:${h}`, "baixa", "Meta", `No ritmo atual sobram ${brl(pc.meta - pc.projecao)} do orçamento do mês. Dá para escalar o que está indo bem.`, "#/decisoes");
+  }
   const ordem = { urgente: 0, alta: 1, media: 2, baixa: 3 };
   return lista.sort((a, b) => ordem[a.prioridade] - ordem[b.prioridade]);
 }
@@ -143,6 +169,8 @@ export function oportunidades(iv) {
     const cl = classificarCriativo(cr, iv, media);
     if (cl.classe === "saturando" && cl.flags.includes("ctr_caindo")) out.push({ tipo: "criativo", prioridade: "media", titulo: `${cr.name} apresenta queda de CTR`, texto: `De ${pct(cl.kAnt.ctr)} para ${pct(cl.k.ctr)}. Preparar criativo novo.`, acao: "Solicitar criativo", link: `#/criativos/${cr.id}` });
     if (cl.classe === "campeao") out.push({ tipo: "criativo", prioridade: "media", titulo: `${cr.name} é criativo campeão`, texto: `${cl.k.sales} venda(s) e ROAS ${mult(cl.k.roas)}. Usar em mais conjuntos/campanhas.`, acao: "Reaproveitar", link: `#/criativos/${cr.id}` });
+    const d = diagnosticoVideo(cl.k);
+    if (d) out.push({ tipo: "criativo", prioridade: d.prioridade, titulo: `${cr.name}: ${d.titulo}`, texto: d.texto, acao: d.acao, link: `#/criativos/${cr.id}` });
   }
   const ordem = { urgente: 0, alta: 1, media: 2, baixa: 3 };
   return out.sort((a, b) => ordem[a.prioridade] - ordem[b.prioridade]);
@@ -206,10 +234,37 @@ export function analise(iv) {
     const cl = classificarProduto(pr);
     if (cl.flags.includes("estoque_alto") && cl.resumo.qtd30 <= 2) p(`O produto ${pr.name} possui estoque alto (${inteiro(pr.stock)}) e poucas vendas (${cl.resumo.qtd30} em 30 dias), sendo candidato a uma campanha promocional.`);
   }
+  for (const f of narrativaAtendimento(iv)) p(f);
+  const at2 = atendimento(iv);
+  if (at2.medidos >= 3 && at2.tempoMedio != null && at2.tempoMedio > at2.sla * 2) p(`O atendimento está demorando: ${formatoMinutos(at2.tempoMedio)} em média contra a meta de ${at2.sla} min. Campanha boa com atendimento lento vira lead perdido, não venda.`);
   const perdas = motivosPerda(iv);
   if (perdas.total >= 3) p(`Principal motivo de perda no período: "${perdas.itens[0].rotulo}" (${pct(perdas.itens[0].n / perdas.total)} dos leads perdidos).`);
   paras.push("Estas observações são sugestões calculadas a partir dos dados lançados; nenhuma alteração é feita automaticamente.");
   return paras;
+}
+
+// A frase que responde "o anúncio trouxe, e depois o que aconteceu?".
+export function narrativaAtendimento(iv) {
+  const at = atendimento(iv);
+  const frases = [];
+  if (!at.total) return ["Nenhum lead novo no período."];
+  const camps = porEntidade(iv, "campaign").filter((x) => x.k.leads || x.k.sales);
+  const maisLeads = camps.slice().sort((a, b) => b.k.leads - a.k.leads)[0];
+  const maisVendas = camps.slice().sort((a, b) => (b.k.sales - a.k.sales) || (b.k.revenue - a.k.revenue))[0];
+  frases.push(`Entraram ${inteiro(at.total)} lead(s). ${inteiro(at.atendidos)} foram atendidos e ${inteiro(at.naoAtendidos)} ainda não receberam contato.`);
+  if (at.tempoMedio != null) frases.push(`Tempo médio até o primeiro atendimento: ${formatoMinutos(at.tempoMedio)}${at.mediana != null ? ` (metade em até ${formatoMinutos(at.mediana)})` : ""}. Meta: ${at.sla} min.`);
+  if (at.atendidos) frases.push(`Dos ${inteiro(at.atendidos)} atendidos, ${inteiro(at.responderam)} responderam, ${inteiro(at.qualificados)} foram qualificados, ${inteiro(at.negociaram)} negociaram e ${inteiro(at.compraram)} compraram.`);
+  if (maisLeads && maisVendas) {
+    if (maisLeads.id === maisVendas.id) frases.push(`${maisLeads.nome} foi a campanha que mais trouxe leads e vendas.`);
+    else frases.push(`${maisLeads.nome} trouxe mais leads (${inteiro(maisLeads.k.leads)}); ${maisVendas.nome} trouxe mais vendas (${inteiro(maisVendas.k.sales)}).`);
+  }
+  return frases;
+}
+export function formatoMinutos(m) {
+  if (m == null || !isFinite(m)) return "—";
+  if (m < 60) return `${Math.round(m)} min`;
+  if (m < 60 * 24) return `${Math.floor(m / 60)}h${String(Math.round(m % 60)).padStart(2, "0")}`;
+  return `${Math.floor(m / 1440)} dia(s)`;
 }
 
 export function motivosPerda(iv) {

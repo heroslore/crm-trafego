@@ -1,11 +1,12 @@
-import { db } from "../core/db.js?v=c59cb573";
-import { kpis, serieDiaria, porEntidade, mediaCampanhas } from "../core/metrics.js?v=c59cb573";
-import { situacaoCampanha } from "../core/rules.js?v=c59cb573";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=c59cb573";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec } from "../core/format.js?v=c59cb573";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=c59cb573";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=c59cb573";
-import { podeEditar } from "../core/auth.js?v=c59cb573";
+import { db } from "../core/db.js?v=6e46ccb4";
+import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=6e46ccb4";
+import { situacaoCampanha } from "../core/rules.js?v=6e46ccb4";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=6e46ccb4";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=6e46ccb4";
+import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=6e46ccb4";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=6e46ccb4";
+import { usuario } from "../core/auth.js?v=6e46ccb4";
+import { podeEditar } from "../core/auth.js?v=6e46ccb4";
 
 let filtroStatus = "ativa", filtroPlat = "";
 
@@ -23,7 +24,7 @@ function lista(root, ctx) {
       { key: "daily_budget", label: "Orç./dia", tipo: "num", fmt: brl },
       { key: "spend", label: "Gasto", tipo: "num", valor: (l) => l.k.spend, fmt: brl }, { key: "revenue", label: "Faturamento", tipo: "num", valor: (l) => l.k.revenue, fmt: brl },
       { key: "leads", label: "Leads", tipo: "num", valor: (l) => l.k.leads_base, fmt: inteiro }, { key: "sales", label: "Vendas", tipo: "num", valor: (l) => l.k.sales, fmt: inteiro },
-      { key: "cpl", label: "CPL", tipo: "num", valor: (l) => l.k.cpl, fmt: brl }, { key: "cpa", label: "CPA", tipo: "num", valor: (l) => l.k.cpa, fmt: brl },
+      { key: "cpl", label: "CPL", tipo: "num", valor: (l) => l.k.cpl, fmt: brl }, { key: "cpl_qualificado", label: "CPL qualif.", tipo: "num", valor: (l) => l.k.cpl_qualificado, fmt: brl }, { key: "cpa", label: "CPA", tipo: "num", valor: (l) => l.k.cpa, fmt: brl },
       { key: "ctr", label: "CTR", tipo: "num", valor: (l) => l.k.ctr, fmt: (v) => pct(v) }, { key: "cpc", label: "CPC", tipo: "num", valor: (l) => l.k.cpc, fmt: brl }, { key: "cpm", label: "CPM", tipo: "num", valor: (l) => l.k.cpm, fmt: brl },
       { key: "roas", label: "ROAS", tipo: "num", valor: (l) => l.k.roas, fmt: mult }, { key: "roi", label: "ROI", tipo: "num", valor: (l) => l.k.roi, fmt: (v) => pct(v) }, { key: "ticket", label: "Ticket", tipo: "num", valor: (l) => l.k.ticket, fmt: brl },
       { key: "decision", label: "Decisão", render: (l) => l.decision ? badge(rotuloOpcao("decision", l.decision), { escalar: "verde", pausar: "vermelho", encerrar: "vermelho", reduzir: "amarelo", manter: "ciano" }[l.decision] || "roxo") : "<small>—</small>" },
@@ -37,6 +38,41 @@ function lista(root, ctx) {
 function abrirNova(ctx, product_id = "", campaign = null) { abrirFormulario("campaigns", campaign ? campaign.id : null, { padrao: { product_id, source: "manual" }, ocultar: ["external_id", "source"], onSave: (c) => ctx.navegar(`#/campanhas/${c.id}`), onDelete: () => ctx.navegar("#/campanhas") }); }
 export function lancarMetricas(ctx, campaign_id = "") {
   abrirFormulario("campaign_metrics", null, { titulo: "Lançar métricas de um dia", padrao: { campaign_id, source: "manual", date: hoje() }, ocultar: ["source", "creative_id"], onSave: () => { toast("Métricas lançadas."); ctx.rerender(); } });
+}
+
+export const TIPO_POR_DECISAO = { escalar: "escala", reduzir: "reducao", trocar_criativo: "criativo", trocar_publico: "publico", revisar_oferta: "oferta", pausar: "pausa", encerrar: "encerramento", manter: "outra" };
+export function registrarDecisao(campaign_id, dados) {
+  return db.insert("campaign_decisions", { campaign_id, at: agora(), user_id: (usuario() || {}).id || "", ...dados });
+}
+// Mudou orçamento, status ou público pela edição? Vira registro na linha do tempo.
+export function registrarMudancas(antes, depois) {
+  if (!antes || !depois) return;
+  if (Number(antes.daily_budget || 0) !== Number(depois.daily_budget || 0)) {
+    const sobe = Number(depois.daily_budget || 0) > Number(antes.daily_budget || 0);
+    registrarDecisao(depois.id, { type: sobe ? "escala" : "reducao", de: brl(antes.daily_budget), para: brl(depois.daily_budget), reason: "Orçamento diário alterado na edição da campanha.", auto: true });
+  }
+  if (antes.status !== depois.status) registrarDecisao(depois.id, { type: depois.status === "pausada" ? "pausa" : depois.status === "ativa" ? "retomada" : depois.status === "finalizada" ? "encerramento" : "outra", de: rotuloOpcao("campaign_status", antes.status), para: rotuloOpcao("campaign_status", depois.status), reason: "Status alterado na edição da campanha.", auto: true });
+  if (antes.audience_id !== depois.audience_id) registrarDecisao(depois.id, { type: "publico", de: (db.get("audiences", antes.audience_id) || {}).name || "—", para: (db.get("audiences", depois.audience_id) || {}).name || "—", reason: "Público principal alterado.", auto: true });
+}
+function efeitoHtml(ef) {
+  if (!ef) return "";
+  const linha = (rot, a, b, fmt, menorMelhor) => {
+    const v = variacao(b, a); if (a === 0 && b === 0) return "";
+    const bom = v == null ? null : (menorMelhor ? v < 0 : v > 0);
+    return `<div>${rot}: ${fmt(a)} → <b>${fmt(b)}</b> ${v != null ? `<span class="delta ${bom ? "up" : "down"}">${seta(v)} ${pct(Math.abs(v))}</span>` : ""}</div>`;
+  };
+  return `<div class="efeito">${linha("gasto/dia", ef.mediaAntes.spend, ef.mediaDepois.spend, brl, false)}${linha("vendas/dia", ef.mediaAntes.sales, ef.mediaDepois.sales, (x) => dec(x, 1), false)}${linha("ROAS", ef.a.roas || 0, ef.d.roas || 0, mult, false)}${linha("CPA", ef.a.cpa || 0, ef.d.cpa || 0, brl, true)}${!ef.completo ? `<small>parcial</small>` : ""}</div>`;
+}
+function cartaoDecisoes(c) {
+  const lista = db.where("campaign_decisions", (d) => d.campaign_id === c.id).sort((a, b) => (b.at || "").localeCompare(a.at || ""));
+  const corpo = lista.length ? lista.map((d) => {
+    const ef = efeitoDecisao(c.id, d.at, 7);
+    return `<div class="linha-decisao"><div class="quando">${esc(horaCurta(d.at))}</div>
+      <div><b>${esc(rotuloOpcao("decision_type", d.type))}</b>${d.de || d.para ? ` · ${esc(d.de || "—")} → ${esc(d.para || "—")}` : ""} ${d.auto ? badge("automático", "cinza") : ""} ${podeEditar() ? `<button class="btn btn-pq" data-editar-decisao="${d.id}" style="padding:2px 6px">✏️</button>` : ""}
+      ${d.reason ? `<div class="sub">${esc(d.reason)}</div>` : ""}${d.user_id ? `<div class="sub">por ${esc((db.get("users", d.user_id) || {}).name || "")}</div>` : ""}</div>
+      <div class="efeito-wrap">${efeitoHtml(ef)}</div></div>`;
+  }).join("") : vazio("Nenhuma decisão registrada ainda. Toda mudança de orçamento, status ou público feita por aqui entra sozinha nesta lista.");
+  return cartao(`Histórico de decisões <small>7 dias antes × 7 dias depois</small>`, corpo, podeEditar() ? `<button class="btn btn-pq" data-nova-decisao>➕ Registrar decisão</button>` : "");
 }
 
 function detalhe(root, ctx, c) {
@@ -57,6 +93,7 @@ function detalhe(root, ctx, c) {
       ${cartao("Público", sets.length ? `<div class="lista">${sets.map((a) => itemLista({ titulo: esc(a.name), sub: esc(a.targeting || "") + (a.audience_id ? " · " + esc((db.get("audiences", a.audience_id) || {}).name || "") : ""), badges: badgeOpcao("campaign_status", a.status), direita: a.daily_budget ? brl(a.daily_budget) + "/dia" : "" })).join("")}</div>` : (c.audience_id ? itemLista({ titulo: esc((db.get("audiences", c.audience_id) || {}).name || ""), sub: "público principal" }) : vazio("Sem conjuntos cadastrados.")), podeEditar() ? `<button class="btn btn-pq" data-novo-conjunto>➕ Conjunto</button>` : "")}
     </div>
     ${cartao("Resultados no período", linhaNumeros(k, ["spend", "revenue", "gross_profit", "roas", "roi", "leads", "sales", "conversion", "cpl", "cpa", "ticket", "ctr", "cpc", "cpm", "impressions", "reach"]) + graficoLinhas({ rotulos: serie.map((d) => dataCurta(d.date)), series: [{ nome: "Investimento", cor: "var(--acento)", valores: serie.map((d) => d.spend), barras: true }, { nome: "Faturamento", cor: "var(--verde)", valores: serie.map((d) => d.revenue) }], formato: "money", altura: 200 }))}
+    ${cartaoDecisoes(c)}
     <div class="grid2">
       ${cartao("Anúncios e criativos", ads.length ? tabela("camp-ads", { colunas: [{ key: "name", label: "Anúncio", render: (a) => { const cr = db.get("creatives", a.creative_id); return `${cr && cr.thumbnail ? `<img class="mini" src="${esc(cr.thumbnail)}" alt="">` : ""}<a href="#/anuncios/${a.id}">${esc(a.name)}</a>${cr ? `<br><small><a href="#/criativos/${cr.id}">${esc(cr.name)}</a></small>` : ""}`; } }, { key: "status", label: "Status", render: (a) => badgeOpcao("campaign_status", a.status) }, { key: "spend", label: "Gasto", tipo: "num", valor: (a) => kpis(iv, { ad_id: a.id }).spend, fmt: brl }, { key: "leads", label: "Leads", tipo: "num", valor: (a) => kpis(iv, { ad_id: a.id }).leads_base, fmt: inteiro }, { key: "sales", label: "Vendas", tipo: "num", valor: (a) => kpis(iv, { ad_id: a.id }).sales, fmt: inteiro }, { key: "ctr", label: "CTR", tipo: "num", valor: (a) => kpis(iv, { ad_id: a.id }).ctr, fmt: (v) => pct(v) }, { key: "cpa", label: "CPA", tipo: "num", valor: (a) => kpis(iv, { ad_id: a.id }).cpa, fmt: brl }], linhas: ads, ordem: "spend" }) : vazio("Nenhum anúncio cadastrado nesta campanha."), podeEditar() ? `<button class="btn btn-pq" data-novo-anuncio>➕ Anúncio</button>` : "")}
       ${cartao("Métricas lançadas no período", metricas.length ? tabela("camp-metricas", { colunas: [{ key: "date", label: "Dia", fmt: dataBR }, { key: "ad", label: "Anúncio", valor: (m) => (db.get("ads", m.ad_id) || {}).name || "—" }, { key: "spend", label: "Gasto", tipo: "num", fmt: brl }, { key: "impressions", label: "Impr.", tipo: "num", fmt: inteiro }, { key: "link_clicks", label: "Cliques", tipo: "num", valor: (m) => m.link_clicks || m.clicks, fmt: inteiro }, { key: "results", label: "Result.", tipo: "num", fmt: inteiro }, { key: "source", label: "Origem", render: (m) => badge(rotuloOpcao("metric_source", m.source), m.source === "meta" ? "acento" : "cinza") }, { key: "acao", label: "", render: (m) => m.source !== "meta" && podeEditar() ? `<button class="btn btn-pq" data-editar-metrica="${m.id}">✏️</button>` : "" }], linhas: metricas, ordem: "date", limite: 60 }) : vazio("Nenhuma métrica no período. Lance manualmente, importe um CSV ou aguarde a coleta da Meta."))}
@@ -66,9 +103,15 @@ function detalhe(root, ctx, c) {
       ${cartao(`Vendas desta campanha (${vendas.length})`, vendas.length ? tabela("camp-vendas", { colunas: [{ key: "date", label: "Data", fmt: dataBR }, { key: "product", label: "Produto", valor: (v) => (db.get("products", v.product_id) || {}).name || "—" }, { key: "value", label: "Valor", tipo: "num", fmt: brl }, { key: "seller", label: "Vendedor", valor: (v) => (db.get("users", v.seller_user_id) || {}).name || "—" }], linhas: vendas, ordem: "date", limite: 20 }) : vazio("Nenhuma venda atribuída."))}
     </div>`;
   const on = (sel, fn) => { const el = root.querySelector(sel); if (el) el.addEventListener("click", fn); };
-  on("[data-editar]", () => abrirFormulario("campaigns", c.id, { ocultar: c.source === "meta" ? [] : ["external_id", "source"], onSave: ctx.rerender, onDelete: () => ctx.navegar("#/campanhas") }));
+  on("[data-editar]", () => { const antes = { ...c }; abrirFormulario("campaigns", c.id, { ocultar: c.source === "meta" ? [] : ["external_id", "source"], onSave: (novo) => { registrarMudancas(antes, novo); ctx.rerender(); }, onDelete: () => ctx.navegar("#/campanhas") }); });
   on("[data-lancar]", () => lancarMetricas(ctx, c.id));
-  on("[data-salvar-decisao]", () => { db.update("campaigns", c.id, { decision: root.querySelector("[data-decisao]").value, notes: root.querySelector("[data-obs]").value }); toast("Decisão salva."); ctx.rerender(); });
+  on("[data-salvar-decisao]", () => {
+    const nova = root.querySelector("[data-decisao]").value, motivo = root.querySelector("[data-obs]").value;
+    if (nova && nova !== c.decision) registrarDecisao(c.id, { type: TIPO_POR_DECISAO[nova] || "outra", de: rotuloOpcao("decision", c.decision) || "—", para: rotuloOpcao("decision", nova), reason: motivo, auto: false });
+    db.update("campaigns", c.id, { decision: nova, notes: motivo }); toast("Decisão salva."); ctx.rerender();
+  });
+  on("[data-nova-decisao]", () => abrirFormulario("campaign_decisions", null, { titulo: "Registrar decisão", padrao: { campaign_id: c.id, at: agora(), user_id: (usuario() || {}).id || "" }, ocultar: ["auto"], onSave: ctx.rerender }));
+  root.querySelectorAll("[data-editar-decisao]").forEach((b) => b.addEventListener("click", () => abrirFormulario("campaign_decisions", b.dataset.editarDecisao, { ocultar: ["auto"], onSave: ctx.rerender, onDelete: ctx.rerender })));
   on("[data-novo-conjunto]", () => abrirFormulario("ad_sets", null, { padrao: { campaign_id: c.id }, ocultar: ["external_id"], onSave: ctx.rerender }));
   on("[data-novo-anuncio]", () => abrirFormulario("ads", null, { padrao: { campaign_id: c.id }, ocultar: ["external_id"], onSave: ctx.rerender }));
   root.querySelectorAll("[data-editar-metrica]").forEach((b) => b.addEventListener("click", () => abrirFormulario("campaign_metrics", b.dataset.editarMetrica, { ocultar: ["source"], onSave: ctx.rerender, onDelete: ctx.rerender })));

@@ -1,13 +1,13 @@
 // Usuários, perfis e permissões (proteção de interface; o app é estático).
-import { db } from "./db.js?v=c59cb573";
+import { db } from "./db.js?v=6e46ccb4";
 
 const CHAVE = "crm-trafego-usuario";
 export const PERMISSOES = {
   admin: { modulos: "*", editar: true },
-  gestor: { modulos: ["dashboard", "hoje", "decisoes", "inbox", "campanhas", "anuncios", "criativos", "produtos", "publicos", "leads", "vendas", "financeiro", "testes", "planejamento", "tarefas", "calendario", "relatorios", "concorrentes", "briefings", "ideias", "calculadoras", "config"], editar: true },
+  gestor: { modulos: ["dashboard", "hoje", "decisoes", "inbox", "campanhas", "anuncios", "criativos", "produtos", "publicos", "leads", "vendas", "clientes", "financeiro", "testes", "planejamento", "tarefas", "calendario", "relatorios", "concorrentes", "briefings", "ideias", "calculadoras", "config"], editar: true },
   marketing: { modulos: ["dashboard", "hoje", "decisoes", "inbox", "campanhas", "criativos", "produtos", "publicos", "testes", "planejamento", "tarefas", "calendario", "relatorios", "concorrentes", "briefings", "ideias", "calculadoras"], editar: true },
   criador: { modulos: ["hoje", "criativos", "produtos", "tarefas", "calendario", "briefings", "ideias"], editar: true },
-  vendedor: { modulos: ["hoje", "inbox", "leads", "vendas", "produtos", "tarefas", "calendario"], editar: true },
+  vendedor: { modulos: ["hoje", "inbox", "leads", "vendas", "clientes", "produtos", "tarefas", "calendario"], editar: true },
   visualizador: { modulos: "*", editar: false },
 };
 

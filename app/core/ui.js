@@ -1,15 +1,17 @@
 // Componentes reutilizáveis: só recebem dados e devolvem HTML (ou montam modais).
-import { db } from "./db.js?v=c59cb573";
-import { TABELAS, OPCOES, rotulo } from "./schema.js?v=c59cb573";
-import { esc, brl, brlCurto, inteiro, pct, mult, dec, dataBR, seta, hoje, num, uid, agora } from "./format.js?v=c59cb573";
+import { db } from "./db.js?v=6e46ccb4";
+import { TABELAS, OPCOES, rotulo } from "./schema.js?v=6e46ccb4";
+import { esc, brl, brlCurto, inteiro, pct, mult, dec, dataBR, seta, hoje, num, uid, agora } from "./format.js?v=6e46ccb4";
 
 // ---------------------------------------------------------------- formatação por tipo de métrica
 export const FMT = { money: brl, moneyCurto: brlCurto, int: inteiro, pct: (v) => pct(v), pct2: (v) => pct(v, 2), mult, dec: (v) => dec(v, 2), text: (v) => esc(v), date: dataBR };
+const EM_REAIS = ["spend", "revenue", "gross_sales", "discount", "fees", "shipping", "gross_profit", "net_profit", "cpl", "cpl_qualificado", "cpa", "ticket", "ticket_liquido", "lucro_por_lead", "cpc", "cpm", "cost", "extra_costs", "custo_thruplay", "custo_video_3s", "value", "price", "meta", "canceled_value"];
+const EM_PORCENTO = ["roi", "conversion", "taxa_qualificacao", "ctr", "margin", "hook_rate", "thruplay_rate", "retencao_50", "retencao_95", "taxaContato", "taxaResposta"];
 export function fmtMetrica(k, v) {
-  if (["spend", "revenue", "gross_profit", "net_profit", "cpl", "cpa", "ticket", "cpc", "cpm", "cost", "extra_costs", "value", "price", "meta"].includes(k)) return brl(v);
-  if (["roas"].includes(k)) return mult(v);
-  if (["roi", "conversion", "ctr", "margin"].includes(k)) return pct(v);
-  if (["frequency"].includes(k)) return dec(v, 2);
+  if (EM_REAIS.includes(k)) return brl(v);
+  if (k === "roas") return mult(v);
+  if (EM_PORCENTO.includes(k)) return pct(v);
+  if (k === "frequency") return dec(v, 2);
   return inteiro(v);
 }
 

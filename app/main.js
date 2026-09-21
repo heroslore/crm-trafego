@@ -1,43 +1,44 @@
 // Casca do aplicativo: menu, topo, período global, roteador, busca, notificações, perfil.
-import { db, garantirBase, inserirDemonstracao } from "./core/db.js?v=c59cb573";
-import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js?v=c59cb573";
-import { esc, hoje, somaDias, semAcento } from "./core/format.js?v=c59cb573";
-import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js?v=c59cb573";
-import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem } from "./core/sync.js?v=c59cb573";
-import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js?v=c59cb573";
-import { alertas } from "./core/rules.js?v=c59cb573";
-import * as W from "./core/wame.js?v=c59cb573";
-import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js?v=c59cb573";
-import { rotulo as rotuloOpcao } from "./core/schema.js?v=c59cb573";
+import { db, garantirBase, inserirDemonstracao } from "./core/db.js?v=6e46ccb4";
+import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js?v=6e46ccb4";
+import { esc, hoje, somaDias, semAcento } from "./core/format.js?v=6e46ccb4";
+import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js?v=6e46ccb4";
+import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem } from "./core/sync.js?v=6e46ccb4";
+import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js?v=6e46ccb4";
+import { alertas } from "./core/rules.js?v=6e46ccb4";
+import * as W from "./core/wame.js?v=6e46ccb4";
+import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js?v=6e46ccb4";
+import { rotulo as rotuloOpcao } from "./core/schema.js?v=6e46ccb4";
 
-import dashboard from "./modules/dashboard.js?v=c59cb573";
-import hoje_ from "./modules/hoje.js?v=c59cb573";
-import inbox from "./modules/inbox.js?v=c59cb573";
-import decisoes from "./modules/decisoes.js?v=c59cb573";
-import campanhas from "./modules/campanhas.js?v=c59cb573";
-import anuncios from "./modules/anuncios.js?v=c59cb573";
-import criativos from "./modules/criativos.js?v=c59cb573";
-import produtos from "./modules/produtos.js?v=c59cb573";
-import publicos from "./modules/publicos.js?v=c59cb573";
-import leads from "./modules/leads.js?v=c59cb573";
-import vendas from "./modules/vendas.js?v=c59cb573";
-import financeiro from "./modules/financeiro.js?v=c59cb573";
-import testes from "./modules/testes.js?v=c59cb573";
-import planejamento from "./modules/planejamento.js?v=c59cb573";
-import tarefas from "./modules/tarefas.js?v=c59cb573";
-import calendario from "./modules/calendario.js?v=c59cb573";
-import briefings from "./modules/briefings.js?v=c59cb573";
-import ideias from "./modules/ideias.js?v=c59cb573";
-import relatorios from "./modules/relatorios.js?v=c59cb573";
-import calculadoras from "./modules/calculadoras.js?v=c59cb573";
-import concorrentes from "./modules/concorrentes.js?v=c59cb573";
-import config from "./modules/config.js?v=c59cb573";
+import dashboard from "./modules/dashboard.js?v=6e46ccb4";
+import hoje_ from "./modules/hoje.js?v=6e46ccb4";
+import inbox from "./modules/inbox.js?v=6e46ccb4";
+import decisoes from "./modules/decisoes.js?v=6e46ccb4";
+import campanhas from "./modules/campanhas.js?v=6e46ccb4";
+import anuncios from "./modules/anuncios.js?v=6e46ccb4";
+import criativos from "./modules/criativos.js?v=6e46ccb4";
+import produtos from "./modules/produtos.js?v=6e46ccb4";
+import publicos from "./modules/publicos.js?v=6e46ccb4";
+import leads from "./modules/leads.js?v=6e46ccb4";
+import vendas from "./modules/vendas.js?v=6e46ccb4";
+import clientes from "./modules/clientes.js?v=6e46ccb4";
+import financeiro from "./modules/financeiro.js?v=6e46ccb4";
+import testes from "./modules/testes.js?v=6e46ccb4";
+import planejamento from "./modules/planejamento.js?v=6e46ccb4";
+import tarefas from "./modules/tarefas.js?v=6e46ccb4";
+import calendario from "./modules/calendario.js?v=6e46ccb4";
+import briefings from "./modules/briefings.js?v=6e46ccb4";
+import ideias from "./modules/ideias.js?v=6e46ccb4";
+import relatorios from "./modules/relatorios.js?v=6e46ccb4";
+import calculadoras from "./modules/calculadoras.js?v=6e46ccb4";
+import concorrentes from "./modules/concorrentes.js?v=6e46ccb4";
+import config from "./modules/config.js?v=6e46ccb4";
 
-export const MODULOS = [dashboard, hoje_, inbox, decisoes, campanhas, anuncios, criativos, produtos, publicos, leads, vendas, financeiro, testes, planejamento, tarefas, calendario, briefings, ideias, relatorios, calculadoras, concorrentes, config];
+export const MODULOS = [dashboard, hoje_, inbox, decisoes, campanhas, anuncios, criativos, produtos, publicos, leads, vendas, clientes, financeiro, testes, planejamento, tarefas, calendario, briefings, ideias, relatorios, calculadoras, concorrentes, config];
 const SECOES = [
   ["Dia a dia", ["hoje", "inbox", "dashboard", "decisoes"]],
   ["Tráfego", ["campanhas", "anuncios", "criativos", "publicos", "testes"]],
-  ["Vendas", ["leads", "vendas", "produtos", "financeiro"]],
+  ["Vendas", ["leads", "vendas", "clientes", "produtos", "financeiro"]],
   ["Organização", ["planejamento", "tarefas", "calendario", "briefings", "ideias"]],
   ["Análise", ["relatorios", "calculadoras", "concorrentes"]],
   ["", ["config"]],

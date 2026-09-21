@@ -1,9 +1,9 @@
 // Pedaços compartilhados pelos módulos.
-import { db } from "../core/db.js?v=c59cb573";
-import { kpi, badge, badgeOpcao, cartao, vazio, itemLista, prioridadeBadge, fmtMetrica } from "../core/ui.js?v=c59cb573";
-import { avaliar, serieDiaria, contagensAtivas, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=c59cb573";
-import { esc, brl, inteiro, pct, mult, dataBR, hoje, diasEntre, dec } from "../core/format.js?v=c59cb573";
-import { usuario, podeEditar } from "../core/auth.js?v=c59cb573";
+import { db } from "../core/db.js?v=6e46ccb4";
+import { kpi, badge, badgeOpcao, cartao, vazio, itemLista, prioridadeBadge, fmtMetrica } from "../core/ui.js?v=6e46ccb4";
+import { avaliar, serieDiaria, contagensAtivas, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=6e46ccb4";
+import { esc, brl, inteiro, pct, mult, dataBR, hoje, diasEntre, dec } from "../core/format.js?v=6e46ccb4";
+import { usuario, podeEditar } from "../core/auth.js?v=6e46ccb4";
 
 export const bannerDemo = () => db.temDemo() ? `<div class="demo-banner"><span>🧪 Há dados de demonstração (marcados com <b>[DEMO]</b> / "(demo)") para você conhecer o sistema. Eles não são dados reais da empresa.</span><a href="#/config?aba=dados" class="btn btn-pq">Remover dados de demonstração</a></div>` : "";
 export const btnNovo = (texto, attr) => podeEditar() ? `<button class="btn btn-primario" ${attr}>➕ ${texto}</button>` : "";
@@ -21,7 +21,7 @@ export function cartoesContagem() {
   const c = contagensAtivas();
   return kpi({ rotulo: "Campanhas ativas", valor: inteiro(c.campanhas_ativas), sub: "" }) + kpi({ rotulo: "Anúncios ativos", valor: inteiro(c.anuncios_ativos), sub: "" });
 }
-export const KPIS_PRINCIPAIS = ["spend", "revenue", "gross_profit", "net_profit", "roas", "roi", "leads", "sales", "conversion", "cpl", "cpa", "ticket", "ctr", "cpc", "cpm"];
+export const KPIS_PRINCIPAIS = ["spend", "revenue", "gross_profit", "net_profit", "roas", "roi", "leads", "qualified", "sales", "conversion", "cpl", "cpl_qualificado", "cpa", "ticket", "ctr", "cpc", "cpm"];
 
 // Tabela de kpis em linha (para detalhes)
 export function linhaNumeros(k, chaves = ["spend", "revenue", "gross_profit", "roas", "leads", "sales", "cpl", "cpa", "ctr", "cpc", "cpm", "ticket"]) {

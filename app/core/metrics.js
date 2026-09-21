@@ -1,7 +1,7 @@
 // Todos os indicadores do sistema são calculados aqui a partir de campaign_metrics, sales e leads.
-import { db } from "./db.js?v=c59cb573";
-import { dentro, dias as diasDe, anterior } from "./periods.js?v=c59cb573";
-import { num, variacao, somaDias, hoje } from "./format.js?v=c59cb573";
+import { db } from "./db.js?v=6e46ccb4";
+import { dentro, dias as diasDe, anterior } from "./periods.js?v=6e46ccb4";
+import { num, variacao, somaDias, hoje, diasEntre } from "./format.js?v=6e46ccb4";
 
 // ---------------------------------------------------------------- filtros
 // filtro: { campaign_id, ad_set_id, ad_id, creative_id, product_id, audience_id, seller_user_id, platform, lojaFn }
@@ -59,23 +59,54 @@ export function custoDaVenda(s) {
   if (s.product_cost != null && s.product_cost !== "") return num(s.product_cost);
   const p = db.get("products", s.product_id); return p ? num(p.cost) * (num(s.quantity) || 1) : 0;
 }
+// Vendas canceladas ou devolvidas não contam como faturamento.
+export const vendaVale = (s) => !["cancelada", "devolvida"].includes(s.status || "confirmada");
+export const TAXAS_PADRAO = { pix: 0, dinheiro: 0, cartao: 4.5, boleto: 2, crediario: 0, outro: 0 };
+export function taxaPagamento(s) {
+  if (s.payment_fee != null && s.payment_fee !== "") return num(s.payment_fee);
+  const cfg = db.settings().taxas || {};
+  const pct = cfg[s.payment || "outro"] != null ? num(cfg[s.payment || "outro"]) : (TAXAS_PADRAO[s.payment] || 0);
+  return (num(s.value) - num(s.discount)) * pct / 100;
+}
+export function liquidoDaVenda(s) {
+  const bruto = num(s.value), desconto = num(s.discount);
+  const receita = bruto - desconto;
+  const taxas = taxaPagamento(s) + num(s.platform_fee);
+  const frete = num(s.shipping_cost);
+  const mercadoria = custoDaVenda(s);
+  return { bruto, desconto, receita, taxas, frete, mercadoria, lucro: receita - mercadoria - taxas - frete };
+}
 
 // ---------------------------------------------------------------- agregação
 export function agregar({ metricas = [], vendas = [], leads = [], extras = [] }) {
-  const k = { spend: 0, impressions: 0, reach: 0, clicks: 0, link_clicks: 0, results: 0, freqS: 0, freqN: 0, sales: 0, quantity: 0, revenue: 0, cost: 0, leads: 0, extra_costs: 0, dias: new Set() };
-  for (const m of metricas) { k.spend += num(m.spend); k.impressions += num(m.impressions); k.reach += num(m.reach); k.clicks += num(m.clicks); k.link_clicks += num(m.link_clicks); k.results += num(m.results); if (m.frequency && m.impressions) { k.freqS += num(m.frequency) * num(m.impressions); k.freqN += num(m.impressions); } k.dias.add(m.date); }
-  for (const s of vendas) { k.sales++; k.quantity += num(s.quantity) || 1; k.revenue += num(s.value); k.cost += custoDaVenda(s); }
+  const k = { spend: 0, impressions: 0, reach: 0, clicks: 0, link_clicks: 0, results: 0, freqS: 0, freqN: 0, sales: 0, quantity: 0, gross_sales: 0, discount: 0, revenue: 0, cost: 0, fees: 0, shipping: 0, canceled: 0, canceled_value: 0, leads: 0, qualified: 0, extra_costs: 0, video_3s: 0, thruplay: 0, video_p25: 0, video_p50: 0, video_p75: 0, video_p95: 0, dias: new Set() };
+  for (const m of metricas) {
+    k.spend += num(m.spend); k.impressions += num(m.impressions); k.reach += num(m.reach); k.clicks += num(m.clicks); k.link_clicks += num(m.link_clicks); k.results += num(m.results);
+    k.video_3s += num(m.video_3s); k.thruplay += num(m.thruplay); k.video_p25 += num(m.video_p25); k.video_p50 += num(m.video_p50); k.video_p75 += num(m.video_p75); k.video_p95 += num(m.video_p95);
+    if (m.frequency && m.impressions) { k.freqS += num(m.frequency) * num(m.impressions); k.freqN += num(m.impressions); }
+    k.dias.add(m.date);
+  }
+  for (const s of vendas) {
+    if (!vendaVale(s)) { k.canceled++; k.canceled_value += num(s.value); continue; }
+    const v = liquidoDaVenda(s);
+    k.sales++; k.quantity += num(s.quantity) || 1;
+    k.gross_sales += v.bruto; k.discount += v.desconto; k.revenue += v.receita; k.cost += v.mercadoria; k.fees += v.taxas; k.shipping += v.frete;
+  }
   for (const r of extras) k.extra_costs += num(r.value);
   k.leads = leads.length;
+  k.qualified = leads.filter((l) => l.qualified === "sim").length;
   k.dias = k.dias.size;
   k.frequency = k.freqN ? k.freqS / k.freqN : null;
-  k.gross_profit = k.revenue - k.cost;
+  // Lucro bruto = o que entrou menos mercadoria, taxas e frete pagos pela loja.
+  k.gross_profit = k.revenue - k.cost - k.fees - k.shipping;
   k.net_profit = k.gross_profit - k.spend - k.extra_costs;
   k.roas = k.spend > 0 ? k.revenue / k.spend : null;
   k.roi = k.spend > 0 ? (k.gross_profit - k.spend) / k.spend : null;
   k.leads_base = k.leads || k.results;              // CRM primeiro; senão resultados da plataforma
   k.cpl = k.spend > 0 && k.leads_base > 0 ? k.spend / k.leads_base : null;
   k.cpl_plataforma = k.spend > 0 && k.results > 0 ? k.spend / k.results : null;
+  k.cpl_qualificado = k.spend > 0 && k.qualified > 0 ? k.spend / k.qualified : null;
+  k.taxa_qualificacao = k.leads > 0 ? k.qualified / k.leads : null;
   k.cpa = k.spend > 0 && k.sales > 0 ? k.spend / k.sales : null;
   k.ticket = k.sales ? k.revenue / k.sales : null;
   k.conversion = k.leads_base > 0 ? k.sales / k.leads_base : null;
@@ -84,6 +115,16 @@ export function agregar({ metricas = [], vendas = [], leads = [], extras = [] })
   k.cpc = cliquesBase > 0 ? k.spend / cliquesBase : null;
   k.cpm = k.impressions > 0 ? k.spend / k.impressions * 1000 : null;
   k.margin = k.revenue > 0 ? k.gross_profit / k.revenue : null;
+  k.ticket_liquido = k.sales ? k.gross_profit / k.sales : null;
+  k.lucro_por_lead = k.leads_base > 0 ? k.net_profit / k.leads_base : null;
+  // vídeo
+  k.hook_rate = k.impressions > 0 && k.video_3s ? k.video_3s / k.impressions : null;
+  k.thruplay_rate = k.video_3s > 0 && k.thruplay ? k.thruplay / k.video_3s : null;
+  k.custo_thruplay = k.thruplay > 0 ? k.spend / k.thruplay : null;
+  k.custo_video_3s = k.video_3s > 0 ? k.spend / k.video_3s : null;
+  k.retencao_50 = k.video_3s > 0 && k.video_p50 ? k.video_p50 / k.video_3s : null;
+  k.retencao_95 = k.video_3s > 0 && k.video_p95 ? k.video_p95 / k.video_3s : null;
+  k.tem_video = !!(k.video_3s || k.thruplay || k.video_p25);
   delete k.freqS; delete k.freqN;
   return k;
 }
@@ -159,12 +200,154 @@ export function resumoProduto(p) {
   };
 }
 
+// ---------------------------------------------------------------- atendimento (SLA)
+// Momento em que o lead chegou de verdade. Quando o lead foi lançado à mão sobre
+// um dia anterior, não dá para medir tempo de resposta: devolvemos null.
+export function chegadaDoLead(l) {
+  if (l.arrived_at) return l.arrived_at;
+  const criado = l.created_at || "";
+  if (!criado) return null;
+  if (l.entered_at && l.entered_at < criado.slice(0, 10)) return null;
+  return criado;
+}
+export function minutosAteAtendimento(l) {
+  const a = chegadaDoLead(l); if (!a || !l.first_contact_at) return null;
+  const m = (new Date(l.first_contact_at) - new Date(a)) / 60000;
+  return isFinite(m) && m >= 0 ? m : null;
+}
+export function minutosEsperando(l) {
+  const a = chegadaDoLead(l); if (!a || l.first_contact_at) return null;
+  const m = (Date.now() - new Date(a)) / 60000;
+  return isFinite(m) && m >= 0 ? m : null;
+}
+const RESPONDEU = new Set(["respondeu", "interessado", "negociacao", "aguardando_pagamento", "venda", "followup"]);
+export function atendimento(iv, filtro = null) {
+  const leads = leadsNoPeriodo(iv, filtro);
+  const sla = db.goal("sla_minutos", 15);
+  const atendidos = leads.filter((l) => l.first_contact_at);
+  const tempos = atendidos.map(minutosAteAtendimento).filter((m) => m != null).sort((a, b) => a - b);
+  const naoAtendidos = leads.filter((l) => !l.first_contact_at);
+  const faixa = (max) => tempos.filter((m) => m <= max).length;
+  const responderam = leads.filter((l) => l.first_reply_at || RESPONDEU.has(l.stage)).length;
+  const qualificados = leads.filter((l) => l.qualified === "sim").length;
+  const negociaram = leads.filter((l) => ["negociacao", "aguardando_pagamento", "venda"].includes(l.stage)).length;
+  const compraram = leads.filter((l) => l.stage === "venda").length;
+  return {
+    total: leads.length, atendidos: atendidos.length, naoAtendidos: naoAtendidos.length,
+    medidos: tempos.length,
+    tempoMedio: tempos.length ? tempos.reduce((a, b) => a + b, 0) / tempos.length : null,
+    mediana: tempos.length ? tempos[Math.floor(tempos.length / 2)] : null,
+    ate5: faixa(5), ate15: faixa(15), ate60: faixa(60), acima60: tempos.filter((m) => m > 60).length,
+    sla, dentroSla: tempos.filter((m) => m <= sla).length, foraSla: tempos.filter((m) => m > sla).length,
+    taxaContato: leads.length ? atendidos.length / leads.length : null,
+    responderam, taxaResposta: atendidos.length ? responderam / atendidos.length : null,
+    qualificados, taxaQualificacao: leads.length ? qualificados / leads.length : null,
+    negociaram, compraram, taxaFechamento: leads.length ? compraram / leads.length : null,
+    leads,
+  };
+}
+// Fila do que está esperando agora (não depende do período).
+export function filaDeAtendimento() {
+  const sla = db.goal("sla_minutos", 15), h = hoje();
+  const esperando = db.where("leads", (l) => !l.first_contact_at && !["venda", "perdido"].includes(l.stage))
+    .map((l) => ({ lead: l, minutos: minutosEsperando(l) }))
+    .sort((a, b) => (b.minutos || 0) - (a.minutos || 0));
+  const followups = db.where("leads", (l) => l.next_followup && l.next_followup <= h && !["venda", "perdido"].includes(l.stage))
+    .sort((a, b) => (a.next_followup || "").localeCompare(b.next_followup || ""));
+  return { esperando, foraSla: esperando.filter((x) => x.minutos != null && x.minutos > sla), followups, sla };
+}
+
+// ---------------------------------------------------------------- pacing de orçamento
+export function pacing(iv, filtro = null, metaValor = null) {
+  const k = kpis(iv, filtro);
+  const hojeStr = hoje();
+  const fim = iv.fim, inicio = iv.inicio;
+  const totalDias = diasEntre(inicio, fim) + 1;
+  const decorridos = Math.min(totalDias, Math.max(1, diasEntre(inicio, hojeStr < fim ? hojeStr : fim) + 1));
+  const meta = metaValor != null ? metaValor : db.goal("investimento_max_mes", 0);
+  const esperado = meta ? meta * decorridos / totalDias : null;
+  const porDia = k.spend / decorridos;
+  const projecao = porDia * totalDias;
+  return {
+    meta, gasto: k.spend, esperado, projecao, porDia, decorridos, totalDias,
+    ritmo: esperado ? k.spend / esperado : null,
+    sobra: meta ? meta - k.spend : null,
+    diarioSugerido: meta && totalDias > decorridos ? Math.max(0, (meta - k.spend) / (totalDias - decorridos)) : null,
+  };
+}
+
+// ---------------------------------------------------------------- efeito de uma decisão
+// Compara os dias anteriores e posteriores a uma mudança na campanha.
+export function efeitoDecisao(campaignId, quando, dias = 7) {
+  const dia = String(quando || "").slice(0, 10); if (!dia) return null;
+  const h = hoje();
+  const antes = { inicio: somaDias(dia, -dias), fim: somaDias(dia, -1), dias };
+  const fimDepois = somaDias(dia, dias - 1) > h ? h : somaDias(dia, dias - 1);
+  const depois = { inicio: dia, fim: fimDepois, dias: diasEntre(dia, fimDepois) + 1 };
+  const a = kpis(antes, { campaign_id: campaignId }), d = kpis(depois, { campaign_id: campaignId });
+  const porDia = (k, iv) => ({ spend: k.spend / Math.max(1, iv.dias), sales: k.sales / Math.max(1, iv.dias), leads: k.leads_base / Math.max(1, iv.dias), revenue: k.revenue / Math.max(1, iv.dias) });
+  return { antes, depois, a, d, mediaAntes: porDia(a, antes), mediaDepois: porDia(d, depois), completo: diasEntre(dia, h) >= dias };
+}
+
+// ---------------------------------------------------------------- clientes e LTV
+export function clientes() {
+  const porChaveCliente = new Map();
+  const chave = (s) => {
+    const l = s.lead_id && db.get("leads", s.lead_id);
+    if (l) return "lead:" + l.id;
+    return "venda:" + s.id;
+  };
+  for (const s of db.all("sales")) {
+    if (!vendaVale(s)) continue;
+    const k = chave(s);
+    const c = porChaveCliente.get(k) || { id: k, lead: s.lead_id ? db.get("leads", s.lead_id) : null, vendas: [], total: 0, lucro: 0, quantidade: 0 };
+    const v = liquidoDaVenda(s);
+    c.vendas.push(s); c.total += v.receita; c.lucro += v.lucro; c.quantidade += num(s.quantity) || 1;
+    porChaveCliente.set(k, c);
+  }
+  return [...porChaveCliente.values()].map((c) => {
+    const datas = c.vendas.map((s) => s.date).sort();
+    const produtos = {};
+    for (const s of c.vendas) { const p = s.product_id; if (p) produtos[p] = (produtos[p] || 0) + (num(s.quantity) || 1); }
+    const favorito = Object.keys(produtos).sort((a, b) => produtos[b] - produtos[a])[0] || "";
+    const primeira = c.vendas.slice().sort((a, b) => a.date.localeCompare(b.date))[0];
+    return {
+      ...c,
+      nome: (c.lead && c.lead.name) || "Cliente sem lead",
+      telefone: (c.lead && (c.lead.whatsapp || c.lead.phone)) || "",
+      compras: c.vendas.length, ticket: c.vendas.length ? c.total / c.vendas.length : 0,
+      primeira_compra: datas[0], ultima_compra: datas[datas.length - 1],
+      produto_favorito: favorito,
+      campanha_origem: (c.lead && c.lead.campaign_id) || (primeira && primeira.campaign_id) || "",
+      origem: (c.lead && c.lead.source) || (primeira && primeira.source) || "",
+      recompra: c.vendas.length > 1,
+    };
+  }).sort((a, b) => b.total - a.total);
+}
+// LTV por campanha de primeira aquisição: mostra campanha cara na 1ª venda que compensa depois.
+export function ltvPorCampanha() {
+  const m = {};
+  for (const c of clientes()) {
+    const k = c.campanha_origem || "";
+    const g = m[k] = m[k] || { campaign_id: k, clientes: 0, compras: 0, total: 0, lucro: 0, recompras: 0 };
+    g.clientes++; g.compras += c.compras; g.total += c.total; g.lucro += c.lucro; if (c.recompra) g.recompras++;
+  }
+  return Object.values(m).map((g) => ({
+    ...g, ltv: g.clientes ? g.total / g.clientes : 0, lucro_medio: g.clientes ? g.lucro / g.clientes : 0,
+    compras_por_cliente: g.clientes ? g.compras / g.clientes : 0, taxa_recompra: g.clientes ? g.recompras / g.clientes : 0,
+    nome: (db.get("campaigns", g.campaign_id) || {}).name || "Sem campanha",
+  })).sort((a, b) => b.total - a.total);
+}
+
 // ---------------------------------------------------------------- metas e avaliação
 export const METRICAS_ROTULOS = {
-  spend: "Investimento", revenue: "Faturamento", gross_profit: "Lucro bruto", net_profit: "Lucro após anúncios", roas: "ROAS", roi: "ROI", leads: "Leads", sales: "Vendas",
-  conversion: "Conversão", cpl: "CPL", cpa: "CPA", ticket: "Ticket médio", ctr: "CTR", cpc: "CPC", cpm: "CPM", impressions: "Impressões", reach: "Alcance", link_clicks: "Cliques", results: "Resultados",
+  spend: "Investimento", revenue: "Faturamento", gross_sales: "Vendas brutas", discount: "Descontos", fees: "Taxas", shipping: "Frete", cost: "Custo dos produtos",
+  gross_profit: "Lucro bruto", net_profit: "Lucro após anúncios", roas: "ROAS", roi: "ROI", leads: "Leads", qualified: "Leads qualificados", sales: "Vendas", canceled: "Vendas canceladas",
+  conversion: "Conversão", taxa_qualificacao: "Taxa de qualificação", cpl: "CPL", cpl_qualificado: "CPL qualificado", cpa: "CPA", ticket: "Ticket médio", ticket_liquido: "Lucro por venda",
+  lucro_por_lead: "Lucro por lead", ctr: "CTR", cpc: "CPC", cpm: "CPM", impressions: "Impressões", reach: "Alcance", link_clicks: "Cliques", results: "Resultados",
+  video_3s: "Visualizações 3s", thruplay: "ThruPlay", custo_thruplay: "Custo por ThruPlay", hook_rate: "Retenção inicial (3s)", thruplay_rate: "Chegaram ao ThruPlay", retencao_50: "Assistiram 50%", retencao_95: "Assistiram 95%",
 };
-export const MENOR_MELHOR = new Set(["cpl", "cpa", "cpc", "cpm", "spend", "cost", "extra_costs"]);
+export const MENOR_MELHOR = new Set(["cpl", "cpl_qualificado", "cpa", "cpc", "cpm", "spend", "cost", "extra_costs", "fees", "discount", "shipping", "canceled", "custo_thruplay", "custo_video_3s"]);
 
 // Avalia um valor contra a meta configurada. Retorna null se não houver meta.
 export function avaliar(metrica, valor) {

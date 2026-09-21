@@ -266,3 +266,19 @@ main.pagina { padding:18px 20px 40px; max-width:1400px; width:100%; }
   .inbox:not(.com-conversa) .inbox-thread { display:none; }
   .so-celular { display:inline-flex; }
 }
+
+.narrativa p { margin:4px 0; line-height:1.6; font-size:.95rem; }
+.narrativa p:first-child { font-size:1.02rem; font-weight:600; }
+.linha-decisao { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:flex-start; padding:10px 0; border-bottom:1px dashed var(--borda); }
+.linha-decisao:last-child { border-bottom:none; }
+.linha-decisao .quando { font-size:.76rem; color:var(--mudo); white-space:nowrap; }
+.linha-decisao .efeito { font-size:.78rem; text-align:right; white-space:nowrap; }
+.checklist { display:flex; flex-direction:column; gap:3px; margin-top:6px; }
+.checklist label { display:flex; gap:6px; align-items:center; font-size:.78rem; cursor:pointer; }
+.checklist label.feito span { text-decoration:line-through; color:var(--mudo); }
+.mini-barra { display:inline-block; width:54px; height:6px; background:var(--card2); border-radius:3px; overflow:hidden; vertical-align:middle; margin-right:5px; }
+.mini-barra i { display:block; height:100%; background:var(--ciano); }
+
+.efeito { font-size:.76rem; color:var(--texto2); text-align:right; line-height:1.5; }
+.efeito-wrap { min-width:150px; }
+@media (max-width:700px){ .linha-decisao { grid-template-columns:1fr; } .efeito, .efeito-wrap { text-align:left; } }

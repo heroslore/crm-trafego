@@ -1,12 +1,12 @@
 // Caixa de entrada: WhatsApp, Instagram e Messenger numa tela só, ligada aos leads.
-import { db } from "../core/db.js?v=c59cb573";
-import * as W from "../core/wame.js?v=c59cb573";
-import { cartao, vazio, badge, badgeOpcao, abrirFormulario, toast, itemLista, modal, fecharModal } from "../core/ui.js?v=c59cb573";
-import { esc, brl, dataBR, horaCurta, hoje, somaDias, agora, waLink, semAcento, telLimpo } from "../core/format.js?v=c59cb573";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=c59cb573";
-import { podeEditar, usuario } from "../core/auth.js?v=c59cb573";
-import { abrirVenda } from "./vendas.js?v=c59cb573";
-import { registrarInteracao, mudarEtapa } from "./leads.js?v=c59cb573";
+import { db } from "../core/db.js?v=6e46ccb4";
+import * as W from "../core/wame.js?v=6e46ccb4";
+import { cartao, vazio, badge, badgeOpcao, abrirFormulario, toast, itemLista, modal, fecharModal } from "../core/ui.js?v=6e46ccb4";
+import { esc, brl, dataBR, horaCurta, hoje, somaDias, agora, waLink, semAcento, telLimpo } from "../core/format.js?v=6e46ccb4";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=6e46ccb4";
+import { podeEditar, usuario } from "../core/auth.js?v=6e46ccb4";
+import { abrirVenda } from "./vendas.js?v=6e46ccb4";
+import { registrarInteracao, mudarEtapa, marcarPrimeiroContato, marcarPrimeiraResposta } from "./leads.js?v=6e46ccb4";
 
 let canal = "", busca = "", filtro = "todas";
 const rascunhos = new Map();
@@ -130,6 +130,12 @@ function render(root, ctx) {
   on("[data-conv]", "click", (el) => { const id = el.dataset.conv; W.abrirConversa(id); ctx.navegar(`#/inbox/${encodeURIComponent(id)}`); });
 
   if (chat) {
+    const leadAberto = W.leadDoChat(chat);
+    if (leadAberto && leadAberto.first_contact_at && !leadAberto.first_reply_at) {
+      const corte = new Date(leadAberto.first_contact_at).getTime() / 1000;
+      const resposta = (W.estado.mensagens[chat.id] || []).find((m) => !m.minha && m.ts > corte);
+      if (resposta) marcarPrimeiraResposta(leadAberto, new Date(resposta.ts * 1000).toISOString());
+    }
     const caixa = root.querySelector("#threadMsgs"); if (caixa) caixa.scrollTop = caixa.scrollHeight;
     const ta = root.querySelector("[data-msg]");
     if (ta) {
@@ -146,7 +152,11 @@ function render(root, ctx) {
         await W.enviarTexto(chat, texto);
         rascunhos.delete(chat.id); ta.value = "";
         const lead = W.leadDoChat(chat);
-        if (lead) { db.update("leads", lead.id, { last_contact: hoje(), ...(lead.stage === "novo" ? { stage: "contato" } : {}) }); registrarInteracao(lead.id, chat.provider === "whatsapp" ? "whatsapp" : "nota", "Enviado: " + texto.slice(0, 180)); }
+        if (lead) {
+          marcarPrimeiroContato(lead);
+          db.update("leads", lead.id, { last_contact: hoje(), ...(lead.stage === "novo" ? { stage: "contato" } : {}) });
+          registrarInteracao(lead.id, chat.provider === "whatsapp" ? "whatsapp" : "nota", "Enviado: " + texto.slice(0, 180));
+        }
         await W.abrirConversa(chat.id);
         ctx.rerender();
       } catch (err) { toast("Não enviou: " + err.message, "erro"); btn.disabled = false; btn.textContent = "Enviar"; }

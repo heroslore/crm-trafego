@@ -1,11 +1,11 @@
-import { db } from "../core/db.js?v=c59cb573";
-import { kpis, porEntidade, mediaCampanhas } from "../core/metrics.js?v=c59cb573";
-import { intervalo } from "../core/periods.js?v=c59cb573";
-import { cartao, vazio, itemLista, badge, prioridadeBadge } from "../core/ui.js?v=c59cb573";
-import { esc, brl, inteiro, mult, dataBR, hoje, diasEntre, pct } from "../core/format.js?v=c59cb573";
-import { bannerDemo, agendaDoDia } from "./comum.js?v=c59cb573";
-import { situacaoCampanha } from "../core/rules.js?v=c59cb573";
-import * as W from "../core/wame.js?v=c59cb573";
+import { db } from "../core/db.js?v=6e46ccb4";
+import { kpis, porEntidade, mediaCampanhas, atendimento, filaDeAtendimento } from "../core/metrics.js?v=6e46ccb4";
+import { intervalo } from "../core/periods.js?v=6e46ccb4";
+import { cartao, vazio, itemLista, badge, prioridadeBadge } from "../core/ui.js?v=6e46ccb4";
+import { esc, brl, inteiro, mult, dataBR, hoje, diasEntre, pct } from "../core/format.js?v=6e46ccb4";
+import { bannerDemo, agendaDoDia } from "./comum.js?v=6e46ccb4";
+import { situacaoCampanha, narrativaAtendimento, formatoMinutos } from "../core/rules.js?v=6e46ccb4";
+import * as W from "../core/wame.js?v=6e46ccb4";
 
 export default {
   id: "hoje", titulo: "Hoje", icone: "☀️",
@@ -21,15 +21,19 @@ export default {
     const urgentes = db.where("tasks", (t) => t.status !== "finalizado" && (t.priority === "urgente" || (t.due_date && t.due_date <= h)));
     const agenda = agendaDoDia();
     const semDados = !k.spend && !k.sales && !k.leads;
+    const at = atendimento(iv), fila = filaDeAtendimento();
     const P = (q, r, d = "") => `<div class="pergunta"><div class="q">${q}</div><div class="r">${r}</div>${d ? `<div class="d">${d}</div>` : ""}</div>`;
     root.innerHTML = `${bannerDemo()}
       <div class="pagina-cab"><div><h1>Hoje, ${dataBR(h)}</h1><p class="sub">Respostas rápidas com o que já foi lançado hoje. O investimento da Meta chega no dia seguinte, pela coleta automática.</p></div><div class="pagina-acoes"><a class="btn btn-primario" href="#/leads?novo=1">➕ Lead</a><a class="btn btn-verde" href="#/vendas?novo=1">💰 Venda</a></div></div>
+      ${cartao("Os leads de hoje", `<div class="narrativa">${narrativaAtendimento(iv).map((f) => `<p>${esc(f)}</p>`).join("")}</div>${fila.esperando.length ? `<div class="aviso ${fila.foraSla.length ? "aviso-erro" : "aviso-alerta"}" style="margin-top:10px">${fila.foraSla.length ? `<b>${fila.foraSla.length} passaram de ${fila.sla} min sem contato.</b> ` : ""}Fila agora: ${fila.esperando.slice(0, 5).map((x) => `<a href="#/leads/${x.lead.id}">${esc(x.lead.name)}</a> (${formatoMinutos(x.minutos)})`).join(", ")}${fila.esperando.length > 5 ? ` e mais ${fila.esperando.length - 5}` : ""}.</div>` : `<div class="aviso aviso-ok" style="margin-top:10px">Nenhum lead esperando atendimento.</div>`}`, `<a href="#/inbox" class="link">abrir conversas</a>`)}
       ${semDados ? `<div class="aviso aviso-info">Ainda não há lançamentos de hoje. Ontem: ${brl(ko.spend)} investidos, ${inteiro(ko.leads)} lead(s), ${inteiro(ko.sales)} venda(s).</div>` : ""}
       <div class="hoje-grade">
         ${P("Quanto gastei hoje?", brl(k.spend), `ontem ${brl(ko.spend)}`)}
         ${P("Quanto vendi hoje?", brl(k.revenue), `${inteiro(k.sales)} venda(s) · ontem ${brl(ko.revenue)}`)}
         ${P("Quanto lucrei?", brl(k.net_profit), `lucro bruto ${brl(k.gross_profit)} menos anúncios ${brl(k.spend)}`)}
         ${P("Quantos leads chegaram?", inteiro(k.leads), `ontem ${inteiro(ko.leads)}${k.cpl ? " · CPL " + brl(k.cpl) : ""}`)}
+        ${P("Quantos foram atendidos?", `${inteiro(at.atendidos)} de ${inteiro(at.total)}`, at.tempoMedio != null ? `tempo médio ${formatoMinutos(at.tempoMedio)} · meta ${at.sla} min` : "ninguém atendido ainda")}
+        ${P("Alguém esperando agora?", fila.esperando.length ? `<span style="color:${fila.foraSla.length ? "var(--vermelho)" : "var(--laranja)"}">${fila.esperando.length}</span>` : `<span style="color:var(--verde)">Não</span>`, fila.esperando.length ? `${fila.foraSla.length} fora da meta · <a href="#/leads">ver fila</a>` : "todos os leads receberam contato")}
         ${P("Quantas vendas foram feitas?", inteiro(k.sales), k.ticket ? "ticket médio " + brl(k.ticket) : "")}
         ${P("Qual campanha está melhor?", melhor ? `<a href="#/campanhas/${melhor.id}">${esc(melhor.nome)}</a>` : "—", melhor ? `${inteiro(melhor.k.sales)} venda(s), ${inteiro(melhor.k.leads_base)} lead(s), ROAS ${mult(melhor.k.roas)}` : "sem resultado registrado hoje")}
         ${P("Qual campanha está pior?", pior ? `<a href="#/campanhas/${pior.id}">${esc(pior.nome)}</a>` : "—", pior ? `${brl(pior.k.spend)} gastos · ROAS ${mult(pior.k.roas)}` : "sem investimento registrado hoje")}

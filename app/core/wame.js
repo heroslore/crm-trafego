@@ -3,8 +3,8 @@
 //
 // A chave da instância NÃO fica no banco sincronizado: ela mora só neste aparelho
 // (localStorage), porque quem tem a chave controla o WhatsApp da loja.
-import { db } from "./db.js?v=c59cb573";
-import { agora, hoje, telLimpo, uid, semAcento } from "./format.js?v=c59cb573";
+import { db } from "./db.js?v=6e46ccb4";
+import { agora, hoje, telLimpo, uid, semAcento } from "./format.js?v=6e46ccb4";
 
 const CHAVE_CFG = "crm-trafego-wame";
 export const BASES = ["https://us.api-wa.me", "https://server.api-wa.me"];
@@ -264,16 +264,35 @@ function campanhaDoAnuncio(ad) {
 }
 export function criarLeadDoChat(chat, primeiraMensagem) {
   const origem = { whatsapp: "whatsapp", instagram: "meta", messenger: "meta" }[chat.provider] || "outro";
+  const quando = chat.ts ? new Date(chat.ts * 1000).toISOString() : agora();
+  const canal = { whatsapp: "WhatsApp", instagram: "Instagram Direct", messenger: "Messenger" }[chat.provider] || chat.provider;
   const dados = {
     name: chat.nome || (chat.provider === "whatsapp" ? chat.telefone : `${chat.provider} ${chat.externo.slice(-6)}`) || "Sem nome",
     whatsapp: chat.provider === "whatsapp" ? chat.telefone : "",
-    source: origem, stage: "novo", entered_at: chat.ts ? new Date(chat.ts * 1000).toISOString().slice(0, 10) : hoje(),
+    source: origem, stage: "novo", entered_at: quando.slice(0, 10), arrived_at: quando,
     wa_chat_id: chat.id, wa_provider: chat.provider,
+    landing: canal + (chat.provider === "whatsapp" && chat.telefone ? "" : " · " + chat.externo),
+    first_touch: canal, last_touch: canal,
     notes: chat.provider === "whatsapp" ? "" : `${chat.provider}: ${chat.externo}`,
   };
   const ad = primeiraMensagem && primeiraMensagem.anuncio;
+  if (ad) {
+    dados.click_id = ad.ctwa || "";
+    dados.utm_source = chat.provider === "whatsapp" ? "meta" : chat.provider;
+    dados.utm_medium = "paid";
+    dados.utm_content = ad.titulo || "";
+    dados.landing = ad.url || dados.landing;
+    dados.first_touch = `Anúncio${ad.titulo ? ": " + ad.titulo : ""}`;
+    dados.last_touch = dados.first_touch;
+  }
   const atrib = campanhaDoAnuncio(ad);
-  if (atrib) Object.assign(dados, atrib);
+  if (atrib) {
+    Object.assign(dados, atrib);
+    const anuncio = atrib.ad_id && db.get("ads", atrib.ad_id);
+    if (anuncio && anuncio.ad_set_id) dados.ad_set_id = anuncio.ad_set_id;
+    const camp = atrib.campaign_id && db.get("campaigns", atrib.campaign_id);
+    if (camp) dados.utm_campaign = camp.name;
+  }
   const lead = db.insert("leads", dados);
   db.insert("interactions", { lead_id: lead.id, type: chat.provider === "whatsapp" ? "whatsapp" : "nota", at: agora(), user_id: "", text: `Primeira mensagem recebida${ad ? ` (veio do anúncio "${ad.titulo || ad.fonte}")` : ""}: ${(primeiraMensagem?.texto || "").slice(0, 200) || "(sem texto)"}` });
   return lead;
