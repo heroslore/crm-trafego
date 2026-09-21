@@ -1,10 +1,10 @@
-import { db } from "../core/db.js";
-import { kpis, vendasNoPeriodo, custoDaVenda, porEntidade } from "../core/metrics.js";
-import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, kpi, barrasH, toast, itemLista } from "../core/ui.js";
-import { esc, brl, inteiro, pct, mult, dataBR, hoje, agora } from "../core/format.js";
-import { bannerDemo, btnNovo } from "./comum.js";
-import { rotulo as rotuloOpcao } from "../core/schema.js";
-import { podeEditar, usuario } from "../core/auth.js";
+import { db } from "../core/db.js?v=02b90ebf";
+import { kpis, vendasNoPeriodo, custoDaVenda, porEntidade } from "../core/metrics.js?v=02b90ebf";
+import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, kpi, barrasH, toast, itemLista } from "../core/ui.js?v=02b90ebf";
+import { esc, brl, inteiro, pct, mult, dataBR, hoje, agora } from "../core/format.js?v=02b90ebf";
+import { bannerDemo, btnNovo } from "./comum.js?v=02b90ebf";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=02b90ebf";
+import { podeEditar, usuario } from "../core/auth.js?v=02b90ebf";
 
 export function abrirVenda(ctx, padrao = {}, id = null) {
   let pad = { date: hoje(), quantity: 1, seller_user_id: (usuario() || {}).id || "", ...padrao };

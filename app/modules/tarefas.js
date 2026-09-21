@@ -1,9 +1,9 @@
-import { db } from "../core/db.js";
-import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, kanban, abas, prioridadeBadge, toast } from "../core/ui.js";
-import { esc, dataBR, hoje } from "../core/format.js";
-import { bannerDemo, btnNovo } from "./comum.js";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js";
-import { podeEditar, usuario } from "../core/auth.js";
+import { db } from "../core/db.js?v=02b90ebf";
+import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, kanban, abas, prioridadeBadge, toast } from "../core/ui.js?v=02b90ebf";
+import { esc, dataBR, hoje } from "../core/format.js?v=02b90ebf";
+import { bannerDemo, btnNovo } from "./comum.js?v=02b90ebf";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=02b90ebf";
+import { podeEditar, usuario } from "../core/auth.js?v=02b90ebf";
 
 let visao = "kanban", fOwner = "";
 const COR = { urgente: "var(--vermelho)", alta: "var(--laranja)", media: "var(--amarelo)", baixa: "var(--cinza)" };
