@@ -6,11 +6,13 @@ import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.
 import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem } from "./core/sync.js";
 import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js";
 import { alertas } from "./core/rules.js";
+import * as W from "./core/wame.js";
 import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js";
 import { rotulo as rotuloOpcao } from "./core/schema.js";
 
 import dashboard from "./modules/dashboard.js";
 import hoje_ from "./modules/hoje.js";
+import inbox from "./modules/inbox.js";
 import decisoes from "./modules/decisoes.js";
 import campanhas from "./modules/campanhas.js";
 import anuncios from "./modules/anuncios.js";
@@ -31,9 +33,9 @@ import calculadoras from "./modules/calculadoras.js";
 import concorrentes from "./modules/concorrentes.js";
 import config from "./modules/config.js";
 
-export const MODULOS = [dashboard, hoje_, decisoes, campanhas, anuncios, criativos, produtos, publicos, leads, vendas, financeiro, testes, planejamento, tarefas, calendario, briefings, ideias, relatorios, calculadoras, concorrentes, config];
+export const MODULOS = [dashboard, hoje_, inbox, decisoes, campanhas, anuncios, criativos, produtos, publicos, leads, vendas, financeiro, testes, planejamento, tarefas, calendario, briefings, ideias, relatorios, calculadoras, concorrentes, config];
 const SECOES = [
-  ["Dia a dia", ["hoje", "dashboard", "decisoes"]],
+  ["Dia a dia", ["hoje", "inbox", "dashboard", "decisoes"]],
   ["Tráfego", ["campanhas", "anuncios", "criativos", "publicos", "testes"]],
   ["Vendas", ["leads", "vendas", "produtos", "financeiro"]],
   ["Organização", ["planejamento", "tarefas", "calendario", "briefings", "ideias"]],
@@ -82,6 +84,7 @@ function contagensMenu() {
   return {
     leads: db.where("leads", (l) => l.stage === "novo" || (l.next_followup && l.next_followup <= h && !["venda", "perdido"].includes(l.stage))).length,
     tarefas: db.where("tasks", (t) => t.due_date && t.due_date < h && t.status !== "finalizado").length,
+    inbox: W.estado.naoLidas || 0,
     decisoes: 0,
   };
 }
@@ -155,16 +158,17 @@ document.addEventListener("drop", (ev) => { const col = ev.target.closest && ev.
 async function iniciar() {
   db.carregar(); garantirBase();
   if (!db.settings().demo_inserido && !db.settings().demo_removido && !db.count("products") && !db.count("leads") && !db.count("sales")) inserirDemonstracao();
-  carregarUsuario(); nuvemLer(); iniciarAutomacoes();
+  carregarUsuario(); nuvemLer(); iniciarAutomacoes(); W.carregarCfg();
   montarMenu(); montarPeriodo(); render(); atualizarNotificacoes();
   let timerMudou = null;
   db.onChange(({ tabela }) => { if (tabela !== "alerts" && tabela !== "settings") agendarEnvio(); clearTimeout(timerMudou); timerMudou = setTimeout(() => { montarMenu(); atualizarNotificacoes(); }, 300); });
   onNuvem(() => { const el = document.querySelector("[data-nuvem-status]"); if (el) el.textContent = ""; });
+  if (W.configurado()) { W.onMensagens(() => { montarMenu(); }); W.verificarConexao().catch(() => {}); W.iniciarPolling(); }
   const r = await carregarMeta();
   if (r.ok && r.novo) { toast("Dados da Meta atualizados."); verificarSemResposta(); render(); atualizarNotificacoes(); }
   if (nuvemLigada()) { await sincronizar("abrir"); iniciarPoll(); render(); }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { carregarMeta().then((x) => { if (x.novo) render(); }); if (nuvemLigada()) sincronizar("voltar"); } });
   window.addEventListener("online", () => { if (nuvemLigada()) sincronizar("online"); });
-  window.CRM = { db, estado, render };
+  window.CRM = { db, estado, render, wame: W };
 }
 iniciar();

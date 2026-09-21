@@ -5,6 +5,7 @@ import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js";
 import { PERMISSOES, ehAdmin, podeEditar, usuario } from "../core/auth.js";
 import { nuvem, nuvemLigada, conectar, desconectar, sincronizar, carregarMeta, META } from "../core/sync.js";
 import { lerCSV, lerXLSX, mapearColunas, importar, CAMPOS_IMPORT } from "../core/importer.js";
+import * as W from "../core/wame.js";
 
 let aba = "empresa", importState = null;
 const METAS = [["faturamento_mes", "Meta de faturamento mensal (R$)"], ["faturamento_semana", "Meta de faturamento semanal (R$)"], ["vendas_mes", "Meta de vendas no mês"], ["leads_mes", "Meta de leads no mês"], ["roas_min", "ROAS mínimo"], ["cpa_max", "CPA máximo (R$)"], ["cpl_max", "CPL máximo (R$)"], ["ticket_medio", "Ticket médio desejado (R$)"], ["investimento_max_mes", "Investimento máximo mensal (R$)"], ["ctr_min", "CTR mínimo (%)"]];
@@ -46,14 +47,72 @@ function abaDados() {
   const cont = db.tabelas().map((t) => `${t}: ${db.count(t)}`).join(" · ");
   return cartao("Dados e backup", `<p class="sub">${esc(cont)}</p><div class="linha-btns" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-exportar>⬇️ Baixar backup (JSON)</button><label class="btn" style="cursor:pointer">⬆️ Restaurar backup <input type="file" id="impBackup" accept="application/json" style="display:none"></label>${db.temDemo() ? `<button class="btn btn-perigo" data-remover-demo>🧪 Remover dados de demonstração</button>` : `<button class="btn" data-inserir-demo>🧪 Inserir dados de demonstração</button>`}${ehAdmin() ? `<button class="btn btn-perigo" data-limpar>🗑️ Apagar tudo</button>` : ""}</div><p class="sub" style="margin-top:10px">Registros de demonstração são marcados e podem ser removidos de uma vez sem afetar os dados reais.</p>`);
 }
+
+function abaMensagens() {
+  W.carregarCfg();
+  const st = W.estado, p = st.perfil || {};
+  const numero = p.phone || p.number || p.wid || p.user || (p.profile && p.profile.number) || "";
+  const status = st.erro ? `<div class="aviso aviso-erro">⚠️ ${esc(st.erro)}</div>`
+    : st.conectado === true ? `<div class="aviso aviso-ok">✓ Conectado${numero ? " · número " + esc(numero) : ""}${p.name ? " · " + esc(p.name) : ""}${st.ultima ? " · última leitura " + esc(horaCurta(st.ultima)) : ""}</div>`
+    : st.conectado === false ? `<div class="aviso aviso-alerta">Instância não conectada. Use o QR Code abaixo ou conecte pelo portal da api-wa.me.</div>`
+    : W.configurado() ? `<div class="aviso aviso-info">Chave salva. Clique em "Testar conexão".</div>` : "";
+  const rr = W.respostasRapidas();
+  return cartao("💬 WhatsApp, Instagram e Messenger (api-wa.me)", `
+    <p class="sub" style="margin-bottom:10px">O CRM fala direto com a API da <b>api-wa.me</b> pelo navegador, sem servidor no meio. Cole a <b>key</b> da sua instância (a que aparece na URL <code>us.api-wa.me/SUA_KEY/...</code>).</p>
+    <div class="aviso aviso-alerta"><b>A chave fica só neste aparelho</b>, fora do backup e da nuvem: quem tem a chave controla o WhatsApp da loja. Cada pessoa cola a dela no próprio celular. Esta é uma API não oficial do WhatsApp; usar um número que não seja o comercial não é recomendado.</div>
+    <div class="form-grade">
+      <div class="campo"><label>Servidor</label><select id="wmBase">${["https://us.api-wa.me", "https://server.api-wa.me"].map((b) => `<option value="${b}"${W.cfg.base === b ? " selected" : ""}>${b}</option>`).join("")}</select></div>
+      <div class="campo"><label>Key da instância</label><input type="password" id="wmKey" value="${esc(W.cfg.key)}" placeholder="cole aqui a key" autocomplete="off"></div>
+      <div class="campo"><label>Canais ligados</label><div style="display:flex;gap:12px;flex-wrap:wrap;padding-top:6px">${W.PROVIDERS.map(([v, t, i]) => `<label class="check" style="padding:0"><input type="checkbox" data-canal="${v}"${W.cfg.canais[v] ? " checked" : ""}> ${i} ${t}</label>`).join("")}</div></div>
+      <div class="campo"><label>Atualizar a cada (segundos)</label><input type="number" id="wmInt" min="6" max="120" value="${esc(W.cfg.intervalo)}"></div>
+      <div class="campo largo"><label class="check"><input type="checkbox" id="wmAuto"${W.cfg.auto_lead ? " checked" : ""}> Criar lead automaticamente quando chegar mensagem de alguém que ainda não está no CRM</label></div>
+      <div class="campo largo"><label class="check"><input type="checkbox" id="wmLido"${W.cfg.marcar_lido ? " checked" : ""}> Marcar a conversa como lida no WhatsApp quando eu abrir aqui</label></div>
+    </div>
+    <div class="linha-btns" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button class="btn btn-primario" data-wm-salvar>💾 Salvar</button>
+      <button class="btn" data-wm-testar>🔌 Testar conexão</button>
+      <button class="btn" data-wm-qr>📱 Conectar por QR Code</button>
+      <button class="btn" data-wm-hist title="Puxa as conversas recentes de Instagram e Messenger para a instância">📥 Sincronizar Instagram/Messenger</button>
+      ${W.configurado() ? `<button class="btn btn-perigo" data-wm-limpar>Remover chave deste aparelho</button>` : ""}
+    </div>
+    ${status}
+    <div id="wmQr"></div>
+    <h3>Respostas rápidas</h3>
+    <p class="sub">Atalhos que aparecem no ⚡ da conversa. Uma por linha, no formato <code>Título | texto da mensagem</code>.</p>
+    <textarea id="wmRR" style="min-height:120px">${esc(rr.map((r) => `${r.titulo} | ${r.texto}`).join("\n"))}</textarea>
+    <button class="btn btn-pq btn-primario" data-wm-rr style="margin-top:8px">💾 Salvar respostas</button>
+  `);
+}
+
 export default {
   id: "config", titulo: "Configurações", icone: "⚙️",
   render(root, ctx) {
     if (ctx.rota.aba) aba = ctx.rota.aba;
-    const corpo = { empresa: abaEmpresa, usuarios: abaUsuarios, metas: abaMetas, automacoes: abaAutomacoes, importar: abaImportar, integracoes: abaIntegracoes, nuvem: abaNuvem, dados: abaDados }[aba] || abaEmpresa;
-    root.innerHTML = `<div class="pagina-cab"><div><h1>Configurações</h1><p class="sub">Empresas, usuários e permissões, metas, automações, importação, integrações, nuvem e backup</p></div></div>${abas([["empresa", "Empresas"], ["usuarios", "Usuários"], ["metas", "Metas e alertas"], ["automacoes", "Automações"], ["importar", "Importar dados"], ["integracoes", "Integrações"], ["nuvem", "Nuvem"], ["dados", "Dados e backup"]], aba)}${corpo(ctx)}`;
+    const corpo = { empresa: abaEmpresa, usuarios: abaUsuarios, mensagens: abaMensagens, metas: abaMetas, automacoes: abaAutomacoes, importar: abaImportar, integracoes: abaIntegracoes, nuvem: abaNuvem, dados: abaDados }[aba] || abaEmpresa;
+    root.innerHTML = `<div class="pagina-cab"><div><h1>Configurações</h1><p class="sub">Empresas, usuários e permissões, mensagens (WhatsApp/Instagram/Messenger), metas, automações, importação, integrações, nuvem e backup</p></div></div>${abas([["empresa", "Empresas"], ["usuarios", "Usuários"], ["mensagens", "Mensagens"], ["metas", "Metas e alertas"], ["automacoes", "Automações"], ["importar", "Importar dados"], ["integracoes", "Integrações"], ["nuvem", "Nuvem"], ["dados", "Dados e backup"]], aba)}${corpo(ctx)}`;
     root.querySelectorAll("[data-aba]").forEach((b) => b.addEventListener("click", () => { aba = b.dataset.aba; ctx.navegar(`#/config?aba=${aba}`); }));
     const on = (sel, ev, fn) => root.querySelectorAll(sel).forEach((el) => el.addEventListener(ev, (e) => fn(el, e)));
+    on("[data-wm-salvar]", "click", () => {
+      const canais = {}; root.querySelectorAll("[data-canal]").forEach((c) => canais[c.dataset.canal] = c.checked);
+      W.salvarCfg({ base: root.querySelector("#wmBase").value, key: root.querySelector("#wmKey").value.trim(), canais, intervalo: Number(root.querySelector("#wmInt").value) || 12, auto_lead: root.querySelector("#wmAuto").checked, marcar_lido: root.querySelector("#wmLido").checked });
+      toast("Configuração salva."); W.iniciarPolling(); W.verificarConexao().catch(() => {}).finally(() => ctx.rerender());
+    });
+    on("[data-wm-testar]", "click", async () => { try { const d = await W.verificarConexao(); toast("Conectado."); console.log("instância:", d); } catch (e) { toast("Falhou: " + e.message, "erro"); } ctx.rerender(); });
+    on("[data-wm-qr]", "click", async () => {
+      const alvo = root.querySelector("#wmQr"); alvo.innerHTML = `<div class="aviso aviso-info">Gerando QR Code…</div>`;
+      try {
+        const d = await W.conectarQr();
+        const qr = d && (d.qrcode || d.qr || d.base64 || d.qrCode || (d.data && (d.data.qrcode || d.data.qr)));
+        alvo.innerHTML = qr ? `<div class="aviso aviso-info">Abra o WhatsApp no celular → Aparelhos conectados → Conectar aparelho e aponte para o código. Ele expira em cerca de 1 minuto.</div><img src="${/^data:/.test(qr) ? esc(qr) : "data:image/png;base64," + esc(qr)}" alt="QR Code" style="width:240px;border-radius:12px;background:#fff;padding:8px">`
+          : `<div class="aviso aviso-ok">A API respondeu sem QR Code: a instância provavelmente já está conectada. Clique em "Testar conexão".</div>`;
+      } catch (e) { alvo.innerHTML = `<div class="aviso aviso-erro">Não deu: ${esc(e.message)}</div>`; }
+    });
+    on("[data-wm-hist]", "click", async () => { try { await W.sincronizarHistoricoMeta(); toast("Pedido de sincronização enviado. As conversas aparecem em instantes."); W.atualizar(); } catch (e) { toast("Não deu: " + e.message, "erro"); } });
+    on("[data-wm-limpar]", "click", () => { if (confirm("Remover a chave deste aparelho? As conversas deixam de aparecer aqui.")) { W.limparCfg(); ctx.rerender(); } });
+    on("[data-wm-rr]", "click", () => {
+      const linhas = root.querySelector("#wmRR").value.split("\n").map((l) => l.trim()).filter(Boolean).map((l, i) => { const [t, ...r] = l.split("|"); return { id: "r" + (i + 1), titulo: (t || "").trim() || "Atalho " + (i + 1), texto: r.join("|").trim() }; });
+      W.salvarRespostas(linhas); toast("Respostas rápidas salvas.");
+    });
     on("[data-nova-emp]", "click", () => abrirFormulario("companies", null, { onSave: ctx.rerender }));
     on("[data-editar-emp]", "click", (el) => abrirFormulario("companies", el.dataset.editarEmp, { onSave: ctx.rerender, onDelete: ctx.rerender }));
     on("[data-novo-user]", "click", () => abrirFormulario("users", null, { onSave: ctx.rerender }));

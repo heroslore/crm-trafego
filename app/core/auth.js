@@ -4,10 +4,10 @@ import { db } from "./db.js";
 const CHAVE = "crm-trafego-usuario";
 export const PERMISSOES = {
   admin: { modulos: "*", editar: true },
-  gestor: { modulos: ["dashboard", "hoje", "decisoes", "campanhas", "anuncios", "criativos", "produtos", "publicos", "leads", "vendas", "financeiro", "testes", "planejamento", "tarefas", "calendario", "relatorios", "concorrentes", "briefings", "ideias", "calculadoras", "config"], editar: true },
-  marketing: { modulos: ["dashboard", "hoje", "decisoes", "campanhas", "criativos", "produtos", "publicos", "testes", "planejamento", "tarefas", "calendario", "relatorios", "concorrentes", "briefings", "ideias", "calculadoras"], editar: true },
+  gestor: { modulos: ["dashboard", "hoje", "decisoes", "inbox", "campanhas", "anuncios", "criativos", "produtos", "publicos", "leads", "vendas", "financeiro", "testes", "planejamento", "tarefas", "calendario", "relatorios", "concorrentes", "briefings", "ideias", "calculadoras", "config"], editar: true },
+  marketing: { modulos: ["dashboard", "hoje", "decisoes", "inbox", "campanhas", "criativos", "produtos", "publicos", "testes", "planejamento", "tarefas", "calendario", "relatorios", "concorrentes", "briefings", "ideias", "calculadoras"], editar: true },
   criador: { modulos: ["hoje", "criativos", "produtos", "tarefas", "calendario", "briefings", "ideias"], editar: true },
-  vendedor: { modulos: ["hoje", "leads", "vendas", "produtos", "tarefas", "calendario"], editar: true },
+  vendedor: { modulos: ["hoje", "inbox", "leads", "vendas", "produtos", "tarefas", "calendario"], editar: true },
   visualizador: { modulos: "*", editar: false },
 };
 
