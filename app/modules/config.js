@@ -75,6 +75,7 @@ function abaMensagens() {
       <div class="campo"><label>Atualizar a cada (segundos)</label><input type="number" id="wmInt" min="6" max="120" value="${esc(W.cfg.intervalo)}"></div>
       <div class="campo largo"><label class="check"><input type="checkbox" id="wmAuto"${W.cfg.auto_lead ? " checked" : ""}> Criar lead automaticamente quando chegar mensagem de alguém que ainda não está no CRM</label></div>
       <div class="campo largo"><label class="check"><input type="checkbox" id="wmLido"${W.cfg.marcar_lido ? " checked" : ""}> Marcar a conversa como lida no WhatsApp quando eu abrir aqui</label></div>
+      <div class="campo largo"><label class="check"><input type="checkbox" id="wmMidia"${W.salvaMidia() ? " checked" : ""}> Guardar as mídias na instância — <b>necessário para ver imagens, áudios e vídeos aqui</b>${W.salvaMidia() === null ? " (clique em Testar conexão para saber como está)" : ""}</label></div>
     </div>
     <div class="linha-btns" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
       <button class="btn btn-primario" data-wm-salvar>💾 Salvar</button>
@@ -84,6 +85,7 @@ function abaMensagens() {
       ${W.configurado() ? `<button class="btn btn-perigo" data-wm-limpar>Remover chave deste aparelho</button>` : ""}
     </div>
     ${status}
+    ${W.salvaMidia() === false ? `<div class="aviso aviso-alerta">As mídias não estão sendo guardadas na instância, então imagens, áudios e vídeos não abrem nas Conversas. Marque a opção acima e salve.</div>` : ""}
     ${avisoCanais}
     <div id="wmQr"></div>
     ${st.diagnostico ? `<details style="margin-top:8px"><summary class="mudo" style="cursor:pointer;font-size:.8rem">Ver o que a API respondeu (diagnóstico)</summary><pre style="white-space:pre-wrap;font-size:.72rem;background:var(--card2);border:1px solid var(--borda);border-radius:8px;padding:8px;overflow:auto;max-height:220px">${esc(st.diagnostico)}</pre></details>` : ""}
@@ -102,10 +104,16 @@ export default {
     root.innerHTML = `<div class="pagina-cab"><div><h1>Configurações</h1><p class="sub">Empresas, usuários e permissões, mensagens (WhatsApp/Instagram/Messenger), metas, automações, importação, integrações, nuvem e backup</p></div></div>${abas([["empresa", "Empresas"], ["usuarios", "Usuários"], ["mensagens", "Mensagens"], ["metas", "Metas e alertas"], ["automacoes", "Automações"], ["importar", "Importar dados"], ["integracoes", "Integrações"], ["nuvem", "Nuvem"], ["dados", "Dados e backup"]], aba)}${corpo(ctx)}`;
     root.querySelectorAll("[data-aba]").forEach((b) => b.addEventListener("click", () => { aba = b.dataset.aba; ctx.navegar(`#/config?aba=${aba}`); }));
     const on = (sel, ev, fn) => root.querySelectorAll(sel).forEach((el) => el.addEventListener(ev, (e) => fn(el, e)));
-    on("[data-wm-salvar]", "click", () => {
+    on("[data-wm-salvar]", "click", async () => {
       const canais = {}; root.querySelectorAll("[data-canal]").forEach((c) => canais[c.dataset.canal] = c.checked);
       W.salvarCfg({ base: root.querySelector("#wmBase").value, key: root.querySelector("#wmKey").value.trim(), canais, intervalo: Number(root.querySelector("#wmInt").value) || 12, auto_lead: root.querySelector("#wmAuto").checked, marcar_lido: root.querySelector("#wmLido").checked });
-      toast("Configuração salva."); W.iniciarPolling(); W.verificarConexao().catch(() => {}).finally(() => ctx.rerender());
+      const querMidia = root.querySelector("#wmMidia").checked;
+      toast("Configuração salva.");
+      if (W.configurado() && querMidia !== W.salvaMidia()) {
+        try { await W.ajustarInstancia({ saveMedia: querMidia }); toast(querMidia ? "A instância passou a guardar as mídias. Mensagens novas já aparecem com imagem." : "A instância deixou de guardar mídias."); }
+        catch (e) { toast("Não consegui mudar o salvamento de mídia: " + e.message, "erro"); }
+      }
+      W.iniciarPolling(); W.verificarConexao().catch(() => {}).finally(() => ctx.rerender());
     });
     on("[data-wm-testar]", "click", async () => { try { const d = await W.verificarConexao(); toast("Conectado."); console.log("instância:", d); } catch (e) { toast("Falhou: " + e.message, "erro"); } ctx.rerender(); });
     on("[data-wm-qr]", "click", async () => {
