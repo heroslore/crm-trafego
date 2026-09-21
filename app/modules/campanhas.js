@@ -1,12 +1,12 @@
-import { db } from "../core/db.js?v=1d8faa7d";
-import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=1d8faa7d";
-import { situacaoCampanha } from "../core/rules.js?v=1d8faa7d";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=1d8faa7d";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=1d8faa7d";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=1d8faa7d";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=1d8faa7d";
-import { usuario } from "../core/auth.js?v=1d8faa7d";
-import { podeEditar } from "../core/auth.js?v=1d8faa7d";
+import { db } from "../core/db.js?v=99e88144";
+import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=99e88144";
+import { situacaoCampanha } from "../core/rules.js?v=99e88144";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=99e88144";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=99e88144";
+import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=99e88144";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=99e88144";
+import { usuario } from "../core/auth.js?v=99e88144";
+import { podeEditar } from "../core/auth.js?v=99e88144";
 
 let filtroStatus = "ativa", filtroPlat = "";
 

@@ -1,7 +1,7 @@
 // Todos os indicadores do sistema são calculados aqui a partir de campaign_metrics, sales e leads.
-import { db } from "./db.js?v=1d8faa7d";
-import { dentro, dias as diasDe, anterior } from "./periods.js?v=1d8faa7d";
-import { num, variacao, somaDias, hoje, diasEntre } from "./format.js?v=1d8faa7d";
+import { db } from "./db.js?v=99e88144";
+import { dentro, dias as diasDe, anterior } from "./periods.js?v=99e88144";
+import { num, variacao, somaDias, hoje, diasEntre } from "./format.js?v=99e88144";
 
 // ---------------------------------------------------------------- filtros
 // filtro: { campaign_id, ad_set_id, ad_id, creative_id, product_id, audience_id, seller_user_id, platform, lojaFn }

@@ -3,8 +3,8 @@
 //
 // A chave da instância NÃO fica no banco sincronizado: ela mora só neste aparelho
 // (localStorage), porque quem tem a chave controla o WhatsApp da loja.
-import { db } from "./db.js?v=1d8faa7d";
-import { agora, hoje, telLimpo, uid, semAcento } from "./format.js?v=1d8faa7d";
+import { db } from "./db.js?v=99e88144";
+import { agora, hoje, telLimpo, uid, semAcento } from "./format.js?v=99e88144";
 
 const CHAVE_CFG = "crm-trafego-wame";
 export const BASES = ["https://us.api-wa.me", "https://server.api-wa.me"];
@@ -254,6 +254,27 @@ export function urlMidia(mensagemId, formato = "binary") {
   if (!cfg.key || !mensagemId) return "";
   return `${cfg.base}/${encodeURIComponent(cfg.key)}/message/${encodeURIComponent(mensagemId)}/media?format=${formato}`;
 }
+// Terceira tentativa: pedir o arquivo em JSON (base64) e montar um data: URL.
+// Cobre instâncias em que o download binário não funciona ou devolve JSON mesmo assim.
+const cacheMidia = new Map();
+export function midiaComoUrl(mensagemId) {
+  if (!mensagemId) return Promise.reject(new Error("sem id da mensagem"));
+  if (cacheMidia.has(mensagemId)) return cacheMidia.get(mensagemId);
+  const promessa = (async () => {
+    const j = await req("GET", `/message/${encodeURIComponent(mensagemId)}/media`, { query: { format: "json" }, timeout: 45000 });
+    const d = corpo(j) || {};
+    const bruto = typeof d === "string" ? d : (d.base64 || d.data || d.media || d.file || d.buffer || d.content || "");
+    if (!bruto || typeof bruto !== "string") throw new Error("a API não devolveu o arquivo");
+    if (/^data:/.test(bruto)) return bruto;
+    if (/^https?:\/\//i.test(bruto)) return bruto;
+    const mime = d.mimetype || d.mime || d.contentType || d.content_type || "application/octet-stream";
+    return `data:${mime};base64,${bruto.replace(/^base64,/, "")}`;
+  })();
+  cacheMidia.set(mensagemId, promessa);
+  promessa.catch(() => cacheMidia.delete(mensagemId));
+  return promessa;
+}
+
 // Liga/desliga opções da instância (salvar mídia, marcar como lida, presença).
 export async function ajustarInstancia({ saveMedia, markMessageRead, receiveStatusMessage, receivePresence } = {}) {
   const atualCfg = (estado.perfil && (estado.perfil.settings || estado.perfil)) || {};

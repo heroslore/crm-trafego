@@ -1,11 +1,11 @@
-import { db } from "../core/db.js?v=1d8faa7d";
-import { comparar, serieDiaria, progressoMetas, porEntidade, atendimento, filaDeAtendimento, pacing } from "../core/metrics.js?v=1d8faa7d";
-import { intervalo, rotulo as rotuloPeriodo } from "../core/periods.js?v=1d8faa7d";
-import { cartao, graficoLinhas, progresso, vazio, funil, itemLista, badge, chips, badgeOpcao, prioridadeBadge, tabela, kpi, barrasH } from "../core/ui.js?v=1d8faa7d";
-import { esc, brl, inteiro, pct, mult, dataCurta, dataBR, brlCurto, hoje } from "../core/format.js?v=1d8faa7d";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=1d8faa7d";
-import { alertas, narrativaAtendimento, formatoMinutos } from "../core/rules.js?v=1d8faa7d";
-import { bannerDemo, cartoesKpi, cartoesContagem, KPIS_PRINCIPAIS, leadsParados, agendaDoDia, fechaEmBreve } from "./comum.js?v=1d8faa7d";
+import { db } from "../core/db.js?v=99e88144";
+import { comparar, serieDiaria, progressoMetas, porEntidade, atendimento, filaDeAtendimento, pacing } from "../core/metrics.js?v=99e88144";
+import { intervalo, rotulo as rotuloPeriodo } from "../core/periods.js?v=99e88144";
+import { cartao, graficoLinhas, progresso, vazio, funil, itemLista, badge, chips, badgeOpcao, prioridadeBadge, tabela, kpi, barrasH } from "../core/ui.js?v=99e88144";
+import { esc, brl, inteiro, pct, mult, dataCurta, dataBR, brlCurto, hoje } from "../core/format.js?v=99e88144";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=99e88144";
+import { alertas, narrativaAtendimento, formatoMinutos } from "../core/rules.js?v=99e88144";
+import { bannerDemo, cartoesKpi, cartoesContagem, KPIS_PRINCIPAIS, leadsParados, agendaDoDia, fechaEmBreve } from "./comum.js?v=99e88144";
 
 let graficoSel = "fat_inv";
 const GRAFICOS = [["fat_inv", "Faturamento × investimento"], ["spend", "Investimento por dia"], ["revenue", "Faturamento por dia"], ["leads", "Leads por dia"], ["sales", "Vendas por dia"], ["roas", "ROAS por dia"], ["cpa", "CPA por dia"]];
