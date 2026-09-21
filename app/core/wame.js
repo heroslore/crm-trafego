@@ -3,8 +3,8 @@
 //
 // A chave da instância NÃO fica no banco sincronizado: ela mora só neste aparelho
 // (localStorage), porque quem tem a chave controla o WhatsApp da loja.
-import { db } from "./db.js?v=99e88144";
-import { agora, hoje, telLimpo, uid, semAcento } from "./format.js?v=99e88144";
+import { db } from "./db.js?v=72aad7ae";
+import { agora, hoje, telLimpo, uid, semAcento } from "./format.js?v=72aad7ae";
 
 const CHAVE_CFG = "crm-trafego-wame";
 export const BASES = ["https://us.api-wa.me", "https://server.api-wa.me"];
@@ -117,7 +117,7 @@ function normalizarChat(c, provider) {
 export function textoDaMensagem(m) {
   if (!m) return "";
   if (typeof m === "string") return m;
-  const msg = m.message || m;
+  const msg = desembrulhar(m);
   if (msg.conversation) return msg.conversation;
   if (msg.extendedTextMessage?.text) return msg.extendedTextMessage.text;
   if (msg.text?.body) return msg.text.body;
@@ -132,18 +132,49 @@ export function textoDaMensagem(m) {
   if (msg.ephemeralMessage) return textoDaMensagem(msg.ephemeralMessage);
   if (msg.viewOnceMessage || msg.viewOnceMessageV2) return textoDaMensagem(msg.viewOnceMessage || msg.viewOnceMessageV2);
   if (msg.caption) return msg.caption;
+  if (msg.pollCreationMessage?.name) return msg.pollCreationMessage.name;
+  if (msg.pollCreationMessageV3?.name) return msg.pollCreationMessageV3.name;
+  if (msg.locationMessage?.name || msg.locationMessage?.address) return msg.locationMessage.name || msg.locationMessage.address;
+  if (msg.contactMessage?.displayName) return msg.contactMessage.displayName;
+  if (msg.listMessage?.description) return msg.listMessage.description;
+  if (msg.templateMessage?.hydratedTemplate?.hydratedContentText) return msg.templateMessage.hydratedTemplate.hydratedContentText;
+  if (msg.interactiveMessage?.body?.text) return msg.interactiveMessage.body.text;
+  if (msg.eventMessage?.name) return msg.eventMessage.name;
+  if (msg.groupInviteMessage?.groupName) return "Convite para o grupo " + msg.groupInviteMessage.groupName;
   return "";
 }
+// Mensagens chegam embrulhadas (efêmera, ver uma vez, editada, enviada por
+// outro aparelho). Desembrulhar antes de olhar o tipo evita o "(sem texto)".
+const EMBRULHOS = ["ephemeralMessage", "viewOnceMessage", "viewOnceMessageV2", "viewOnceMessageV2Extension", "documentWithCaptionMessage", "editedMessage", "deviceSentMessage", "protocolMessage"];
+export function desembrulhar(m, profundidade = 0) {
+  let msg = (m && (m.message || m)) || {};
+  if (profundidade > 4) return msg;
+  for (const e of EMBRULHOS) {
+    if (msg[e] && typeof msg[e] === "object") {
+      const dentro = msg[e].message || msg[e].editedMessage || msg[e];
+      if (dentro && typeof dentro === "object" && dentro !== msg) return desembrulhar({ message: dentro }, profundidade + 1);
+    }
+  }
+  return msg;
+}
+const TIPO_POR_CHAVE = {
+  imageMessage: "imagem", videoMessage: "video", ptvMessage: "video", audioMessage: "audio", pttMessage: "audio",
+  documentMessage: "documento", stickerMessage: "figurinha", locationMessage: "localizacao", liveLocationMessage: "localizacao",
+  contactMessage: "contato", contactsArrayMessage: "contato", reactionMessage: "reacao",
+  pollCreationMessage: "enquete", pollCreationMessageV2: "enquete", pollCreationMessageV3: "enquete", pollUpdateMessage: "enquete",
+  callLogMesssage: "chamada", scheduledCallCreationMessage: "chamada", orderMessage: "pedido", productMessage: "produto",
+  listMessage: "lista", buttonsMessage: "botoes", templateMessage: "modelo", interactiveMessage: "interativo",
+  paymentInviteMessage: "pagamento", requestPaymentMessage: "pagamento", sendPaymentMessage: "pagamento",
+  groupInviteMessage: "convite", eventMessage: "evento", senderKeyDistributionMessage: "sistema",
+};
 export function tipoDaMensagem(m) {
-  const msg = (m && (m.message || m)) || {};
-  if (msg.imageMessage || msg.type === "image" || msg.image) return "imagem";
-  if (msg.audioMessage || msg.type === "audio" || msg.audio) return "audio";
-  if (msg.videoMessage || msg.type === "video" || msg.video) return "video";
-  if (msg.documentMessage || msg.type === "document" || msg.document) return "documento";
-  if (msg.stickerMessage || msg.type === "sticker") return "figurinha";
-  if (msg.locationMessage || msg.liveLocationMessage || msg.type === "location") return "localizacao";
-  if (msg.contactMessage || msg.contactsArrayMessage) return "contato";
-  if (msg.reactionMessage) return "reacao";
+  const msg = desembrulhar(m);
+  for (const chave of Object.keys(TIPO_POR_CHAVE)) if (msg[chave]) return TIPO_POR_CHAVE[chave];
+  const t = msg.type || (m && m.type);
+  if (t && TIPO_POR_CHAVE[t + "Message"]) return TIPO_POR_CHAVE[t + "Message"];
+  if (["image", "video", "audio", "document", "sticker", "location", "contact"].includes(t)) return { image: "imagem", video: "video", audio: "audio", document: "documento", sticker: "figurinha", location: "localizacao", contact: "contato" }[t];
+  if (msg.image || msg.video || msg.audio || msg.document) return msg.image ? "imagem" : msg.video ? "video" : msg.audio ? "audio" : "documento";
+  if (m && (m.messageStubType || msg.protocolMessage)) return "sistema";
   return "texto";
 }
 // Contexto de anúncio (Click-to-WhatsApp): usado para atribuir o lead à campanha.
@@ -250,6 +281,8 @@ export async function digitando(chat, ligado = true) {
 }
 // A API devolve JSON com base64 por padrão; ?format=binary entrega o arquivo,
 // que é o que <img>, <audio> e <video> conseguem abrir direto.
+export function marcarMidiaOk(mensagemId, url) { if (mensagemId && url) midiaPronta.set(mensagemId, url); }
+export function marcarMidiaRuim(mensagemId) { if (mensagemId) midiaRuim.add(mensagemId); }
 export function urlMidia(mensagemId, formato = "binary") {
   if (!cfg.key || !mensagemId) return "";
   return `${cfg.base}/${encodeURIComponent(cfg.key)}/message/${encodeURIComponent(mensagemId)}/media?format=${formato}`;
@@ -257,8 +290,15 @@ export function urlMidia(mensagemId, formato = "binary") {
 // Terceira tentativa: pedir o arquivo em JSON (base64) e montar um data: URL.
 // Cobre instâncias em que o download binário não funciona ou devolve JSON mesmo assim.
 const cacheMidia = new Map();
+const midiaPronta = new Map();   // já resolvida: reusa sem pedir de novo
+const midiaRuim = new Set();     // não existe mesmo: não insiste a cada tela
+export const urlMidiaPronta = (id) => midiaPronta.get(id) || "";
+export const midiaIndisponivel = (id) => midiaRuim.has(id);
+export function esquecerMidia(id) { midiaRuim.delete(id); midiaPronta.delete(id); cacheMidia.delete(id); }
 export function midiaComoUrl(mensagemId) {
   if (!mensagemId) return Promise.reject(new Error("sem id da mensagem"));
+  if (midiaPronta.has(mensagemId)) return Promise.resolve(midiaPronta.get(mensagemId));
+  if (midiaRuim.has(mensagemId)) return Promise.reject(new Error("arquivo não disponível"));
   if (cacheMidia.has(mensagemId)) return cacheMidia.get(mensagemId);
   const promessa = (async () => {
     const j = await req("GET", `/message/${encodeURIComponent(mensagemId)}/media`, { query: { format: "json" }, timeout: 45000 });
@@ -271,7 +311,7 @@ export function midiaComoUrl(mensagemId) {
     return `data:${mime};base64,${bruto.replace(/^base64,/, "")}`;
   })();
   cacheMidia.set(mensagemId, promessa);
-  promessa.catch(() => cacheMidia.delete(mensagemId));
+  promessa.then((u) => midiaPronta.set(mensagemId, u)).catch(() => { midiaRuim.add(mensagemId); cacheMidia.delete(mensagemId); });
   return promessa;
 }
 
@@ -356,18 +396,44 @@ export function criarLeadDoChat(chat, primeiraMensagem) {
   db.insert("interactions", { lead_id: lead.id, type: chat.provider === "whatsapp" ? "whatsapp" : "nota", at: agora(), user_id: "", text: `Primeira mensagem recebida${ad ? ` (veio do anúncio "${ad.titulo || ad.fonte}")` : ""}: ${(primeiraMensagem?.texto || "").slice(0, 200) || "(sem texto)"}` });
   return lead;
 }
+// A listagem de conversas não traz a última mensagem, então buscamos algumas
+// por rodada e guardamos: serve para a prévia na lista e para decidir se a
+// conversa vira lead, sem repetir download a cada atualização.
+export const NOME_TIPO = { imagem: "📷 Foto", audio: "🎧 Áudio", video: "🎬 Vídeo", documento: "📎 Documento", figurinha: "🌟 Figurinha", localizacao: "📍 Localização", contato: "👤 Contato", reacao: "❤️ Reação", enquete: "📊 Enquete", chamada: "📞 Chamada", pedido: "🧾 Pedido", produto: "🛍️ Produto", lista: "📋 Lista", botoes: "🔘 Botões", modelo: "📄 Modelo", interativo: "📲 Interativo", pagamento: "💳 Pagamento", convite: "👥 Convite", evento: "📅 Evento", sistema: "⚙️ Mensagem do sistema", texto: "" };
+const resumoChat = new Map();
+export function resumoDe(chatId) { return resumoChat.get(chatId) || null; }
+export async function examinarChats(chats, max = 6) {
+  let n = 0;
+  for (const chat of chats) {
+    const cache = resumoChat.get(chat.id);
+    if (cache && cache.ts === chat.ts) continue;
+    if (n >= max) break;
+    n++;
+    try {
+      const msgs = await listarMensagens(chat.id, { limit: 6 });
+      const ultima = msgs[msgs.length - 1];
+      const entrada = msgs.find((m) => !m.minha);
+      resumoChat.set(chat.id, {
+        ts: chat.ts,
+        previa: ultima ? (ultima.texto || NOME_TIPO[ultima.tipo] || "") : "",
+        temEntrada: !!entrada,
+        primeira: entrada || msgs[0] || null,
+      });
+    } catch { resumoChat.set(chat.id, { ts: chat.ts, previa: "", temEntrada: false, primeira: null }); }
+  }
+  return n;
+}
+
 // Cria leads para conversas novas que ainda não estão no CRM.
-export async function sincronizarLeads(chats) {
+export function sincronizarLeads(chats) {
   if (!cfg.auto_lead) return 0;
   let n = 0;
   for (const chat of chats) {
     if (chat.grupo || leadDoChat(chat)) continue;
-    if (!chat.ts) continue;
-    let primeira = null;
-    try { const msgs = await listarMensagens(chat.id, { limit: 10 }); primeira = msgs.find((m) => !m.minha) || msgs[0]; if (!msgs.some((m) => !m.minha)) continue; }
-    catch { continue; }
-    criarLeadDoChat(chat, primeira); n++;
-    if (n >= 10) break; // não cria uma enxurrada de uma vez
+    const r = resumoChat.get(chat.id);
+    if (!r || !r.temEntrada) continue;   // só vira lead quem escreveu para a loja
+    criarLeadDoChat(chat, r.primeira); n++;
+    if (n >= 10) break;                  // não cria uma enxurrada de uma vez
   }
   return n;
 }
@@ -392,12 +458,15 @@ export async function atualizar({ comMensagens = true } = {}) {
     estado.canaisIndisponiveis = indisponiveis;
     if (falhas.length && !todos.length) throw new Error(falhas[0]);
     estado.erro = falhas[0] || "";
+    // Primeiro as conversas que a pessoa vê no topo da lista.
+    try { await examinarChats(todos.slice(0, 40), 4); } catch {}
+    for (const c of todos) { const r = resumoChat.get(c.id); if (r && !c.previa) c.previa = r.previa; }
     todos.sort((a, b) => (b.fixado ? 1 : 0) - (a.fixado ? 1 : 0) || b.ts - a.ts);
     estado.chats = todos;
     estado.naoLidas = todos.reduce((s, c) => s + (c.naoLidas || 0), 0);
     if (!estado.erro) { estado.conectado = true; falhasSeguidas = 0; }
     estado.ultima = agora();
-    try { await sincronizarLeads(todos); } catch (e) { console.warn("auto-lead:", e.message); }
+    try { sincronizarLeads(todos); } catch (e) { console.warn("auto-lead:", e.message); }
     if (comMensagens && estado.aberta) {
       const chat = todos.find((c) => c.id === estado.aberta) || { id: estado.aberta };
       try { estado.mensagens[chat.id] = await listarMensagens(chat.id, { limit: 60 }); } catch {}

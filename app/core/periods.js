@@ -1,5 +1,5 @@
 // Filtro global de período e comparações.
-import { hoje, somaDias, diasEntre, dataBR } from "./format.js?v=99e88144";
+import { hoje, somaDias, diasEntre, dataBR } from "./format.js?v=72aad7ae";
 
 export const PERIODOS = [
   ["hoje", "Hoje"], ["ontem", "Ontem"], ["7d", "Últimos 7 dias"], ["15d", "Últimos 15 dias"], ["30d", "Últimos 30 dias"],

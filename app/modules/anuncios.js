@@ -1,10 +1,10 @@
-import { db } from "../core/db.js?v=99e88144";
-import { kpis, serieDiaria } from "../core/metrics.js?v=99e88144";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista } from "../core/ui.js?v=99e88144";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=99e88144";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=99e88144";
-import { rotulo as rotuloOpcao } from "../core/schema.js?v=99e88144";
-import { podeEditar } from "../core/auth.js?v=99e88144";
+import { db } from "../core/db.js?v=72aad7ae";
+import { kpis, serieDiaria } from "../core/metrics.js?v=72aad7ae";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista } from "../core/ui.js?v=72aad7ae";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=72aad7ae";
+import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=72aad7ae";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=72aad7ae";
+import { podeEditar } from "../core/auth.js?v=72aad7ae";
 
 let filtro = "ativa";
 function lista(root, ctx) {

@@ -1,11 +1,11 @@
-import { db } from "../core/db.js?v=99e88144";
-import { kpis, porEntidade, mediaCampanhas, atendimento, filaDeAtendimento } from "../core/metrics.js?v=99e88144";
-import { intervalo } from "../core/periods.js?v=99e88144";
-import { cartao, vazio, itemLista, badge, prioridadeBadge } from "../core/ui.js?v=99e88144";
-import { esc, brl, inteiro, mult, dataBR, hoje, diasEntre, pct } from "../core/format.js?v=99e88144";
-import { bannerDemo, agendaDoDia } from "./comum.js?v=99e88144";
-import { situacaoCampanha, narrativaAtendimento, formatoMinutos } from "../core/rules.js?v=99e88144";
-import * as W from "../core/wame.js?v=99e88144";
+import { db } from "../core/db.js?v=72aad7ae";
+import { kpis, porEntidade, mediaCampanhas, atendimento, filaDeAtendimento } from "../core/metrics.js?v=72aad7ae";
+import { intervalo } from "../core/periods.js?v=72aad7ae";
+import { cartao, vazio, itemLista, badge, prioridadeBadge } from "../core/ui.js?v=72aad7ae";
+import { esc, brl, inteiro, mult, dataBR, hoje, diasEntre, pct } from "../core/format.js?v=72aad7ae";
+import { bannerDemo, agendaDoDia } from "./comum.js?v=72aad7ae";
+import { situacaoCampanha, narrativaAtendimento, formatoMinutos } from "../core/rules.js?v=72aad7ae";
+import * as W from "../core/wame.js?v=72aad7ae";
 
 export default {
   id: "hoje", titulo: "Hoje", icone: "☀️",
