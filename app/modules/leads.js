@@ -1,12 +1,12 @@
-import { db } from "../core/db.js?v=43ebd473";
-import { motivosPerda, formatoMinutos } from "../core/rules.js?v=43ebd473";
-import { minutosAteAtendimento, minutosEsperando, chegadaDoLead, atendimento, filaDeAtendimento } from "../core/metrics.js?v=43ebd473";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, kanban, abas, itemLista, modal, fecharModal, toast, barrasH, kpi, formulario, lerFormulario } from "../core/ui.js?v=43ebd473";
-import { esc, brl, inteiro, pct, dataBR, hoje, diasEntre, waLink, agora, horaCurta, somaDias } from "../core/format.js?v=43ebd473";
-import { bannerDemo, btnNovo } from "./comum.js?v=43ebd473";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=43ebd473";
-import { podeEditar, usuario } from "../core/auth.js?v=43ebd473";
-import { abrirVenda } from "./vendas.js?v=43ebd473";
+import { db } from "../core/db.js?v=1d8faa7d";
+import { motivosPerda, formatoMinutos } from "../core/rules.js?v=1d8faa7d";
+import { minutosAteAtendimento, minutosEsperando, chegadaDoLead, atendimento, filaDeAtendimento } from "../core/metrics.js?v=1d8faa7d";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, kanban, abas, itemLista, modal, fecharModal, toast, barrasH, kpi, formulario, lerFormulario } from "../core/ui.js?v=1d8faa7d";
+import { esc, brl, inteiro, pct, dataBR, hoje, diasEntre, waLink, agora, horaCurta, somaDias } from "../core/format.js?v=1d8faa7d";
+import { bannerDemo, btnNovo } from "./comum.js?v=1d8faa7d";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=1d8faa7d";
+import { podeEditar, usuario } from "../core/auth.js?v=1d8faa7d";
+import { abrirVenda } from "./vendas.js?v=1d8faa7d";
 
 let visao = "kanban", busca = "", fOwner = "", fProd = "", fAtend = "";
 const ETAPAS = OPCOES.lead_stage;

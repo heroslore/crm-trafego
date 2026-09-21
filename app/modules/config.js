@@ -1,11 +1,11 @@
-import { db, inserirDemonstracao } from "../core/db.js?v=43ebd473";
-import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, abas, toast, modal, fecharModal, kpi } from "../core/ui.js?v=43ebd473";
-import { esc, dataBR, horaCurta, brl, inteiro } from "../core/format.js?v=43ebd473";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=43ebd473";
-import { PERMISSOES, ehAdmin, podeEditar, usuario } from "../core/auth.js?v=43ebd473";
-import { nuvem, nuvemLigada, conectar, desconectar, sincronizar, carregarMeta, META } from "../core/sync.js?v=43ebd473";
-import { lerCSV, lerXLSX, mapearColunas, importar, CAMPOS_IMPORT } from "../core/importer.js?v=43ebd473";
-import * as W from "../core/wame.js?v=43ebd473";
+import { db, inserirDemonstracao } from "../core/db.js?v=1d8faa7d";
+import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, abas, toast, modal, fecharModal, kpi } from "../core/ui.js?v=1d8faa7d";
+import { esc, dataBR, horaCurta, brl, inteiro } from "../core/format.js?v=1d8faa7d";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=1d8faa7d";
+import { PERMISSOES, ehAdmin, podeEditar, usuario } from "../core/auth.js?v=1d8faa7d";
+import { nuvem, nuvemLigada, conectar, desconectar, sincronizar, carregarMeta, META } from "../core/sync.js?v=1d8faa7d";
+import { lerCSV, lerXLSX, mapearColunas, importar, CAMPOS_IMPORT } from "../core/importer.js?v=1d8faa7d";
+import * as W from "../core/wame.js?v=1d8faa7d";
 
 let aba = "empresa", importState = null;
 const METAS = [["faturamento_mes", "Meta de faturamento mensal (R$)"], ["faturamento_semana", "Meta de faturamento semanal (R$)"], ["vendas_mes", "Meta de vendas no mês"], ["leads_mes", "Meta de leads no mês"], ["roas_min", "ROAS mínimo"], ["cpa_max", "CPA máximo (R$)"], ["cpl_max", "CPL máximo (R$)"], ["ticket_medio", "Ticket médio desejado (R$)"], ["investimento_max_mes", "Investimento máximo mensal (R$)"], ["ctr_min", "CTR mínimo (%)"], ["sla_minutos", "Tempo máximo para o primeiro atendimento (minutos)"], ["taxa_contato_min", "Taxa mínima de leads atendidos (%)"], ["ltv_meta", "LTV desejado por cliente (R$)"]];
@@ -75,7 +75,8 @@ function abaMensagens() {
       <div class="campo"><label>Atualizar a cada (segundos)</label><input type="number" id="wmInt" min="6" max="120" value="${esc(W.cfg.intervalo)}"></div>
       <div class="campo largo"><label class="check"><input type="checkbox" id="wmAuto"${W.cfg.auto_lead ? " checked" : ""}> Criar lead automaticamente quando chegar mensagem de alguém que ainda não está no CRM</label></div>
       <div class="campo largo"><label class="check"><input type="checkbox" id="wmLido"${W.cfg.marcar_lido ? " checked" : ""}> Marcar a conversa como lida no WhatsApp quando eu abrir aqui</label></div>
-      <div class="campo largo"><label class="check"><input type="checkbox" id="wmMidia"${W.salvaMidia() ? " checked" : ""}> Guardar as mídias na instância — <b>necessário para ver imagens, áudios e vídeos aqui</b>${W.salvaMidia() === null ? " (clique em Testar conexão para saber como está)" : ""}</label></div>
+      <div class="campo largo"><label class="check"><input type="checkbox" id="wmMidia"${W.salvaMidia() ? " checked" : ""} data-tocado="0"> Guardar as mídias na instância — <b>necessário para ver imagens, áudios e vídeos aqui</b></label>
+        <small>${W.salvaMidia() === true ? "Está ligado na instância." : W.salvaMidia() === false ? "Está desligado na instância." : "A instância não informou como está. Só mexa nesta opção se quiser mudar; deixada em paz, nada é alterado lá."}</small></div>
     </div>
     <div class="linha-btns" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
       <button class="btn btn-primario" data-wm-salvar>💾 Salvar</button>
@@ -85,7 +86,7 @@ function abaMensagens() {
       ${W.configurado() ? `<button class="btn btn-perigo" data-wm-limpar>Remover chave deste aparelho</button>` : ""}
     </div>
     ${status}
-    ${W.salvaMidia() === false ? `<div class="aviso aviso-alerta">As mídias não estão sendo guardadas na instância, então imagens, áudios e vídeos não abrem nas Conversas. Marque a opção acima e salve.</div>` : ""}
+    ${W.salvaMidia() === false ? `<div class="aviso aviso-alerta">As mídias não estão sendo guardadas na instância, então imagens, áudios e vídeos podem não abrir nas Conversas. Marque a opção acima e salve, ou ligue "Salvar mídia no S3" no portal da api-wa.me.</div>` : ""}
     ${avisoCanais}
     <div id="wmQr"></div>
     ${st.diagnostico ? `<details style="margin-top:8px"><summary class="mudo" style="cursor:pointer;font-size:.8rem">Ver o que a API respondeu (diagnóstico)</summary><pre style="white-space:pre-wrap;font-size:.72rem;background:var(--card2);border:1px solid var(--borda);border-radius:8px;padding:8px;overflow:auto;max-height:220px">${esc(st.diagnostico)}</pre></details>` : ""}
@@ -107,14 +108,18 @@ export default {
     on("[data-wm-salvar]", "click", async () => {
       const canais = {}; root.querySelectorAll("[data-canal]").forEach((c) => canais[c.dataset.canal] = c.checked);
       W.salvarCfg({ base: root.querySelector("#wmBase").value, key: root.querySelector("#wmKey").value.trim(), canais, intervalo: Number(root.querySelector("#wmInt").value) || 12, auto_lead: root.querySelector("#wmAuto").checked, marcar_lido: root.querySelector("#wmLido").checked });
-      const querMidia = root.querySelector("#wmMidia").checked;
+      const caixaMidia = root.querySelector("#wmMidia");
+      const querMidia = caixaMidia.checked;
       toast("Configuração salva.");
-      if (W.configurado() && querMidia !== W.salvaMidia()) {
+      // Só mexe na instância se a pessoa realmente clicou na opção: assim uma
+      // configuração que já está certa no portal nunca é desligada sem querer.
+      if (W.configurado() && caixaMidia.dataset.tocado === "1" && querMidia !== W.salvaMidia()) {
         try { await W.ajustarInstancia({ saveMedia: querMidia }); toast(querMidia ? "A instância passou a guardar as mídias. Mensagens novas já aparecem com imagem." : "A instância deixou de guardar mídias."); }
         catch (e) { toast("Não consegui mudar o salvamento de mídia: " + e.message, "erro"); }
       }
       W.iniciarPolling(); W.verificarConexao().catch(() => {}).finally(() => ctx.rerender());
     });
+    on("#wmMidia", "change", (el) => { el.dataset.tocado = "1"; });
     on("[data-wm-testar]", "click", async () => { try { const d = await W.verificarConexao(); toast("Conectado."); console.log("instância:", d); } catch (e) { toast("Falhou: " + e.message, "erro"); } ctx.rerender(); });
     on("[data-wm-qr]", "click", async () => {
       const alvo = root.querySelector("#wmQr"); alvo.innerHTML = `<div class="aviso aviso-info">Gerando QR Code…</div>`;

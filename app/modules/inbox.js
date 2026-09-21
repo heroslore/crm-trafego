@@ -1,12 +1,12 @@
 // Caixa de entrada: WhatsApp, Instagram e Messenger numa tela só, ligada aos leads.
-import { db } from "../core/db.js?v=43ebd473";
-import * as W from "../core/wame.js?v=43ebd473";
-import { cartao, vazio, badge, badgeOpcao, abrirFormulario, toast, itemLista, modal, fecharModal } from "../core/ui.js?v=43ebd473";
-import { esc, brl, dataBR, horaCurta, hoje, somaDias, agora, waLink, semAcento, telLimpo } from "../core/format.js?v=43ebd473";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=43ebd473";
-import { podeEditar, usuario } from "../core/auth.js?v=43ebd473";
-import { abrirVenda } from "./vendas.js?v=43ebd473";
-import { registrarInteracao, mudarEtapa, marcarPrimeiroContato, marcarPrimeiraResposta } from "./leads.js?v=43ebd473";
+import { db } from "../core/db.js?v=1d8faa7d";
+import * as W from "../core/wame.js?v=1d8faa7d";
+import { cartao, vazio, badge, badgeOpcao, abrirFormulario, toast, itemLista, modal, fecharModal } from "../core/ui.js?v=1d8faa7d";
+import { esc, brl, dataBR, horaCurta, hoje, somaDias, agora, waLink, semAcento, telLimpo } from "../core/format.js?v=1d8faa7d";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=1d8faa7d";
+import { podeEditar, usuario } from "../core/auth.js?v=1d8faa7d";
+import { abrirVenda } from "./vendas.js?v=1d8faa7d";
+import { registrarInteracao, mudarEtapa, marcarPrimeiroContato, marcarPrimeiraResposta } from "./leads.js?v=1d8faa7d";
 
 let canal = "", busca = "", filtro = "todas";
 const rascunhos = new Map();
@@ -93,7 +93,7 @@ function threadHtml(chat) {
     const dia = m.ts ? new Date(m.ts * 1000).toISOString().slice(0, 10) : "";
     let sep = "";
     if (dia && dia !== diaAtual) { diaAtual = dia; sep = `<div class="msg-dia">${dia === hoje() ? "Hoje" : dia === somaDias(hoje(), -1) ? "Ontem" : dataBR(dia)}</div>`; }
-    const url = W.urlMidia(m.id);
+    const url = m.midia_url || W.urlMidia(m.id);
     const anexo = corpoMidia(m, url);
     return `${sep}<div class="msg ${m.minha ? "minha" : "dele"}">${anexo}${m.texto ? `<span class="msg-txt">${esc(m.texto)}</span>` : (anexo ? "" : `<span class="msg-txt"><i>(sem texto)</i></span>`)}${m.anuncio ? `<span class="msg-ad">📣 veio do anúncio${m.anuncio.titulo ? ": " + esc(m.anuncio.titulo) : ""}</span>` : ""}<span class="msg-hora">${esc(horaMsg(m.ts))}${m.minha && m.status ? " ✓" : ""}</span></div>`;
   }).join("");

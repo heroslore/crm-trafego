@@ -3,8 +3,8 @@
 //
 // A chave da instância NÃO fica no banco sincronizado: ela mora só neste aparelho
 // (localStorage), porque quem tem a chave controla o WhatsApp da loja.
-import { db } from "./db.js?v=43ebd473";
-import { agora, hoje, telLimpo, uid, semAcento } from "./format.js?v=43ebd473";
+import { db } from "./db.js?v=1d8faa7d";
+import { agora, hoje, telLimpo, uid, semAcento } from "./format.js?v=1d8faa7d";
 
 const CHAVE_CFG = "crm-trafego-wame";
 export const BASES = ["https://us.api-wa.me", "https://server.api-wa.me"];
@@ -161,6 +161,23 @@ export function contextoAnuncio(m) {
     url: (ext && ext.sourceUrl) || (ref && ref.source_url) || "",
   };
 }
+// Com "Salvar mídia no S3" ligado, a instância troca o arquivo por uma URL
+// pronta dentro da própria mensagem. Quando ela existe, é a melhor opção:
+// abre direto, sem passar pelo endpoint de download.
+const CDN_CRIPTOGRAFADA = /(whatsapp\.net|\.enc(\?|$))/i;
+export function urlDeMidia(m) {
+  const msg = (m && (m.message || m)) || {};
+  const nos = [msg.imageMessage, msg.videoMessage, msg.audioMessage, msg.documentMessage, msg.stickerMessage, msg.ptvMessage, msg.image, msg.video, msg.audio, msg.document, m, msg];
+  for (const n of nos) {
+    if (!n || typeof n !== "object") continue;
+    for (const k of ["mediaUrl", "media_url", "fileUrl", "file_url", "s3Url", "s3_url", "downloadUrl", "download_url", "url", "link"]) {
+      const v = n[k];
+      if (typeof v === "string" && /^https?:\/\//i.test(v) && !CDN_CRIPTOGRAFADA.test(v)) return v;
+    }
+  }
+  return "";
+}
+
 function normalizarMensagem(m, chatId) {
   const key = m.key || {};
   const ts = Number(m.messageTimestamp || m.timestamp || key.timestamp || 0) || 0;
@@ -173,6 +190,7 @@ function normalizarMensagem(m, chatId) {
     tipo: tipoDaMensagem(m),
     status: m.status || "",
     autor: m.pushName || m.notify || "",
+    midia_url: urlDeMidia(m),
     anuncio: contextoAnuncio(m),
   };
 }
