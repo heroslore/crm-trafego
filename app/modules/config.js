@@ -45,7 +45,9 @@ function abaNuvem() {
 }
 function abaDados() {
   const cont = db.tabelas().map((t) => `${t}: ${db.count(t)}`).join(" · ");
-  return cartao("Dados e backup", `<p class="sub">${esc(cont)}</p><div class="linha-btns" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-exportar>⬇️ Baixar backup (JSON)</button><label class="btn" style="cursor:pointer">⬆️ Restaurar backup <input type="file" id="impBackup" accept="application/json" style="display:none"></label>${db.temDemo() ? `<button class="btn btn-perigo" data-remover-demo>🧪 Remover dados de demonstração</button>` : `<button class="btn" data-inserir-demo>🧪 Inserir dados de demonstração</button>`}${ehAdmin() ? `<button class="btn btn-perigo" data-limpar>🗑️ Apagar tudo</button>` : ""}</div><p class="sub" style="margin-top:10px">Registros de demonstração são marcados e podem ser removidos de uma vez sem afetar os dados reais.</p>`);
+  const versao = (document.querySelector('meta[name="crm-versao"]') || {}).content || "local";
+  return cartao("Sistema", `<p class="sub">Versão publicada: <code>${esc(versao)}</code>. Se uma novidade não aparecer no celular, é o navegador guardando a versão antiga.</p><button class="btn btn-primario" data-atualizar-sistema style="margin-top:8px">🔄 Baixar a versão mais nova</button>`)
+    + cartao("Dados e backup", `<p class="sub">${esc(cont)}</p><div class="linha-btns" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-exportar>⬇️ Baixar backup (JSON)</button><label class="btn" style="cursor:pointer">⬆️ Restaurar backup <input type="file" id="impBackup" accept="application/json" style="display:none"></label>${db.temDemo() ? `<button class="btn btn-perigo" data-remover-demo>🧪 Remover dados de demonstração</button>` : `<button class="btn" data-inserir-demo>🧪 Inserir dados de demonstração</button>`}${ehAdmin() ? `<button class="btn btn-perigo" data-limpar>🗑️ Apagar tudo</button>` : ""}</div><p class="sub" style="margin-top:10px">Registros de demonstração são marcados e podem ser removidos de uma vez sem afetar os dados reais.</p>`);
 }
 
 function abaMensagens() {
@@ -127,6 +129,12 @@ export default {
     on("[data-nuvem-conectar]", "click", async () => { try { const info = await conectar(root.querySelector("#nvRepo").value, root.querySelector("#nvToken").value); if (info.private === false && !confirm("O repositório é PÚBLICO: leads e vendas ficariam visíveis. Continuar mesmo assim?")) { desconectar(); ctx.rerender(); return; } toast("Nuvem conectada."); } catch (e) { toast("Não conectou: " + e.message, "erro"); } ctx.rerender(); });
     on("[data-nuvem-agora]", "click", async () => { await sincronizar("manual"); toast(nuvem.erro ? "Erro: " + nuvem.erro : "Sincronizado."); ctx.rerender(); });
     on("[data-nuvem-sair]", "click", () => { if (confirm("Desconectar este aparelho da nuvem? Os dados continuam aqui.")) { desconectar(); ctx.rerender(); } });
+    on("[data-atualizar-sistema]", "click", async () => {
+      toast("Buscando a versão mais nova…");
+      try { if (window.caches) { for (const c of await caches.keys()) await caches.delete(c); } } catch {}
+      db.gravarAgora();
+      const u = new URL(location.href); u.searchParams.set("v", Date.now()); location.replace(u.toString());
+    });
     on("[data-exportar]", "click", () => { const blob = new Blob([db.exportar()], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `crm-trafego-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click(); });
     on("#impBackup", "change", (el) => { const f = el.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { try { db.importar(JSON.parse(rd.result), confirm("OK = mesclar com os dados atuais · Cancelar = substituir tudo pelo backup") ? "mesclar" : "substituir"); toast("Backup restaurado."); ctx.rerender(); } catch (e) { toast("Não deu: " + e.message, "erro"); } }; rd.readAsText(f); });
     on("[data-remover-demo]", "click", () => { if (!confirm("Remover todos os registros de demonstração?")) return; const n = db.removerDemo(); toast(`${n} registro(s) de demonstração removidos.`); ctx.rerender(); });

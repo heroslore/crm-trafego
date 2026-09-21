@@ -24,6 +24,9 @@ jobs:
           cp -r app site/app
           cp dados/meta.json site/dados/
           touch site/.nojekyll
+
+      - name: Carimba a versão nos arquivos (evita cache antigo no celular)
+        run: python3 .github/versionar.py site "${GITHUB_SHA::8}"
       - name: Envia para o branch gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
