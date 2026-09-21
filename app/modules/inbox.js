@@ -45,19 +45,27 @@ function listaHtml(abertaId) {
     return `<button class="conv${c.id === abertaId ? " ativa" : ""}" data-conv="${esc(c.id)}">
       <span class="conv-avatar">${esc((nome || "?").trim()[0].toUpperCase())}<i>${iconeCanal(c.provider)}</i></span>
       <span class="conv-txt"><span class="conv-topo"><b>${esc(nome)}</b><small>${esc(horaMsg(c.ts))}</small></span>
-      <span class="conv-previa">${c.grupo ? "👥 " : ""}${esc((c.previa || "").slice(0, 60)) || "<i>sem prévia</i>"}</span>
+      <span class="conv-previa">${c.grupo ? "👥 " : ""}${esc((c.previa || (W.resumoDe(c.id) || {}).previa || "").slice(0, 60)) || "<i class='mudo'>—</i>"}</span>
       <span class="conv-tags">${lead ? badgeOpcao("lead_stage", lead.stage) : (c.grupo ? badge("grupo", "cinza") : badge("sem lead", "amarelo"))}</span></span>
       ${c.naoLidas ? `<span class="conv-n">${c.naoLidas}</span>` : ""}</button>`;
   }).join("");
 }
 
-const NOME_MIDIA = { imagem: "🖼️ imagem", audio: "🎧 áudio", video: "🎬 vídeo", documento: "📎 documento", figurinha: "🌟 figurinha", localizacao: "📍 localização", contato: "👤 contato", reacao: "❤️ reação" };
+const NOME_MIDIA = { imagem: "🖼️ imagem", audio: "🎧 áudio", video: "🎬 vídeo", documento: "📎 documento", figurinha: "🌟 figurinha", localizacao: "📍 localização", contato: "👤 contato", reacao: "❤️ reação", enquete: "📊 enquete", chamada: "📞 chamada", pedido: "🧾 pedido", produto: "🛍️ produto", lista: "📋 lista", botoes: "🔘 botões", modelo: "📄 modelo", interativo: "📲 interativo", pagamento: "💳 pagamento", convite: "👥 convite", evento: "📅 evento", sistema: "⚙️ mensagem do sistema" };
+const TEM_ARQUIVO = new Set(["imagem", "audio", "video", "documento", "figurinha"]);
+// Deixa os links clicáveis sem abrir mão de escapar o resto do texto.
+function textoComLinks(t) {
+  return esc(t).replace(/(https?:\/\/[^\s<]+)/g, (u) => `<a href="${u}" target="_blank" rel="noopener" class="msg-link">${u.length > 60 ? u.slice(0, 57) + "…" : u}</a>`);
+}
 // Cada tipo de anexo é mostrado do jeito que dá para usar: imagem aparece,
 // áudio e vídeo tocam na hora, documento vira link. Se a instância não guardou
 // a mídia, sobra o aviso com link, em vez de um quadrado quebrado.
 function corpoMidia(m, url) {
   if (m.tipo === "texto") return "";
   const rotulo = NOME_MIDIA[m.tipo] || m.tipo;
+  if (!TEM_ARQUIVO.has(m.tipo)) return `<span class="msg-midia">${rotulo}</span>`;
+  if (W.midiaIndisponivel(m.id)) return `<span class="msg-midia">${rotulo} · não disponível</span>`;
+  url = W.urlMidiaPronta(m.id) || url;
   if (!url) return `<span class="msg-midia">${rotulo}</span>`;
   const attrs = `data-midia="${esc(m.id)}" data-midia-rotulo="${esc(rotulo)}"`;
   if (m.tipo === "imagem" || m.tipo === "figurinha") {
@@ -85,13 +93,15 @@ function religarMidias(root) {
         const pai = el.closest("[data-ver-imagem]");
         if (pai) pai.dataset.verImagem = nova;
       } catch {
+        W.marcarMidiaRuim(el.dataset.midia);
         const rotulo = el.dataset.midiaRotulo || "arquivo";
         const alvo = el.closest(".msg-midia-link") || el;
         alvo.outerHTML = `<span class="msg-midia">${esc(rotulo)} · não disponível</span>`;
       }
     };
     el.addEventListener("error", falhou, { once: true });
-    if (el.tagName === "IMG" && el.complete && el.naturalWidth === 0) falhou();
+    el.addEventListener("load", () => W.marcarMidiaOk(el.dataset.midia, el.src), { once: true });
+    if (el.tagName === "IMG" && el.complete) { if (el.naturalWidth === 0) falhou(); else W.marcarMidiaOk(el.dataset.midia, el.src); }
   });
 }
 
@@ -122,7 +132,7 @@ function threadHtml(chat) {
     if (dia && dia !== diaAtual) { diaAtual = dia; sep = `<div class="msg-dia">${dia === hoje() ? "Hoje" : dia === somaDias(hoje(), -1) ? "Ontem" : dataBR(dia)}</div>`; }
     const url = m.midia_url || W.urlMidia(m.id);
     const anexo = corpoMidia(m, url);
-    return `${sep}<div class="msg ${m.minha ? "minha" : "dele"}">${anexo}${m.texto ? `<span class="msg-txt">${esc(m.texto)}</span>` : (anexo ? "" : `<span class="msg-txt"><i>(sem texto)</i></span>`)}${m.anuncio ? `<span class="msg-ad">📣 veio do anúncio${m.anuncio.titulo ? ": " + esc(m.anuncio.titulo) : ""}</span>` : ""}<span class="msg-hora">${esc(horaMsg(m.ts))}${m.minha && m.status ? " ✓" : ""}</span></div>`;
+    return `${sep}<div class="msg ${m.minha ? "minha" : "dele"}">${anexo}${m.texto ? `<span class="msg-txt">${textoComLinks(m.texto)}</span>` : (anexo ? "" : `<span class="msg-txt mudo"><i>${esc(NOME_MIDIA[m.tipo] || "mensagem sem texto")}</i></span>`)}${m.anuncio ? `<span class="msg-ad">📣 veio do anúncio${m.anuncio.titulo ? ": " + esc(m.anuncio.titulo) : ""}</span>` : ""}<span class="msg-hora">${esc(horaMsg(m.ts))}${m.minha && m.status ? " ✓" : ""}</span></div>`;
   }).join("");
   const rr = W.respostasRapidas();
   return `<div class="thread-cab">
