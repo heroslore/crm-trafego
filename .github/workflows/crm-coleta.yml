@@ -1,0 +1,86 @@
+name: CRM — coleta do Meta Ads
+
+# Todo dia de manhã baixa as métricas do Gerenciador de Anúncios, grava em
+# dados/meta.json no branch main e republica o site. Também pode ser
+# disparado à mão em Actions > "CRM — coleta do Meta Ads" > Run workflow.
+
+on:
+  schedule:
+    - cron: "20 11 * * *"   # 08:20 em Brasília (11:20 UTC)
+  workflow_dispatch:
+    inputs:
+      completo:
+        description: "Baixar o histórico inteiro da conta (em vez de só os últimos 45 dias)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: crm-coleta
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Confere os segredos
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          META_AD_ACCOUNT_ID: ${{ secrets.META_AD_ACCOUNT_ID }}
+        run: |
+          if [ -z "$META_ACCESS_TOKEN" ] || [ -z "$META_AD_ACCOUNT_ID" ]; then
+            echo "::error::Faltam os segredos META_ACCESS_TOKEN e/ou META_AD_ACCOUNT_ID. Cadastre em Settings > Secrets and variables > Actions > New repository secret."
+            exit 1
+          fi
+
+      - name: Testes do coletor
+        run: python3 -m unittest -q coletor/test_coletar.py
+        working-directory: ${{ github.workspace }}
+        env:
+          PYTHONPATH: coletor
+
+      - name: Coleta as métricas da Meta
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          META_AD_ACCOUNT_ID: ${{ secrets.META_AD_ACCOUNT_ID }}
+        run: python3 coletor/coletar.py ${{ inputs.completo == true && '--completo' || '' }}
+
+      - name: Grava os dados no branch main
+        id: grava
+        run: |
+          git config user.name "crm-coleta[bot]"
+          git config user.email "crm-coleta@users.noreply.github.com"
+          git add dados/meta.json
+          if git diff --cached --quiet; then
+            echo "Nada mudou desde a última coleta."
+            echo "mudou=nao" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "CRM: dados do Meta Ads até $(date -u -d yesterday +%d/%m/%Y)"
+          for tentativa in 1 2 3 4; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              echo "mudou=sim" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Push falhou (tentativa $tentativa); esperando…"
+            sleep $((tentativa * 5))
+          done
+          echo "::error::Não consegui enviar os dados para o branch main."
+          exit 1
+
+      - name: Republica o site
+        if: steps.grava.outputs.mudou == 'sim'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main

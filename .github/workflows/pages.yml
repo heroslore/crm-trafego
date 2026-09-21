@@ -1,0 +1,31 @@
+name: Publicar no GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Monta a pasta do site
+        run: |
+          mkdir -p site/dados
+          cp index.html manifest.json icone.svg site/
+          cp dados/meta.json site/dados/
+          touch site/.nojekyll
+      - name: Envia para o branch gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          commit_message: "Publica o site a partir de ${{ github.sha }}"
