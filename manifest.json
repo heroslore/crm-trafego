@@ -1,0 +1,15 @@
+{
+  "name": "CRM de Tráfego — Lojas",
+  "short_name": "CRM Tráfego",
+  "description": "Painel de tráfego pago, campanhas, público e leads das lojas.",
+  "start_url": "/crm-trafego/",
+  "scope": "/crm-trafego/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f3ec",
+  "theme_color": "#16324a",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

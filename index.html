@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+<title>CRM de Tráfego — Lojas</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#16324a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CRM Tráfego">
+<link rel="icon" type="image/svg+xml" href="icone.svg">
+<link rel="apple-touch-icon" href="icone.svg">
+<style>
+  :root {
+    --azul:#16324a; --azul-claro:#1f4666; --areia:#f7f3ec; --verde:#2e8b57; --verde-claro:#e5f3ec;
+    --vermelho:#c0392b; --vermelho-claro:#fbe4e1; --amarelo:#b7791f; --amarelo-claro:#fdf3dc;
+    --cinza:#8a94a0; --cinza-claro:#e9e5dc; --laranja:#f2762e; --laranja-suave:#fdeadd;
+    --ciano:#1e7fc2; --ciano-suave:#ddeefa; --roxo:#7b4fb0; --roxo-suave:#eee6f8;
+    --texto:#16324a; --card:#fff; --borda:#e0dbd0;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html { -webkit-text-size-adjust:100%; }
+  body { font-family:"Segoe UI",Roboto,Arial,sans-serif; background:var(--areia); color:var(--texto); min-height:100vh; padding-bottom:84px; }
+  header { background:var(--azul); color:#fff; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; gap:10px; position:sticky; top:0; z-index:40; }
+  header h1 { font-size:1.1rem; line-height:1.2; }
+  header .sub { font-size:0.76rem; opacity:0.85; margin-top:2px; }
+  header .status { font-size:0.74rem; text-align:right; opacity:0.9; max-width:48%; }
+  main { max-width:900px; margin:0 auto; padding:14px 14px 20px; }
+  nav { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:2px solid var(--borda); display:flex; z-index:50; }
+  nav button { flex:1; border:none; background:none; padding:9px 0 11px; font-size:0.68rem; color:var(--cinza); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px; }
+  nav button .ico { font-size:1.2rem; }
+  nav button.ativa { color:var(--laranja); font-weight:700; }
+  .tela { display:none; } .tela.ativa { display:block; }
+
+  .filtros { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center; }
+  .filtros select, .filtros input[type=date] { padding:8px 10px; border:1.5px solid var(--borda); border-radius:10px; background:#fff; font-size:0.9rem; color:var(--texto); }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { padding:6px 11px; border-radius:999px; border:1.5px solid var(--borda); background:#fff; font-size:0.8rem; cursor:pointer; color:var(--texto); white-space:nowrap; }
+  .chip.ativa { background:var(--azul); color:#fff; border-color:var(--azul); }
+  .chip.loja.ativa { background:var(--loja-cor, var(--laranja)); border-color:var(--loja-cor, var(--laranja)); }
+
+  .cartao { background:var(--card); border-radius:14px; padding:14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(22,50,74,0.08); }
+  .cartao h2 { font-size:1rem; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .cartao h2 small { font-weight:400; color:var(--cinza); font-size:0.78rem; }
+  .cartao h3 { font-size:0.92rem; margin:12px 0 6px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px; }
+  .kpi { background:var(--areia); border-radius:12px; padding:10px 12px; }
+  .kpi .r { font-size:0.72rem; color:var(--cinza); text-transform:uppercase; letter-spacing:0.02em; }
+  .kpi .v { font-size:1.25rem; font-weight:700; margin-top:2px; line-height:1.15; }
+  .kpi .d { font-size:0.74rem; margin-top:3px; color:var(--cinza); }
+  .kpi .d.up { color:var(--verde); } .kpi .d.down { color:var(--vermelho); }
+  .kpi.destaque { background:var(--azul); color:#fff; } .kpi.destaque .r, .kpi.destaque .d { color:#cfe0ee; }
+  .kpi.destaque .d.up { color:#9be2b6; } .kpi.destaque .d.down { color:#ffb3a7; }
+
+  .aviso { padding:10px 12px; border-radius:10px; font-size:0.86rem; margin-bottom:8px; line-height:1.4; }
+  .aviso.alerta { background:var(--amarelo-claro); color:#6d4a10; border-left:4px solid var(--amarelo); }
+  .aviso.erro { background:var(--vermelho-claro); color:#7a2218; border-left:4px solid var(--vermelho); }
+  .aviso.ok { background:var(--verde-claro); color:#1e5b3a; border-left:4px solid var(--verde); }
+  .aviso.info { background:var(--ciano-suave); color:#0f4c73; border-left:4px solid var(--ciano); }
+  .vazio { color:var(--cinza); font-size:0.88rem; padding:10px 0; text-align:center; }
+
+  .grafico { width:100%; height:190px; display:block; }
+  .legenda { display:flex; gap:14px; font-size:0.76rem; color:var(--cinza); margin-top:4px; flex-wrap:wrap; }
+  .legenda i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:middle; }
+
+  .barras { display:flex; flex-direction:column; gap:6px; }
+  .barra { display:grid; grid-template-columns:minmax(86px, 34%) 1fr auto; gap:8px; align-items:center; font-size:0.82rem; }
+  .barra .n { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .barra .t { background:var(--cinza-claro); border-radius:6px; height:14px; overflow:hidden; }
+  .barra .t i { display:block; height:100%; background:var(--laranja); border-radius:6px; min-width:2px; }
+  .barra .v { font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--texto); text-align:right; }
+  .barra .v small { color:var(--cinza); }
+
+  .lista { display:flex; flex-direction:column; gap:8px; }
+  .item { background:var(--areia); border-radius:12px; padding:10px 12px; }
+  .item .topo { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+  .item .nome { font-weight:700; font-size:0.95rem; line-height:1.25; }
+  .item .meta { font-size:0.78rem; color:var(--cinza); margin-top:2px; }
+  .item .nums { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:8px; font-size:0.82rem; }
+  .item .nums b { font-variant-numeric:tabular-nums; }
+  .item .nums span small { color:var(--cinza); }
+  .item.expandido { background:#fff; border:1.5px solid var(--borda); }
+  .detalhe { margin-top:10px; border-top:1px dashed var(--borda); padding-top:10px; }
+  .anuncio { display:grid; grid-template-columns:56px 1fr; gap:10px; padding:8px 0; border-bottom:1px solid var(--cinza-claro); font-size:0.82rem; }
+  .anuncio:last-child { border-bottom:none; }
+  .anuncio img, .anuncio .semimg { width:56px; height:56px; object-fit:cover; border-radius:8px; background:var(--cinza-claro); display:block; }
+  .anuncio .semimg { display:flex; align-items:center; justify-content:center; font-size:1.3rem; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.7rem; font-weight:700; white-space:nowrap; vertical-align:middle; }
+  .badge.ativa { background:var(--verde-claro); color:var(--verde); }
+  .badge.pausada { background:var(--cinza-claro); color:#5d6771; }
+  .badge.loja { color:#fff; background:var(--loja-cor, var(--laranja)); }
+  .badge.status-novo { background:var(--ciano-suave); color:#0f4c73; }
+  .badge.status-atendimento { background:var(--amarelo-claro); color:#6d4a10; }
+  .badge.status-orcamento { background:var(--roxo-suave); color:var(--roxo); }
+  .badge.status-vendido { background:var(--verde-claro); color:var(--verde); }
+  .badge.status-perdido { background:var(--vermelho-claro); color:var(--vermelho); }
+
+  .btn { display:block; width:100%; padding:13px; border:none; border-radius:12px; font-size:1rem; font-weight:700; cursor:pointer; color:#fff; background:var(--azul); margin-top:8px; }
+  .btn-verde { background:var(--verde); } .btn-laranja { background:var(--laranja); } .btn-cinza { background:var(--cinza); } .btn-vermelho { background:var(--vermelho); }
+  .btn-pq { display:inline-block; width:auto; padding:7px 12px; font-size:0.82rem; margin:0; border-radius:9px; }
+  .btn-vazado { background:none; border:1.5px solid var(--borda); color:var(--texto); }
+  .btn:disabled { opacity:0.55; }
+  .linha-btns { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+
+  label.campo { display:block; font-size:0.82rem; color:var(--cinza); margin:10px 0 4px; }
+  input[type=text], input[type=tel], input[type=number], input[type=password], select, textarea { width:100%; padding:11px 12px; border:1.5px solid var(--borda); border-radius:10px; font-size:1rem; background:#fff; color:var(--texto); font-family:inherit; }
+  textarea { min-height:70px; resize:vertical; }
+  .duas { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+  .funil { display:grid; grid-template-columns:repeat(5, 1fr); gap:4px; margin-bottom:10px; }
+  .funil button { border:none; border-radius:10px; padding:8px 4px; font-size:0.72rem; cursor:pointer; background:var(--areia); color:var(--texto); line-height:1.2; }
+  .funil button b { display:block; font-size:1.1rem; }
+  .funil button.ativa { outline:2px solid var(--azul); }
+  .etapas { display:flex; gap:4px; flex-wrap:wrap; margin-top:8px; }
+  .etapas button { border:1.5px solid var(--borda); background:#fff; border-radius:8px; padding:5px 8px; font-size:0.74rem; cursor:pointer; color:var(--texto); }
+  .etapas button.ativa { background:var(--azul); color:#fff; border-color:var(--azul); }
+
+  .modal-fundo { display:none; position:fixed; inset:0; background:rgba(22,50,74,0.55); z-index:100; align-items:flex-end; justify-content:center; }
+  .modal-fundo.aberto { display:flex; }
+  .modal { background:#fff; width:100%; max-width:560px; max-height:92vh; overflow:auto; border-radius:18px 18px 0 0; padding:16px 16px 24px; }
+  .modal h2 { font-size:1.05rem; margin-bottom:6px; display:flex; justify-content:space-between; }
+  .modal h2 button { border:none; background:none; font-size:1.3rem; cursor:pointer; color:var(--cinza); }
+  .tabela { width:100%; border-collapse:collapse; font-size:0.8rem; }
+  .tabela th, .tabela td { padding:6px 4px; text-align:right; border-bottom:1px solid var(--cinza-claro); white-space:nowrap; }
+  .tabela th:first-child, .tabela td:first-child { text-align:left; white-space:normal; }
+  .tabela th { color:var(--cinza); font-weight:600; font-size:0.72rem; }
+  .mini { font-size:0.78rem; color:var(--cinza); line-height:1.4; }
+  code { background:var(--cinza-claro); padding:1px 5px; border-radius:5px; font-size:0.85em; }
+  .loja-card { border-left:6px solid var(--loja-cor, var(--laranja)); }
+  .progresso { background:var(--cinza-claro); border-radius:6px; height:10px; overflow:hidden; margin-top:6px; }
+  .progresso i { display:block; height:100%; background:var(--loja-cor, var(--laranja)); }
+  .toast { position:fixed; left:50%; bottom:92px; transform:translateX(-50%); background:var(--azul); color:#fff; padding:10px 16px; border-radius:12px; font-size:0.88rem; z-index:200; display:none; max-width:90vw; text-align:center; }
+  .toast.mostra { display:block; }
+  .horas { display:grid; grid-template-columns:repeat(24, 1fr); gap:2px; align-items:end; height:90px; }
+  .horas div { background:var(--ciano); border-radius:3px 3px 0 0; min-height:2px; position:relative; }
+  .horas-rot { display:grid; grid-template-columns:repeat(24, 1fr); font-size:0.58rem; color:var(--cinza); text-align:center; margin-top:2px; }
+  @media (min-width:640px){ .modal-fundo { align-items:center; } .modal { border-radius:18px; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>📈 CRM de Tráfego</h1>
+    <div class="sub" id="cabSub">carregando dados…</div>
+  </div>
+  <div class="status" id="cabStatus"></div>
+</header>
+
+<main>
+  <div class="filtros" id="filtros">
+    <div class="chips" id="chipsPeriodo"></div>
+    <div id="datasCustom" style="display:none; gap:6px;">
+      <input type="date" id="dtInicio"> <input type="date" id="dtFim">
+    </div>
+    <div class="chips" id="chipsLojas"></div>
+  </div>
+
+  <section class="tela ativa" id="tela-painel"></section>
+  <section class="tela" id="tela-lojas"></section>
+  <section class="tela" id="tela-campanhas"></section>
+  <section class="tela" id="tela-publico"></section>
+  <section class="tela" id="tela-leads"></section>
+  <section class="tela" id="tela-ajustes"></section>
+</main>
+
+<nav>
+  <button data-tela="painel" class="ativa"><span class="ico">📊</span>Painel</button>
+  <button data-tela="lojas"><span class="ico">🏬</span>Lojas</button>
+  <button data-tela="campanhas"><span class="ico">📣</span>Campanhas</button>
+  <button data-tela="publico"><span class="ico">👥</span>Público</button>
+  <button data-tela="leads"><span class="ico">🤝</span>Leads</button>
+  <button data-tela="ajustes"><span class="ico">⚙️</span>Ajustes</button>
+</nav>
+
+<div class="modal-fundo" id="modalFundo"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+// ============================================================ estado
+var META = null;            // dados coletados da Meta (crm/dados/meta.json)
+var CRM = null;             // dados do CRM (lojas, leads, atribuições) — locais + nuvem
+var tela = "painel";
+var periodo = { tipo: "30d", inicio: "", fim: "" };
+var lojaFiltro = "todas";
+var campanhasSo = "entrega"; // entrega | ativas | todas
+var campanhaAberta = null;
+var leadsFiltro = { status: "abertos", busca: "" };
+var CRM_CHAVE = "crm-trafego-dados";
+var META_CACHE = "crm-trafego-meta";
+var NUVEM_CHAVE = "crm-trafego-nuvem";
+var NUVEM_ARQUIVO = "crm.json";
+
+var STATUS = [
+  { id: "novo", nome: "Novo", ico: "🆕" },
+  { id: "atendimento", nome: "Em atendimento", ico: "💬" },
+  { id: "orcamento", nome: "Orçamento", ico: "🧾" },
+  { id: "vendido", nome: "Vendido", ico: "✅" },
+  { id: "perdido", nome: "Perdido", ico: "❌" },
+];
+var ORIGENS = [
+  { id: "meta", nome: "Anúncio (Meta/Instagram/Facebook)" },
+  { id: "organico", nome: "Instagram/Facebook orgânico" },
+  { id: "whatsapp", nome: "WhatsApp direto" },
+  { id: "indicacao", nome: "Indicação" },
+  { id: "loja", nome: "Passou na loja" },
+  { id: "google", nome: "Google / site" },
+  { id: "outro", nome: "Outro" },
+];
+var CORES_LOJA = ["#f2762e", "#1e7fc2", "#2e8b57", "#7b4fb0", "#b7791f", "#c0392b"];
+var OBJETIVOS = { OUTCOME_AWARENESS: "Reconhecimento", BRAND_AWARENESS: "Reconhecimento", REACH: "Alcance", OUTCOME_ENGAGEMENT: "Engajamento/mensagens",
+  OUTCOME_TRAFFIC: "Tráfego", LINK_CLICKS: "Cliques", OUTCOME_LEADS: "Leads", OUTCOME_SALES: "Vendas", VIDEO_VIEWS: "Vídeo", MESSAGES: "Mensagens", CONVERSIONS: "Conversões" };
+var OBJETIVOS_SEM_MSG = ["OUTCOME_AWARENESS", "BRAND_AWARENESS", "REACH", "VIDEO_VIEWS", "OUTCOME_TRAFFIC", "LINK_CLICKS"];
+
+function crmPadrao(){
+  var agora = new Date().toISOString();
+  return {
+    versao: 1,
+    lojas: [
+      { id: "loja-iphone", nome: "Loja de iPhone", cor: "#f2762e", palavras: ["iphone", "celular", "boleto", "importados"], padrao: true, meta_gasto_mes: 0, meta_custo_msg: 15, atualizado_em: agora },
+      { id: "loja-gas", nome: "Depósito de Gás e Água", cor: "#1e7fc2", palavras: ["gás", "gas", "água", "agua", "botijão", "botijao", "galão"], padrao: false, meta_gasto_mes: 0, meta_custo_msg: 15, atualizado_em: agora },
+    ],
+    atribuicoes: {},   // campanha_id -> { loja_id, em }
+    leads: [],
+    config: { limite_custo_msg: 15, limite_freq: 3 },
+    config_em: agora,
+  };
+}
+
+// ============================================================ utilidades
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]; }); }
+function semAcento(s){ return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function brl(v){ if (v == null || isNaN(v)) return "—"; return "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function brlCurto(v){ if (v == null || isNaN(v)) return "—"; if (Math.abs(v) >= 10000) return "R$ " + (v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil"; return brl(v); }
+function inteiro(v){ if (v == null || isNaN(v)) return "—"; return Math.round(v).toLocaleString("pt-BR"); }
+function num1(v, c){ if (v == null || isNaN(v)) return "—"; return Number(v).toLocaleString("pt-BR", { minimumFractionDigits: c == null ? 1 : c, maximumFractionDigits: c == null ? 1 : c }); }
+function pct(v){ if (v == null || isNaN(v) || !isFinite(v)) return "—"; return num1(v * 100, 1) + "%"; }
+function dataBR(iso){ if (!iso) return "—"; var p = iso.slice(0, 10).split("-"); return p[2] + "/" + p[1] + (p[0] !== String(new Date().getFullYear()) ? "/" + p[0] : ""); }
+function dataBRcompleta(iso){ if (!iso) return "—"; var p = iso.slice(0, 10).split("-"); return p[2] + "/" + p[1] + "/" + p[0]; }
+function horaCurta(iso){ if (!iso) return ""; var d = new Date(iso); return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); }
+function isoDia(d){ return d.toISOString().slice(0, 10); }
+function somaDias(iso, n){ var d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return isoDia(d); }
+function diasEntre(a, b){ return Math.round((new Date(b + "T12:00:00Z") - new Date(a + "T12:00:00Z")) / 86400000) + 1; }
+function diaSemana(iso){ return ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][new Date(iso + "T12:00:00Z").getUTCDay()]; }
+function hojeLocal(){ var d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+function toast(txt){ var t = $("toast"); t.textContent = txt; t.classList.add("mostra"); clearTimeout(toast._t); toast._t = setTimeout(function(){ t.classList.remove("mostra"); }, 2600); }
+function telLimpo(t){ return String(t || "").replace(/\D/g, ""); }
+function waLink(t){ var n = telLimpo(t); if (!n) return ""; if (n.length <= 11) n = "55" + n; return "https://wa.me/" + n; }
+function utf8b64(b){ return decodeURIComponent(Array.prototype.map.call(atob(b.replace(/\n/g, "")), function(c){ return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2); }).join("")); }
+function b64utf8(s){ return btoa(encodeURIComponent(s).replace(/%([0-9A-F]{2})/g, function(_, p){ return String.fromCharCode(parseInt(p, 16)); })); }
+function deltaHtml(atual, anterior, invertido){
+  if (anterior == null || atual == null || !anterior || isNaN(atual) || isNaN(anterior)) return "";
+  var d = (atual - anterior) / Math.abs(anterior); if (!isFinite(d)) return "";
+  var bom = invertido ? d < 0 : d > 0; var cls = Math.abs(d) < 0.005 ? "" : (bom ? "up" : "down");
+  return '<div class="d ' + cls + '">' + (d > 0 ? "▲ " : d < 0 ? "▼ " : "") + pct(Math.abs(d)) + ' vs. anterior</div>';
+}
+
+// ============================================================ período
+function referencia(){ return (META && META.periodo && META.periodo.fim) || somaDias(hojeLocal(), -1); }
+function intervalo(p){
+  p = p || periodo; var fim = referencia(), ini;
+  switch (p.tipo) {
+    case "ontem": ini = fim; break;
+    case "7d": ini = somaDias(fim, -6); break;
+    case "14d": ini = somaDias(fim, -13); break;
+    case "30d": ini = somaDias(fim, -29); break;
+    case "90d": ini = somaDias(fim, -89); break;
+    case "mes": ini = fim.slice(0, 8) + "01"; break;
+    case "mes_ant": { var m = somaDias(fim.slice(0, 8) + "01", -1); ini = m.slice(0, 8) + "01"; fim = m; break; }
+    case "tudo": ini = (META && META.periodo && META.periodo.inicio) || somaDias(fim, -365); break;
+    case "custom": ini = p.inicio || somaDias(fim, -29); fim = p.fim || fim; if (ini > fim) { var x = ini; ini = fim; fim = x; } break;
+    default: ini = somaDias(fim, -29);
+  }
+  // Os dados da Meta vão até ontem; leads e vendas de hoje também contam no período.
+  var fimLeads = (p.tipo === "custom" || p.tipo === "mes_ant") ? fim : (fim >= referencia() ? hojeLocal() : fim);
+  return { inicio: ini, fim: fim, fim_leads: fimLeads, dias: diasEntre(ini, fim) };
+}
+function intervaloAnterior(iv){ var fim = somaDias(iv.inicio, -1); return { fim: fim, fim_leads: fim, inicio: somaDias(iv.inicio, -iv.dias), dias: iv.dias }; }
+function rotuloPeriodo(iv){ return dataBR(iv.inicio) + (iv.inicio === iv.fim ? "" : " a " + dataBR(iv.fim)); }
+var PERIODOS = [["ontem", "Ontem"], ["7d", "7 dias"], ["14d", "14 dias"], ["30d", "30 dias"], ["mes", "Este mês"], ["mes_ant", "Mês passado"], ["90d", "90 dias"], ["tudo", "Tudo"], ["custom", "Datas"]];
+
+// ============================================================ lojas e campanhas
+function lojas(){ return (CRM.lojas || []).filter(function(l){ return !l.apagado; }); }
+function lojaPorId(id){ return lojas().find(function(l){ return l.id === id; }) || null; }
+function campPorId(id){ return (META && META.campanhas || []).find(function(c){ return c.id === id; }) || null; }
+function anuncioPorId(id){ return (META && META.anuncios || []).find(function(a){ return a.id === id; }) || null; }
+function lojaDaCampanha(cid){
+  var a = CRM.atribuicoes[cid];
+  if (a && a.loja_id && lojaPorId(a.loja_id)) return a.loja_id;
+  if (a && a.loja_id === "" ) return "";
+  var c = campPorId(cid); var nome = semAcento(c ? c.nome : "");
+  var ls = lojas();
+  for (var i = 0; i < ls.length; i++) {
+    var ps = ls[i].palavras || [];
+    for (var j = 0; j < ps.length; j++) if (ps[j] && nome.indexOf(semAcento(ps[j])) >= 0) return ls[i].id;
+  }
+  var padrao = ls.find(function(l){ return l.padrao; });
+  return padrao ? padrao.id : "";
+}
+function campanhaNaLoja(cid){ return lojaFiltro === "todas" || lojaDaCampanha(cid) === lojaFiltro; }
+function nomeLoja(id){ var l = lojaPorId(id); return l ? l.nome : "Sem loja"; }
+function corLoja(id){ var l = lojaPorId(id); return l ? l.cor : "#8a94a0"; }
+function badgeLoja(id){ return '<span class="badge loja" style="--loja-cor:' + esc(corLoja(id)) + '">' + esc(nomeLoja(id)) + '</span>'; }
+
+// ============================================================ agregação
+function linhas(diario, iv, lojaId){
+  return (diario || []).filter(function(l){
+    if (l.data < iv.inicio || l.data > iv.fim) return false;
+    if (lojaId && lojaId !== "todas" && lojaDaCampanha(l.campanha_id) !== lojaId) return false;
+    return true;
+  });
+}
+function agregar(ls){
+  var t = { gasto: 0, alcance: 0, impressoes: 0, cliques: 0, cliques_link: 0, mensagens: 0, freqS: 0, freqN: 0, dias: {}, acoes: {} };
+  ls.forEach(function(l){
+    t.gasto += l.gasto || 0; t.alcance += l.alcance || 0; t.impressoes += l.impressoes || 0;
+    t.cliques += l.cliques || 0; t.cliques_link += l.cliques_link || 0; t.mensagens += l.mensagens || 0;
+    if (l.frequencia && l.impressoes) { t.freqS += l.frequencia * l.impressoes; t.freqN += l.impressoes; }
+    t.dias[l.data] = 1;
+    var ac = l.acoes || {}; for (var k in ac) t.acoes[k] = (t.acoes[k] || 0) + ac[k];
+  });
+  t.custo_msg = t.mensagens ? t.gasto / t.mensagens : null;
+  t.ctr = t.impressoes ? t.cliques_link / t.impressoes : null;
+  t.cpm = t.impressoes ? t.gasto / t.impressoes * 1000 : null;
+  t.cpc = t.cliques_link ? t.gasto / t.cliques_link : null;
+  t.frequencia = t.freqN ? t.freqS / t.freqN : null;
+  t.n_dias = Object.keys(t.dias).length;
+  return t;
+}
+function porChave(ls, chave){
+  var m = {};
+  ls.forEach(function(l){ var k = l[chave] || ""; (m[k] = m[k] || []).push(l); });
+  return Object.keys(m).map(function(k){ var a = agregar(m[k]); a.chave = k; return a; });
+}
+function serieDiaria(ls, iv){
+  var m = {}; ls.forEach(function(l){ var d = m[l.data] = m[l.data] || { data: l.data, gasto: 0, mensagens: 0, cliques_link: 0, alcance: 0 }; d.gasto += l.gasto || 0; d.mensagens += l.mensagens || 0; d.cliques_link += l.cliques_link || 0; d.alcance += l.alcance || 0; });
+  var out = []; for (var d = iv.inicio; d <= iv.fim; d = somaDias(d, 1)) out.push(m[d] || { data: d, gasto: 0, mensagens: 0, cliques_link: 0, alcance: 0 });
+  return out;
+}
+
+// leads
+function leadsAtivos(){ return (CRM.leads || []).filter(function(l){ return !l.apagado; }); }
+function leadsNoPeriodo(iv, lojaId){
+  return leadsAtivos().filter(function(l){
+    var d = (l.criado_em || "").slice(0, 10); if (d < iv.inicio || d > (iv.fim_leads || iv.fim)) return false;
+    return !lojaId || lojaId === "todas" || l.loja_id === lojaId;
+  });
+}
+function vendasNoPeriodo(iv, lojaId){
+  return leadsAtivos().filter(function(l){
+    if (l.status !== "vendido") return false;
+    var d = (l.fechado_em || l.atualizado_em || l.criado_em || "").slice(0, 10); if (d < iv.inicio || d > (iv.fim_leads || iv.fim)) return false;
+    return !lojaId || lojaId === "todas" || l.loja_id === lojaId;
+  });
+}
+function resumoVendas(iv, lojaId, gasto){
+  var v = vendasNoPeriodo(iv, lojaId); var fat = v.reduce(function(s, l){ return s + (Number(l.valor) || 0); }, 0);
+  return { vendas: v.length, faturamento: fat, custo_venda: v.length ? gasto / v.length : null, roas: gasto && v.length ? fat / gasto : null };
+}
+
+// ============================================================ gráficos
+function graficoDiario(serie){
+  var W = 640, H = 190, pl = 44, pr = 34, pt = 10, pb = 26, n = serie.length;
+  if (!n) return '<div class="vazio">Sem dados no período.</div>';
+  var maxG = Math.max.apply(null, serie.map(function(s){ return s.gasto; }).concat([1]));
+  var maxM = Math.max.apply(null, serie.map(function(s){ return s.mensagens; }).concat([1]));
+  var iw = (W - pl - pr) / n, bw = Math.max(2, iw * 0.7);
+  var svg = '<svg class="grafico" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">';
+  for (var g = 0; g <= 3; g++) { var y = pt + (H - pt - pb) * g / 3; svg += '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y + '" y2="' + y + '" stroke="#e9e5dc"/>'; svg += '<text x="' + (pl - 4) + '" y="' + (y + 4) + '" font-size="10" text-anchor="end" fill="#8a94a0">' + esc(brlCurto(maxG * (1 - g / 3)).replace("R$ ", "")) + '</text>'; svg += '<text x="' + (W - pr + 4) + '" y="' + (y + 4) + '" font-size="10" fill="#1e7fc2">' + Math.round(maxM * (1 - g / 3)) + '</text>'; }
+  var pts = [];
+  serie.forEach(function(s, i){
+    var x = pl + i * iw + (iw - bw) / 2, h = (H - pt - pb) * s.gasto / maxG;
+    svg += '<rect x="' + x + '" y="' + (H - pb - h) + '" width="' + bw + '" height="' + h + '" rx="2" fill="#f2762e" opacity="0.85"><title>' + esc(dataBR(s.data) + ": " + brl(s.gasto) + " · " + s.mensagens + " msgs") + '</title></rect>';
+    pts.push((pl + i * iw + iw / 2) + "," + (H - pb - (H - pt - pb) * s.mensagens / maxM));
+    var passo = n > 40 ? 7 : n > 14 ? 3 : 1;
+    if (i % passo === 0) svg += '<text x="' + (pl + i * iw + iw / 2) + '" y="' + (H - 8) + '" font-size="10" text-anchor="middle" fill="#8a94a0">' + esc(n <= 14 ? diaSemana(s.data) + " " + s.data.slice(8) : dataBR(s.data)) + '</text>';
+  });
+  svg += '<polyline points="' + pts.join(" ") + '" fill="none" stroke="#1e7fc2" stroke-width="2.2" stroke-linejoin="round"/>';
+  serie.forEach(function(s, i){ if (s.mensagens) svg += '<circle cx="' + (pl + i * iw + iw / 2) + '" cy="' + (H - pb - (H - pt - pb) * s.mensagens / maxM) + '" r="2.5" fill="#1e7fc2"><title>' + esc(dataBR(s.data) + ": " + s.mensagens + " msgs") + '</title></circle>'; });
+  svg += '</svg><div class="legenda"><span><i style="background:#f2762e"></i>Investimento (R$)</span><span><i style="background:#1e7fc2"></i>Mensagens / leads</span></div>';
+  return svg;
+}
+function barras(itens, opc){
+  opc = opc || {};
+  if (!itens.length) return '<div class="vazio">' + esc(opc.vazio || "Sem dados.") + '</div>';
+  var max = Math.max.apply(null, itens.map(function(i){ return i.valor || 0; }).concat([0.0001]));
+  return '<div class="barras">' + itens.map(function(i){
+    var extra = i.extra ? ' <small>' + esc(i.extra) + '</small>' : "";
+    return '<div class="barra" title="' + esc(i.titulo || "") + '"><div class="n">' + (i.html || esc(i.nome)) + '</div><div class="t"><i style="width:' + (100 * (i.valor || 0) / max) + '%; background:' + esc(i.cor || opc.cor || "#f2762e") + '"></i></div><div class="v">' + esc(i.rotulo != null ? i.rotulo : inteiro(i.valor)) + extra + '</div></div>';
+  }).join("") + '</div>';
+}
+function kpi(rotulo, valor, extra, destaque){ return '<div class="kpi' + (destaque ? " destaque" : "") + '"><div class="r">' + esc(rotulo) + '</div><div class="v">' + esc(valor) + '</div>' + (extra || "") + '</div>'; }
+
+// ============================================================ telas
+function render(){
+  if (!CRM) return;
+  renderCabecalho(); renderFiltros();
+  ({ painel: renderPainel, lojas: renderLojas, campanhas: renderCampanhas, publico: renderPublico, leads: renderLeads, ajustes: renderAjustes })[tela]();
+}
+function renderCabecalho(){
+  var sub = $("cabSub");
+  if (!META) { sub.textContent = "sem dados da Meta ainda"; return; }
+  var atras = Math.round((Date.now() - new Date(META.gerado_em)) / 3600000);
+  sub.textContent = "dados até " + dataBR(META.periodo.fim) + " · atualizados " + (atras < 1 ? "agora" : atras < 48 ? "há " + atras + " h" : "há " + Math.round(atras / 24) + " dias");
+}
+function renderFiltros(){
+  $("chipsPeriodo").innerHTML = PERIODOS.map(function(p){ return '<button class="chip' + (periodo.tipo === p[0] ? " ativa" : "") + '" data-p="' + p[0] + '">' + p[1] + '</button>'; }).join("");
+  $("datasCustom").style.display = periodo.tipo === "custom" ? "flex" : "none";
+  $("chipsLojas").innerHTML = '<button class="chip' + (lojaFiltro === "todas" ? " ativa" : "") + '" data-l="todas">Todas as lojas</button>' +
+    lojas().map(function(l){ return '<button class="chip loja' + (lojaFiltro === l.id ? " ativa" : "") + '" data-l="' + esc(l.id) + '" style="--loja-cor:' + esc(l.cor) + '">' + esc(l.nome) + '</button>'; }).join("");
+  $("filtros").style.display = (tela === "ajustes") ? "none" : "flex";
+}
+
+function alertasPeriodo(iv){
+  var avisos = [];
+  if (!META) return avisos;
+  var lim = Number(CRM.config.limite_custo_msg) || 15, limF = Number(CRM.config.limite_freq) || 3;
+  if (META.alertas && META.alertas.itens && META.alertas.data) {
+    META.alertas.itens.forEach(function(a){ if (campanhaNaLoja(a.campanha_id)) avisos.push({ nivel: "alerta", texto: "Ontem (" + dataBR(META.alertas.data) + "): " + a.texto }); });
+  }
+  var ls = linhas(META.diario_campanha, iv, lojaFiltro);
+  porChave(ls, "campanha_id").forEach(function(c){
+    var camp = campPorId(c.chave); if (!camp || c.gasto < 5) return;
+    if (OBJETIVOS_SEM_MSG.indexOf(camp.objetivo) >= 0) return;
+    if (!c.mensagens) avisos.push({ nivel: "alerta", texto: "'" + camp.nome + "' gastou " + brl(c.gasto) + " no período e não gerou mensagem." });
+    else if (c.custo_msg > lim * 1.5 && c.mensagens >= 3) avisos.push({ nivel: "alerta", texto: "'" + camp.nome + "': custo por mensagem " + brl(c.custo_msg) + ", bem acima do limite de " + brl(lim) + "." });
+    if (c.frequencia >= limF) avisos.push({ nivel: "info", texto: "'" + camp.nome + "' com frequência " + num1(c.frequencia) + ": o mesmo público já viu muitas vezes." });
+  });
+  lojas().forEach(function(l){
+    if (lojaFiltro !== "todas" && lojaFiltro !== l.id) return;
+    if (l.meta_gasto_mes > 0) {
+      var mes = intervalo({ tipo: "mes" }); var g = agregar(linhas(META.diario_campanha, mes, l.id)).gasto;
+      var diasMes = new Date(Number(mes.fim.slice(0, 4)), Number(mes.fim.slice(5, 7)), 0).getDate();
+      var ritmo = g / diasEntre(mes.inicio, mes.fim) * diasMes;
+      if (g > l.meta_gasto_mes) avisos.push({ nivel: "erro", texto: l.nome + " já passou da meta do mês: " + brl(g) + " de " + brl(l.meta_gasto_mes) + "." });
+      else if (ritmo > l.meta_gasto_mes * 1.1) avisos.push({ nivel: "alerta", texto: l.nome + ": no ritmo atual o mês fecha em " + brl(ritmo) + ", acima da meta de " + brl(l.meta_gasto_mes) + "." });
+    }
+  });
+  var abertos = leadsAtivos().filter(function(l){ return (l.status === "novo" || l.status === "atendimento") && (Date.now() - new Date(l.atualizado_em || l.criado_em)) > 2 * 86400000 && (lojaFiltro === "todas" || l.loja_id === lojaFiltro); });
+  if (abertos.length) avisos.push({ nivel: "info", texto: abertos.length + " lead(s) sem movimentação há mais de 2 dias. Vale um retorno pelo WhatsApp." });
+  return avisos;
+}
+
+function renderPainel(){
+  var el = $("tela-painel");
+  if (!META) { el.innerHTML = '<div class="cartao"><div class="aviso info">Os dados do Meta Ads ainda não foram coletados. A coleta roda todo dia às 08:20 pelo GitHub Actions (veja Ajustes).</div></div>'; return; }
+  var iv = intervalo(), ant = intervaloAnterior(iv);
+  var t = agregar(linhas(META.diario_campanha, iv, lojaFiltro)), ta = agregar(linhas(META.diario_campanha, ant, lojaFiltro));
+  var v = resumoVendas(iv, lojaFiltro, t.gasto), va = resumoVendas(ant, lojaFiltro, ta.gasto);
+  var leads = leadsNoPeriodo(iv, lojaFiltro), leadsA = leadsNoPeriodo(ant, lojaFiltro);
+  var h = '<div class="cartao"><h2>Resumo <small>' + esc(rotuloPeriodo(iv)) + ' · ' + iv.dias + ' dia(s)</small></h2><div class="kpis">';
+  h += kpi("Investimento", brl(t.gasto), deltaHtml(t.gasto, ta.gasto, true), true);
+  h += kpi("Mensagens / leads", inteiro(t.mensagens), deltaHtml(t.mensagens, ta.mensagens), true);
+  h += kpi("Custo por mensagem", brl(t.custo_msg), deltaHtml(t.custo_msg, ta.custo_msg, true), true);
+  h += kpi("Vendas (CRM)", inteiro(v.vendas), deltaHtml(v.vendas, va.vendas));
+  h += kpi("Faturamento (CRM)", brl(v.faturamento), deltaHtml(v.faturamento, va.faturamento));
+  h += kpi("Custo por venda", brl(v.custo_venda), deltaHtml(v.custo_venda, va.custo_venda, true));
+  h += kpi("Retorno (ROAS)", v.roas != null ? num1(v.roas, 2) + "x" : "—", '<div class="d">faturamento ÷ investimento</div>');
+  h += kpi("Leads no CRM", inteiro(leads.length), deltaHtml(leads.length, leadsA.length));
+  h += kpi("Conversão em venda", t.mensagens ? pct(v.vendas / t.mensagens) : "—", '<div class="d">vendas ÷ mensagens</div>');
+  h += kpi("Alcance (soma dos dias)", inteiro(t.alcance), deltaHtml(t.alcance, ta.alcance));
+  h += kpi("Impressões", inteiro(t.impressoes), deltaHtml(t.impressoes, ta.impressoes));
+  h += kpi("Cliques no link", inteiro(t.cliques_link), deltaHtml(t.cliques_link, ta.cliques_link));
+  h += kpi("CTR", pct(t.ctr), deltaHtml(t.ctr, ta.ctr));
+  h += kpi("CPM", brl(t.cpm), deltaHtml(t.cpm, ta.cpm, true));
+  h += kpi("Frequência", num1(t.frequencia, 2), deltaHtml(t.frequencia, ta.frequencia, true));
+  h += kpi("Média por dia", brl(t.n_dias ? t.gasto / t.n_dias : 0), '<div class="d">' + t.n_dias + ' dia(s) com entrega</div>');
+  h += '</div></div>';
+
+  var avisos = alertasPeriodo(iv);
+  h += '<div class="cartao"><h2>Alertas automáticos <small>' + avisos.length + '</small></h2>' + (avisos.length ? avisos.map(function(a){ return '<div class="aviso ' + a.nivel + '">' + esc(a.texto) + '</div>'; }).join("") : '<div class="aviso ok">Nenhum alerta. Campanhas dentro dos limites configurados.</div>') + '</div>';
+
+  h += '<div class="cartao"><h2>Dia a dia</h2>' + graficoDiario(serieDiaria(linhas(META.diario_campanha, iv, lojaFiltro), iv)) + '</div>';
+
+  // melhores
+  var camps = porChave(linhas(META.diario_campanha, iv, lojaFiltro), "campanha_id").filter(function(c){ return c.gasto > 0; });
+  var comMsg = camps.filter(function(c){ return c.mensagens >= 3; }).sort(function(a, b){ return a.custo_msg - b.custo_msg; });
+  var ans = porChave(linhas(META.diario_anuncio, iv, lojaFiltro), "anuncio_id").filter(function(a){ return a.mensagens >= 3; }).sort(function(a, b){ return a.custo_msg - b.custo_msg; });
+  var serie = serieDiaria(linhas(META.diario_campanha, iv, lojaFiltro), iv);
+  var porDS = {}; serie.forEach(function(s){ var k = diaSemana(s.data); var d = porDS[k] = porDS[k] || { gasto: 0, msgs: 0, n: 0 }; d.gasto += s.gasto; d.msgs += s.mensagens; d.n++; });
+  var melhorDia = Object.keys(porDS).filter(function(k){ return porDS[k].msgs >= 2; }).sort(function(a, b){ return (porDS[a].gasto / porDS[a].msgs) - (porDS[b].gasto / porDS[b].msgs); })[0];
+  var horas = (META.publico && META.publico.horario || []).filter(function(x){ return x.mensagens >= 2; }).sort(function(a, b){ return a.gasto / a.mensagens - b.gasto / b.mensagens; });
+  h += '<div class="cartao"><h2>Destaques do período</h2><div class="lista">';
+  h += '<div class="item"><div class="nome">🏆 Melhor campanha</div><div class="meta">' + (comMsg.length ? esc((campPorId(comMsg[0].chave) || {}).nome) + " · " + inteiro(comMsg[0].mensagens) + " msgs a " + brl(comMsg[0].custo_msg) + " cada" : "precisa de pelo menos 3 mensagens em uma campanha") + '</div></div>';
+  h += '<div class="item"><div class="nome">🎬 Melhor anúncio (criativo)</div><div class="meta">' + (ans.length ? esc((anuncioPorId(ans[0].chave) || {}).nome) + " · " + inteiro(ans[0].mensagens) + " msgs a " + brl(ans[0].custo_msg) + " cada" : "sem anúncio com 3+ mensagens") + '</div></div>';
+  h += '<div class="item"><div class="nome">📅 Melhor dia da semana</div><div class="meta">' + (melhorDia ? melhorDia + " · " + brl(porDS[melhorDia].gasto / porDS[melhorDia].msgs) + " por mensagem" : "sem dados suficientes") + '</div></div>';
+  h += '<div class="item"><div class="nome">⏰ Melhor horário (últimos 30 dias, conta toda)</div><div class="meta">' + (horas.length ? horas[0].hora + "h às " + (horas[0].hora + 1) + "h · " + brl(horas[0].gasto / horas[0].mensagens) + " por mensagem" : "sem dados suficientes") + '</div></div>';
+  h += '</div></div>';
+
+  // leads recentes
+  var recentes = leadsAtivos().filter(function(l){ return lojaFiltro === "todas" || l.loja_id === lojaFiltro; }).sort(function(a, b){ return (b.atualizado_em || "").localeCompare(a.atualizado_em || ""); }).slice(0, 5);
+  h += '<div class="cartao"><h2>Leads recentes <small><a href="#" data-ir="leads">ver todos</a></small></h2>' + (recentes.length ? '<div class="lista">' + recentes.map(cardLead).join("") + '</div>' : '<div class="vazio">Nenhum lead cadastrado ainda. Cadastre na aba Leads para o CRM calcular custo por venda e retorno.</div>') + '<button class="btn btn-verde" data-novo-lead="1">➕ Novo lead</button></div>';
+  el.innerHTML = h;
+}
+
+function renderLojas(){
+  var el = $("tela-lojas");
+  if (!META) { el.innerHTML = '<div class="cartao"><div class="aviso info">Sem dados da Meta ainda.</div></div>'; return; }
+  var iv = intervalo(), ant = intervaloAnterior(iv), ls = lojas();
+  var ids = ls.map(function(l){ return l.id; });
+  var semLoja = linhas(META.diario_campanha, iv, "").filter(function(l){ return !lojaDaCampanha(l.campanha_id); });
+  var h = "";
+  var comparacao = [];
+  ls.concat(semLoja.length ? [{ id: "", nome: "Sem loja definida", cor: "#8a94a0" }] : []).forEach(function(l){
+    if (lojaFiltro !== "todas" && lojaFiltro !== l.id) return;
+    var rows = linhas(META.diario_campanha, iv, "").filter(function(x){ return lojaDaCampanha(x.campanha_id) === l.id; });
+    var t = agregar(rows), ta = agregar(linhas(META.diario_campanha, ant, "").filter(function(x){ return lojaDaCampanha(x.campanha_id) === l.id; }));
+    var v = resumoVendas(iv, l.id || "__nenhuma__", t.gasto), leads = leadsNoPeriodo(iv, l.id || "__nenhuma__");
+    var ativas = META.campanhas.filter(function(c){ return c.status === "ACTIVE" && lojaDaCampanha(c.id) === l.id; }).length;
+    comparacao.push({ nome: l.nome, cor: l.cor, gasto: t.gasto, msgs: t.mensagens, custo: t.custo_msg });
+    h += '<div class="cartao loja-card" style="--loja-cor:' + esc(l.cor) + '"><h2>' + esc(l.nome) + '<small>' + ativas + ' campanha(s) ativa(s)</small></h2><div class="kpis">';
+    h += kpi("Investimento", brl(t.gasto), deltaHtml(t.gasto, ta.gasto, true)) + kpi("Mensagens", inteiro(t.mensagens), deltaHtml(t.mensagens, ta.mensagens)) + kpi("Custo por msg", brl(t.custo_msg), deltaHtml(t.custo_msg, ta.custo_msg, true));
+    h += kpi("Leads no CRM", inteiro(leads.length)) + kpi("Vendas", inteiro(v.vendas)) + kpi("Faturamento", brl(v.faturamento)) + kpi("Custo por venda", brl(v.custo_venda)) + kpi("ROAS", v.roas != null ? num1(v.roas, 2) + "x" : "—") + kpi("Cliques no link", inteiro(t.cliques_link)) + kpi("CTR", pct(t.ctr));
+    h += '</div>';
+    if (l.meta_gasto_mes > 0) {
+      var mes = intervalo({ tipo: "mes" }); var g = agregar(linhas(META.diario_campanha, mes, "").filter(function(x){ return lojaDaCampanha(x.campanha_id) === l.id; })).gasto;
+      h += '<h3>Meta de investimento do mês: ' + brl(g) + ' de ' + brl(l.meta_gasto_mes) + ' (' + pct(g / l.meta_gasto_mes) + ')</h3><div class="progresso"><i style="width:' + Math.min(100, 100 * g / l.meta_gasto_mes) + '%"></i></div>';
+    }
+    // funil da loja
+    var funil = [["Mensagens (Meta)", t.mensagens], ["Leads no CRM", leads.length], ["Em atendimento+", leads.filter(function(x){ return x.status !== "novo" && x.status !== "perdido"; }).length], ["Orçamento+", leads.filter(function(x){ return x.status === "orcamento" || x.status === "vendido"; }).length], ["Vendido", v.vendas]];
+    h += '<h3>Funil</h3>' + barras(funil.map(function(f, i){ return { nome: f[0], valor: f[1], cor: ["#1e7fc2", "#7b4fb0", "#b7791f", "#f2762e", "#2e8b57"][i] }; }), { vazio: "" });
+    // campanhas da loja
+    var camps = porChave(rows, "campanha_id").sort(function(a, b){ return b.gasto - a.gasto; }).slice(0, 6);
+    if (camps.length) h += '<h3>Campanhas com mais investimento</h3>' + barras(camps.map(function(c){ return { nome: (campPorId(c.chave) || { nome: c.chave }).nome, valor: c.gasto, rotulo: brl(c.gasto), extra: c.mensagens + " msgs" + (c.custo_msg ? " · " + brl(c.custo_msg) : ""), cor: l.cor }; }));
+    if (!l.id) h += '<div class="aviso info" style="margin-top:10px">Campanhas sem loja: defina a loja de cada uma na aba Campanhas, ou cadastre palavras-chave em Ajustes.</div>';
+    h += '</div>';
+  });
+  if (lojaFiltro === "todas" && comparacao.length > 1) {
+    h = '<div class="cartao"><h2>Comparação entre lojas <small>' + esc(rotuloPeriodo(iv)) + '</small></h2><h3>Investimento</h3>' + barras(comparacao.map(function(c){ return { nome: c.nome, valor: c.gasto, rotulo: brl(c.gasto), cor: c.cor }; })) +
+      '<h3>Mensagens</h3>' + barras(comparacao.map(function(c){ return { nome: c.nome, valor: c.msgs, cor: c.cor, extra: c.custo ? brl(c.custo) + "/msg" : "" }; })) + '</div>' + h;
+  }
+  el.innerHTML = h || '<div class="cartao"><div class="vazio">Nenhuma loja cadastrada. Vá em Ajustes.</div></div>';
+}
+
+function statusBadge(s){ var ativa = s === "ACTIVE"; return '<span class="badge ' + (ativa ? "ativa" : "pausada") + '">' + (ativa ? "ativa" : s === "PAUSED" || s === "CAMPAIGN_PAUSED" || s === "ADSET_PAUSED" ? "pausada" : s === "ARCHIVED" ? "arquivada" : s === "DELETED" ? "excluída" : s === "IN_PROCESS" || s === "PENDING_REVIEW" ? "em análise" : s === "WITH_ISSUES" ? "com problema" : (s || "?").toLowerCase()) + '</span>'; }
+function selectLoja(cid){
+  var atual = lojaDaCampanha(cid);
+  return '<select data-loja-camp="' + esc(cid) + '" style="width:auto; padding:5px 8px; font-size:0.78rem;">' + '<option value=""' + (!atual ? " selected" : "") + '>Sem loja</option>' + lojas().map(function(l){ return '<option value="' + esc(l.id) + '"' + (atual === l.id ? " selected" : "") + '>' + esc(l.nome) + '</option>'; }).join("") + '</select>';
+}
+function renderCampanhas(){
+  var el = $("tela-campanhas");
+  if (!META) { el.innerHTML = '<div class="cartao"><div class="aviso info">Sem dados da Meta ainda.</div></div>'; return; }
+  var iv = intervalo();
+  var ativos = linhas(META.diario_campanha, iv, lojaFiltro), agg = {};
+  porChave(ativos, "campanha_id").forEach(function(c){ agg[c.chave] = c; });
+  var lista = META.campanhas.filter(function(c){
+    if (!campanhaNaLoja(c.id)) return false;
+    if (campanhasSo === "entrega") return !!agg[c.id];
+    if (campanhasSo === "ativas") return c.status === "ACTIVE";
+    return true;
+  }).sort(function(a, b){ return ((agg[b.id] || {}).gasto || 0) - ((agg[a.id] || {}).gasto || 0) || (b.criado_em || "").localeCompare(a.criado_em || ""); });
+  var h = '<div class="cartao"><h2>Campanhas <small>' + lista.length + ' · ' + esc(rotuloPeriodo(iv)) + '</small></h2><div class="etapas" style="margin:0 0 10px">' +
+    [["entrega", "Com entrega no período"], ["ativas", "Ativas agora"], ["todas", "Todas"]].map(function(o){ return '<button data-camp-so="' + o[0] + '"' + (campanhasSo === o[0] ? ' class="ativa"' : "") + '>' + o[1] + '</button>'; }).join("") + '</div>';
+  if (!lista.length) h += '<div class="vazio">Nenhuma campanha neste filtro.</div>';
+  h += '<div class="lista">' + lista.map(function(c){
+    var t = agg[c.id] || agregar([]); var aberta = campanhaAberta === c.id;
+    var leadsC = leadsAtivos().filter(function(l){ return l.origem && l.origem.campanha_id === c.id; }); var vend = leadsC.filter(function(l){ return l.status === "vendido"; });
+    var s = '<div class="item' + (aberta ? " expandido" : "") + '" data-camp="' + esc(c.id) + '"><div class="topo"><div><div class="nome">' + esc(c.nome) + '</div><div class="meta">' + statusBadge(c.status) + ' ' + esc(OBJETIVOS[c.objetivo] || c.objetivo) + (c.orcamento_diario ? " · " + brl(c.orcamento_diario) + "/dia" : "") + " · criada " + dataBR(c.criado_em) + '</div></div><div>' + selectLoja(c.id) + '</div></div>';
+    s += '<div class="nums"><span><small>gasto</small> <b>' + brl(t.gasto) + '</b></span><span><small>msgs</small> <b>' + inteiro(t.mensagens) + '</b></span><span><small>custo/msg</small> <b>' + brl(t.custo_msg) + '</b></span><span><small>cliques</small> <b>' + inteiro(t.cliques_link) + '</b></span><span><small>CTR</small> <b>' + pct(t.ctr) + '</b></span><span><small>freq</small> <b>' + num1(t.frequencia, 2) + '</b></span>' + (leadsC.length ? '<span><small>leads CRM</small> <b>' + leadsC.length + '</b></span><span><small>vendas</small> <b>' + vend.length + '</b></span>' : "") + '</div>';
+    if (aberta) s += detalheCampanha(c, iv);
+    return s + '</div>';
+  }).join("") + '</div></div>';
+  el.innerHTML = h;
+}
+function detalheCampanha(c, iv){
+  var h = '<div class="detalhe">';
+  var conjs = (META.conjuntos || []).filter(function(a){ return a.campanha_id === c.id; });
+  if (conjs.length) h += '<h3>Público configurado</h3>' + conjs.map(function(a){ return '<div class="mini">• ' + esc(a.nome) + ' ' + statusBadge(a.status) + ' — ' + esc([a.idade ? "idade " + a.idade : "", a.genero ? a.genero : "", (a.locais || []).join(", "), a.otimizacao ? "otimiza para " + a.otimizacao.toLowerCase().replace(/_/g, " ") : ""].filter(Boolean).join(" · ")) + '</div>'; }).join("");
+  var ans = porChave(linhas(META.diario_anuncio, iv, "").filter(function(l){ return l.campanha_id === c.id; }), "anuncio_id").sort(function(a, b){ return b.gasto - a.gasto; });
+  h += '<h3>Anúncios no período</h3>';
+  if (!ans.length) h += '<div class="vazio">Sem entrega no período.</div>';
+  ans.forEach(function(a){
+    var an = anuncioPorId(a.chave) || { nome: a.chave };
+    h += '<div class="anuncio">' + (an.miniatura ? '<img src="' + esc(an.miniatura) + '" alt="" loading="lazy" onerror="this.outerHTML=\'<div class=semimg>🖼️</div>\'">' : '<div class="semimg">🖼️</div>') + '<div><b>' + esc(an.nome) + '</b> ' + statusBadge(an.status) + (an.link_instagram ? ' <a href="' + esc(an.link_instagram) + '" target="_blank" rel="noopener">ver post</a>' : "") + '<div class="mini">' + esc(an.texto || "") + '</div><div class="mini">gasto <b>' + brl(a.gasto) + '</b> · msgs <b>' + inteiro(a.mensagens) + '</b> · custo/msg <b>' + brl(a.custo_msg) + '</b> · cliques <b>' + inteiro(a.cliques_link) + '</b> · CTR <b>' + pct(a.ctr) + '</b></div></div></div>';
+  });
+  var serie = serieDiaria(linhas(META.diario_campanha, iv, "").filter(function(l){ return l.campanha_id === c.id; }), iv);
+  if (serie.some(function(s){ return s.gasto; })) h += '<h3>Dia a dia da campanha</h3>' + graficoDiario(serie);
+  return h + '</div>';
+}
+
+function renderPublico(){
+  var el = $("tela-publico");
+  if (!META || !META.publico) { el.innerHTML = '<div class="cartao"><div class="aviso info">Sem dados da Meta ainda.</div></div>'; return; }
+  var P = META.publico, per = P.periodo || {};
+  function filtra(arr){ return (arr || []).filter(function(x){ return !x.campanha_id || campanhaNaLoja(x.campanha_id); }); }
+  function grupo(arr, chaveFn){ var m = {}; arr.forEach(function(x){ var k = chaveFn(x); var g = m[k] = m[k] || { nome: k, gasto: 0, msgs: 0, imp: 0, cli: 0 }; g.gasto += x.gasto; g.msgs += x.mensagens; g.imp += x.impressoes; g.cli += x.cliques; }); return Object.keys(m).map(function(k){ return m[k]; }); }
+  function itensMsg(gs, cor){ return gs.sort(function(a, b){ return b.msgs - a.msgs || b.gasto - a.gasto; }).map(function(g){ return { nome: g.nome, valor: g.msgs, cor: cor, extra: brl(g.gasto) + (g.msgs ? " · " + brl(g.gasto / g.msgs) + "/msg" : ""), titulo: inteiro(g.imp) + " impressões" }; }); }
+  var h = '<div class="cartao"><div class="aviso info">Recortes de público dos últimos 30 dias (' + esc(dataBR(per.inicio) + " a " + dataBR(per.fim)) + '), como a Meta entrega. O filtro de período acima não se aplica aqui; o de loja sim.</div></div>';
+  var gen = { male: "Homens", female: "Mulheres", unknown: "Não informado" };
+  var ig = filtra(P.idade_genero);
+  h += '<div class="cartao"><h2>Gênero</h2>' + barras(itensMsg(grupo(ig, function(x){ return gen[x.genero] || x.genero; }), "#7b4fb0")) + '<h2 style="margin-top:14px">Faixa de idade</h2>' + barras(itensMsg(grupo(ig, function(x){ return x.idade === "Unknown" || x.idade === "unknown" ? "Não informado" : x.idade; }).sort(function(a, b){ return a.nome.localeCompare(b.nome); }), "#1e7fc2")) + '</div>';
+  var ig2 = grupo(ig, function(x){ return (gen[x.genero] || x.genero) + " " + x.idade; }).filter(function(g){ return g.msgs >= 2; }).sort(function(a, b){ return a.gasto / a.msgs - b.gasto / b.msgs; }).slice(0, 5);
+  if (ig2.length) h += '<div class="cartao"><h2>Públicos mais baratos por mensagem</h2>' + barras(ig2.map(function(g){ return { nome: g.nome, valor: g.gasto / g.msgs, rotulo: brl(g.gasto / g.msgs), extra: g.msgs + " msgs", cor: "#2e8b57" }; })) + '</div>';
+  var posN = { facebook_reels: "Reels do Facebook", facebook_stories: "Stories do Facebook", feed: "Feed", instagram_stories: "Stories do Instagram", instagram_reels: "Reels do Instagram", instagram_explore: "Explorar do Instagram", instagram_explore_home: "Explorar (início)", instagram_profile_feed: "Feed do perfil (IG)", facebook_profile_feed: "Feed do perfil (FB)", instagram_search: "Busca do Instagram", marketplace: "Marketplace", video_feeds: "Feeds de vídeo", right_hand_column: "Coluna da direita", facebook_notification: "Notificações", an_classic: "Audience Network", instream_video: "Vídeo in-stream", search: "Busca", rewarded_video: "Vídeo premiado", facebook_marketplace: "Marketplace", instagram_igtv: "IGTV" };
+  h += '<div class="cartao"><h2>Onde o anúncio aparece</h2>' + barras(itensMsg(grupo(filtra(P.posicionamento), function(x){ return (x.plataforma === "instagram" ? "IG · " : x.plataforma === "facebook" ? "FB · " : esc(x.plataforma) + " · ") + (posN[x.posicao] || x.posicao); }), "#f2762e").slice(0, 10)) + '</div>';
+  var disp = { android_smartphone: "Android (celular)", iphone: "iPhone", android_tablet: "Android (tablet)", ipad: "iPad", desktop: "Computador", other: "Outro", ipod: "iPod", "mobile_web": "Navegador do celular" };
+  h += '<div class="cartao"><h2>Aparelho</h2>' + barras(itensMsg(grupo(filtra(P.dispositivo), function(x){ return disp[x.dispositivo] || x.dispositivo; }), "#b7791f")) + '</div>';
+  h += '<div class="cartao"><h2>Região</h2>' + barras(itensMsg(grupo(filtra(P.regiao), function(x){ return x.regiao || "?"; }), "#2e8b57").slice(0, 10)) + '</div>';
+  var horas = (P.horario || []).slice().sort(function(a, b){ return a.hora - b.hora; });
+  if (horas.length) {
+    var maxM = Math.max.apply(null, horas.map(function(x){ return x.mensagens; }).concat([1]));
+    h += '<div class="cartao"><h2>Mensagens por hora do dia <small>conta toda</small></h2><div class="horas">' + horas.map(function(x){ return '<div style="height:' + (100 * x.mensagens / maxM) + '%" title="' + x.hora + 'h: ' + x.mensagens + ' msgs · ' + brl(x.gasto) + '"></div>'; }).join("") + '</div><div class="horas-rot">' + horas.map(function(x){ return '<span>' + (x.hora % 3 === 0 ? x.hora : "") + '</span>'; }).join("") + '</div></div>';
+  }
+  var iv = intervalo(); var serie = serieDiaria(linhas(META.diario_campanha, iv, lojaFiltro), iv); var ds = {};
+  serie.forEach(function(s){ var k = diaSemana(s.data); var d = ds[k] = ds[k] || { nome: k, gasto: 0, msgs: 0 }; d.gasto += s.gasto; d.msgs += s.mensagens; });
+  var ordem = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+  h += '<div class="cartao"><h2>Dia da semana <small>' + esc(rotuloPeriodo(iv)) + '</small></h2>' + barras(ordem.filter(function(k){ return ds[k]; }).map(function(k){ return { nome: k, valor: ds[k].msgs, cor: "#1e7fc2", extra: brl(ds[k].gasto) + (ds[k].msgs ? " · " + brl(ds[k].gasto / ds[k].msgs) + "/msg" : "") }; })) + '</div>';
+  el.innerHTML = h;
+}
+
+// ------------------------------------------------------------ leads
+function nomeStatus(s){ var x = STATUS.find(function(t){ return t.id === s; }); return x ? x.nome : s; }
+function origemTexto(l){
+  var o = l.origem || {}; var base = (ORIGENS.find(function(x){ return x.id === o.tipo; }) || { nome: "?" }).nome;
+  if (o.tipo === "meta") { var c = campPorId(o.campanha_id); var a = anuncioPorId(o.anuncio_id); return "Anúncio" + (c ? ": " + c.nome : "") + (a ? " › " + a.nome : ""); }
+  return base;
+}
+function cardLead(l){
+  var dias = Math.floor((Date.now() - new Date(l.criado_em)) / 86400000);
+  var h = '<div class="item" data-lead="' + esc(l.id) + '"><div class="topo"><div><div class="nome">' + esc(l.nome) + ' <span class="badge status-' + esc(l.status) + '">' + esc(nomeStatus(l.status)) + '</span></div><div class="meta">' + badgeLoja(l.loja_id) + ' ' + esc(origemTexto(l)) + (l.produto ? " · " + esc(l.produto) : "") + (l.valor ? " · " + brl(l.valor) : "") + '</div><div class="meta">' + (dias === 0 ? "hoje" : "há " + dias + " dia(s)") + (l.obs ? " · " + esc(l.obs) : "") + '</div></div></div>';
+  h += '<div class="etapas">' + STATUS.map(function(s){ return '<button data-lead-status="' + esc(l.id) + '" data-status="' + s.id + '"' + (l.status === s.id ? ' class="ativa"' : "") + '>' + s.ico + ' ' + s.nome + '</button>'; }).join("") + '</div>';
+  h += '<div class="linha-btns">' + (l.telefone ? '<a class="btn btn-verde btn-pq" href="' + esc(waLink(l.telefone)) + '" target="_blank" rel="noopener">💬 WhatsApp</a>' : "") + '<button class="btn btn-vazado btn-pq" data-editar-lead="' + esc(l.id) + '">✏️ Editar</button></div></div>';
+  return h;
+}
+function renderLeads(){
+  var el = $("tela-leads"), iv = intervalo();
+  var todos = leadsAtivos().filter(function(l){ return lojaFiltro === "todas" || l.loja_id === lojaFiltro; });
+  var cont = {}; STATUS.forEach(function(s){ cont[s.id] = todos.filter(function(l){ return l.status === s.id; }); });
+  var noPer = leadsNoPeriodo(iv, lojaFiltro), v = resumoVendas(iv, lojaFiltro, agregar(linhas(META ? META.diario_campanha : [], iv, lojaFiltro)).gasto);
+  var h = '<div class="cartao"><h2>Funil <small>' + todos.length + ' lead(s) no total</small></h2><div class="funil">' + STATUS.map(function(s){ return '<button data-lf="' + s.id + '"' + (leadsFiltro.status === s.id ? ' class="ativa"' : "") + '>' + s.ico + '<b>' + cont[s.id].length + '</b>' + s.nome + '</button>'; }).join("") + '</div>';
+  h += '<div class="kpis">' + kpi("Leads no período", inteiro(noPer.length)) + kpi("Vendas no período", inteiro(v.vendas)) + kpi("Faturamento", brl(v.faturamento)) + kpi("Custo por venda", brl(v.custo_venda)) + kpi("Taxa de fechamento", todos.length ? pct(cont.vendido.length / Math.max(1, todos.length - cont.novo.length - cont.atendimento.length - cont.orcamento.length)) : "—", '<div class="d">vendidos ÷ finalizados</div>') + '</div>';
+  h += '<button class="btn btn-verde" data-novo-lead="1">➕ Novo lead</button></div>';
+  h += '<div class="cartao"><div class="etapas" style="margin:0 0 10px">' + [["abertos", "Em aberto"], ["todos", "Todos"]].concat(STATUS.map(function(s){ return [s.id, s.nome]; })).map(function(o){ return '<button data-lf="' + o[0] + '"' + (leadsFiltro.status === o[0] ? ' class="ativa"' : "") + '>' + o[1] + '</button>'; }).join("") + '</div>';
+  h += '<input type="text" id="leadsBusca" placeholder="Buscar por nome, telefone ou produto" value="' + esc(leadsFiltro.busca) + '" style="margin-bottom:10px">';
+  var b = semAcento(leadsFiltro.busca);
+  var lista = todos.filter(function(l){
+    if (leadsFiltro.status === "abertos" && (l.status === "vendido" || l.status === "perdido")) return false;
+    if (leadsFiltro.status !== "abertos" && leadsFiltro.status !== "todos" && l.status !== leadsFiltro.status) return false;
+    if (b && semAcento(l.nome + " " + l.telefone + " " + l.produto + " " + l.obs).indexOf(b) < 0) return false;
+    return true;
+  }).sort(function(a, c){ return (c.atualizado_em || "").localeCompare(a.atualizado_em || ""); });
+  h += lista.length ? '<div class="lista">' + lista.map(cardLead).join("") + '</div>' : '<div class="vazio">Nenhum lead aqui.</div>';
+  h += '<div class="linha-btns"><button class="btn btn-vazado btn-pq" data-exportar-csv="1">⬇️ Exportar CSV</button></div></div>';
+  el.innerHTML = h;
+}
+function abrirLead(id){
+  var l = id ? leadsAtivos().find(function(x){ return x.id === id; }) : null;
+  var lojaPad = lojaFiltro !== "todas" ? lojaFiltro : (lojas().find(function(x){ return x.padrao; }) || lojas()[0] || {}).id;
+  var d = l || { nome: "", telefone: "", loja_id: lojaPad, origem: { tipo: "meta", campanha_id: "", anuncio_id: "" }, produto: "", valor: "", status: "novo", obs: "" };
+  var camps = (META ? META.campanhas : []).slice().sort(function(a, b){ return (a.status === "ACTIVE" ? 0 : 1) - (b.status === "ACTIVE" ? 0 : 1) || (b.criado_em || "").localeCompare(a.criado_em || ""); });
+  var h = '<h2>' + (l ? "Editar lead" : "Novo lead") + '<button data-fechar="1">✕</button></h2>';
+  h += '<label class="campo">Nome *</label><input type="text" id="fNome" value="' + esc(d.nome) + '" autocomplete="off">';
+  h += '<div class="duas"><div><label class="campo">WhatsApp / telefone</label><input type="tel" id="fTel" value="' + esc(d.telefone) + '" placeholder="73 9 9999-9999"></div><div><label class="campo">Loja</label><select id="fLoja">' + lojas().map(function(x){ return '<option value="' + esc(x.id) + '"' + (d.loja_id === x.id ? " selected" : "") + '>' + esc(x.nome) + '</option>'; }).join("") + '</select></div></div>';
+  h += '<label class="campo">De onde veio</label><select id="fOrigem">' + ORIGENS.map(function(o){ return '<option value="' + o.id + '"' + ((d.origem || {}).tipo === o.id ? " selected" : "") + '>' + esc(o.nome) + '</option>'; }).join("") + '</select>';
+  h += '<div id="fMeta"><label class="campo">Campanha</label><select id="fCamp"><option value="">Não sei / qualquer</option>' + camps.map(function(c){ return '<option value="' + esc(c.id) + '"' + ((d.origem || {}).campanha_id === c.id ? " selected" : "") + '>' + (c.status === "ACTIVE" ? "● " : "") + esc(c.nome) + '</option>'; }).join("") + '</select><label class="campo">Anúncio (opcional)</label><select id="fAn"></select></div>';
+  h += '<div class="duas"><div><label class="campo">Produto de interesse</label><input type="text" id="fProd" value="' + esc(d.produto) + '" placeholder="ex.: iPhone 13 128GB"></div><div><label class="campo">Valor (R$)</label><input type="number" id="fValor" inputmode="decimal" step="0.01" value="' + esc(d.valor) + '"></div></div>';
+  h += '<label class="campo">Situação</label><select id="fStatus">' + STATUS.map(function(s){ return '<option value="' + s.id + '"' + (d.status === s.id ? " selected" : "") + '>' + s.ico + ' ' + s.nome + '</option>'; }).join("") + '</select>';
+  h += '<label class="campo">Observações</label><textarea id="fObs">' + esc(d.obs) + '</textarea>';
+  h += '<button class="btn btn-verde" data-salvar-lead="' + esc(l ? l.id : "") + '">💾 Salvar</button>' + (l ? '<button class="btn btn-vazado" data-apagar-lead="' + esc(l.id) + '" style="color:var(--vermelho)">🗑️ Apagar lead</button>' : "");
+  abrirModal(h);
+  function anuncios(){
+    var cid = $("fCamp").value; var sel = $("fAn");
+    var ans = (META ? META.anuncios : []).filter(function(a){ return !cid || a.campanha_id === cid; });
+    sel.innerHTML = '<option value="">Qualquer</option>' + ans.map(function(a){ return '<option value="' + esc(a.id) + '"' + ((d.origem || {}).anuncio_id === a.id ? " selected" : "") + '>' + esc(a.nome) + '</option>'; }).join("");
+    sel.parentNode.style.display = ans.length ? "" : "none";
+  }
+  function origem(){ $("fMeta").style.display = $("fOrigem").value === "meta" ? "" : "none"; }
+  $("fCamp").addEventListener("change", anuncios); $("fOrigem").addEventListener("change", origem); anuncios(); origem();
+  setTimeout(function(){ $("fNome").focus(); }, 50);
+}
+function salvarLead(id){
+  var nome = $("fNome").value.trim(); if (!nome) { toast("Informe o nome do lead."); return; }
+  var agora = new Date().toISOString();
+  var l = id ? CRM.leads.find(function(x){ return x.id === id; }) : null;
+  if (!l) { l = { id: uid(), criado_em: agora, historico: [] }; CRM.leads.push(l); }
+  var statusAntes = l.status;
+  l.nome = nome; l.telefone = $("fTel").value.trim(); l.loja_id = $("fLoja").value;
+  l.origem = { tipo: $("fOrigem").value, campanha_id: $("fOrigem").value === "meta" ? $("fCamp").value : "", anuncio_id: $("fOrigem").value === "meta" ? $("fAn").value : "" };
+  if (l.origem.tipo === "meta" && l.origem.campanha_id && !id) { var lc = lojaDaCampanha(l.origem.campanha_id); if (lc) l.loja_id = lc; }
+  l.produto = $("fProd").value.trim(); l.valor = Number($("fValor").value) || 0; l.obs = $("fObs").value.trim();
+  mudarStatus(l, $("fStatus").value, agora, statusAntes);
+  l.atualizado_em = agora;
+  gravarCRM("lead"); fecharModal(); toast(id ? "Lead atualizado." : "Lead cadastrado."); render();
+}
+function mudarStatus(l, status, agora, antes){
+  l.status = status;
+  if (status !== antes) { (l.historico = l.historico || []).push({ quando: agora, status: status }); if (status === "vendido" || status === "perdido") l.fechado_em = agora; else l.fechado_em = null; }
+}
+function apagarLead(id){
+  var l = CRM.leads.find(function(x){ return x.id === id; }); if (!l) return;
+  if (!confirm("Apagar o lead " + l.nome + "?")) return;
+  l.apagado = true; l.atualizado_em = new Date().toISOString(); gravarCRM("lead"); fecharModal(); render(); toast("Lead apagado.");
+}
+function exportarCSV(){
+  var cab = ["nome", "telefone", "loja", "origem", "campanha", "anuncio", "produto", "valor", "situacao", "criado_em", "fechado_em", "obs"];
+  var linhasCsv = [cab.join(";")].concat(leadsAtivos().map(function(l){
+    var o = l.origem || {}; var c = campPorId(o.campanha_id), a = anuncioPorId(o.anuncio_id);
+    return [l.nome, l.telefone, nomeLoja(l.loja_id), (ORIGENS.find(function(x){ return x.id === o.tipo; }) || {}).nome || "", c ? c.nome : "", a ? a.nome : "", l.produto, String(l.valor || 0).replace(".", ","), nomeStatus(l.status), (l.criado_em || "").slice(0, 10), (l.fechado_em || "").slice(0, 10), l.obs].map(function(v){ return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; }).join(";");
+  }));
+  var blob = new Blob(["﻿" + linhasCsv.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "leads-" + hojeLocal() + ".csv"; a.click();
+}
+
+// ------------------------------------------------------------ ajustes
+function renderAjustes(){
+  var el = $("tela-ajustes");
+  var h = '<div class="cartao"><h2>Lojas</h2><div class="mini" style="margin-bottom:8px">Cada campanha vai para a loja cujas palavras-chave aparecem no nome dela. Se nenhuma bater, vai para a loja marcada como padrão. Você também pode escolher a loja campanha por campanha na aba Campanhas.</div><div class="lista">';
+  h += lojas().map(function(l){
+    return '<div class="item loja-card" style="--loja-cor:' + esc(l.cor) + '" data-loja-form="' + esc(l.id) + '"><div class="duas"><div><label class="campo">Nome</label><input type="text" data-lc="nome" value="' + esc(l.nome) + '"></div><div><label class="campo">Cor</label><select data-lc="cor">' + CORES_LOJA.map(function(c){ return '<option value="' + c + '"' + (l.cor === c ? " selected" : "") + ' style="background:' + c + '; color:#fff">' + c + '</option>'; }).join("") + '</select></div></div>' +
+      '<label class="campo">Palavras-chave (separadas por vírgula)</label><input type="text" data-lc="palavras" value="' + esc((l.palavras || []).join(", ")) + '">' +
+      '<div class="duas"><div><label class="campo">Meta de investimento no mês (R$)</label><input type="number" data-lc="meta_gasto_mes" inputmode="decimal" value="' + esc(l.meta_gasto_mes || "") + '" placeholder="0 = sem meta"></div><div><label class="campo">Limite de custo por mensagem (R$)</label><input type="number" data-lc="meta_custo_msg" inputmode="decimal" value="' + esc(l.meta_custo_msg || "") + '"></div></div>' +
+      '<label class="campo"><input type="checkbox" data-lc="padrao"' + (l.padrao ? " checked" : "") + ' style="width:auto"> Loja padrão (recebe as campanhas sem palavra-chave)</label>' +
+      '<div class="linha-btns"><button class="btn btn-verde btn-pq" data-salvar-loja="' + esc(l.id) + '">💾 Salvar</button><button class="btn btn-vazado btn-pq" data-apagar-loja="' + esc(l.id) + '" style="color:var(--vermelho)">🗑️ Remover</button></div></div>';
+  }).join("");
+  h += '</div><button class="btn btn-vazado" data-nova-loja="1">➕ Adicionar loja</button></div>';
+
+  h += '<div class="cartao"><h2>Regras dos alertas</h2><div class="duas"><div><label class="campo">Custo por mensagem acima de (R$)</label><input type="number" id="cfgCusto" inputmode="decimal" value="' + esc(CRM.config.limite_custo_msg) + '"></div><div><label class="campo">Frequência acima de</label><input type="number" id="cfgFreq" inputmode="decimal" step="0.1" value="' + esc(CRM.config.limite_freq) + '"></div></div><button class="btn btn-pq" data-salvar-cfg="1" style="margin-top:10px">💾 Salvar regras</button></div>';
+
+  // nuvem
+  var n = nuvem;
+  h += '<div class="cartao" id="cartaoNuvem"><h2>☁️ Leads na nuvem</h2><div class="mini" style="margin-bottom:8px">Os leads ficam neste aparelho. Com a nuvem ligada, eles são guardados num repositório do GitHub e aparecem nos outros celulares. <b>Use um repositório privado</b>: leads têm nome e telefone de clientes.</div>';
+  if (!nuvemLigada()) {
+    h += '<div class="aviso alerta">Nuvem desligada — os leads ficam só neste aparelho.</div>';
+    h += '<label class="campo">Repositório privado (usuário/nome)</label><input type="text" id="nvRepo" value="' + esc(n.repo || "heroslore/crm-dados") + '" autocapitalize="off"><label class="campo">Chave de acesso (fine-grained token com Contents: Read and write nesse repositório)</label><input type="password" id="nvToken" placeholder="github_pat_…" autocomplete="off">';
+    h += '<div class="mini">Crie em github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens. Marque só o repositório privado e a permissão <code>Contents: Read and write</code>.</div><button class="btn btn-verde" data-nuvem-conectar="1">☁️ Conectar e sincronizar</button>';
+  } else {
+    h += '<div class="aviso ' + (n.erro ? "erro" : n.pendente ? "alerta" : "ok") + '">' + (n.erro ? "⚠️ " + esc(n.erro) : n.pendente ? "⏳ Tem alteração esperando para subir (sem sinal?). Vai sozinha quando voltar a internet." : "✓ Conectado a <b>" + esc(n.repo) + "</b>" + (n.ultimaSync ? " · última sincronização " + esc(horaCurta(n.ultimaSync)) : "")) + '</div>';
+    h += '<div class="linha-btns"><button class="btn btn-verde btn-pq" data-nuvem-agora="1">🔄 Sincronizar agora</button><button class="btn btn-vazado btn-pq" data-nuvem-sair="1">Desconectar este aparelho</button></div>';
+  }
+  h += '</div>';
+
+  // dados da meta
+  h += '<div class="cartao"><h2>📡 Dados do Meta Ads</h2>';
+  if (META) h += '<div class="mini">Conta <b>' + esc(META.conta.nome || META.conta.id) + '</b> · histórico de ' + dataBRcompleta(META.periodo.inicio) + ' a ' + dataBRcompleta(META.periodo.fim) + ' · ' + META.campanhas.length + ' campanhas, ' + META.anuncios.length + ' anúncios · gerado em ' + esc(horaCurta(META.gerado_em)) + '.</div>';
+  else h += '<div class="aviso alerta">Ainda não há arquivo de dados (crm/dados/meta.json).</div>';
+  h += '<div class="mini" style="margin-top:6px">A coleta é automática: o GitHub Actions roda <code>crm/coletor/coletar.py</code> todo dia às 08:20 e republica este painel. Para rodar agora: no GitHub, Actions → "CRM — coleta do Meta Ads" → Run workflow.</div>';
+  h += '<div class="linha-btns"><button class="btn btn-vazado btn-pq" data-recarregar-meta="1">🔄 Recarregar dados</button><a class="btn btn-vazado btn-pq" href="https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=' + esc(META ? META.conta.id.replace("act_", "") : "") + '" target="_blank" rel="noopener">Abrir Gerenciador de Anúncios</a></div></div>';
+
+  h += '<div class="cartao"><h2>💾 Cópia de segurança dos leads</h2><div class="linha-btns"><button class="btn btn-vazado btn-pq" data-exportar-json="1">⬇️ Baixar backup (JSON)</button><label class="btn btn-vazado btn-pq" style="cursor:pointer">⬆️ Restaurar backup <input type="file" id="importarJson" accept="application/json" style="display:none"></label><button class="btn btn-vazado btn-pq" data-exportar-csv="1">⬇️ Leads em CSV</button></div></div>';
+  el.innerHTML = h;
+}
+function salvarLoja(id){
+  var box = document.querySelector('[data-loja-form="' + id + '"]'); var l = CRM.lojas.find(function(x){ return x.id === id; }); if (!box || !l) return;
+  l.nome = box.querySelector('[data-lc="nome"]').value.trim() || l.nome; l.cor = box.querySelector('[data-lc="cor"]').value;
+  l.palavras = box.querySelector('[data-lc="palavras"]').value.split(",").map(function(s){ return s.trim(); }).filter(Boolean);
+  l.meta_gasto_mes = Number(box.querySelector('[data-lc="meta_gasto_mes"]').value) || 0; l.meta_custo_msg = Number(box.querySelector('[data-lc="meta_custo_msg"]').value) || 0;
+  var padrao = box.querySelector('[data-lc="padrao"]').checked; var agora = new Date().toISOString();
+  if (padrao) CRM.lojas.forEach(function(x){ if (x.padrao && x.id !== id) { x.padrao = false; x.atualizado_em = agora; } });
+  l.padrao = padrao; l.atualizado_em = agora; gravarCRM("loja"); toast("Loja salva."); render();
+}
+
+// ============================================================ persistência local
+function carregarCRM(){
+  try { var c = JSON.parse(localStorage.getItem(CRM_CHAVE) || "null"); if (c && c.lojas) { CRM = c; CRM.atribuicoes = CRM.atribuicoes || {}; CRM.leads = CRM.leads || []; CRM.config = CRM.config || { limite_custo_msg: 15, limite_freq: 3 }; return; } } catch (e) {}
+  CRM = crmPadrao();
+}
+function gravarCRM(motivo){
+  CRM.atualizado_em = new Date().toISOString();
+  try { localStorage.setItem(CRM_CHAVE, JSON.stringify(CRM)); } catch (e) { toast("Não consegui gravar no aparelho: " + e.message); }
+  if (motivo !== "nuvem") nuvemAgendarEnvio();
+}
+async function carregarMeta(forcar){
+  try {
+    var r = await fetch("dados/meta.json?_=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    META = await r.json();
+    try { localStorage.setItem(META_CACHE, JSON.stringify(META)); } catch (e) {}
+    if (forcar) toast("Dados recarregados.");
+  } catch (e) {
+    try { META = JSON.parse(localStorage.getItem(META_CACHE) || "null"); } catch (e2) { META = null; }
+    if (META) $("cabStatus").textContent = "sem conexão — dados guardados"; else $("cabStatus").textContent = "não achei dados/meta.json";
+  }
+  render();
+}
+
+// ============================================================ nuvem (GitHub)
+var nuvem = { token: "", repo: "", branch: "main", sha: null, ultimaSync: null, pendente: false, ocupado: false, erro: "" };
+var nuvemTimer = null, nuvemPoll = null;
+function limparChave(t){ return String(t || "").replace(/[\s​-‍﻿]/g, ""); }
+function nuvemLerConfig(){ try { var c = JSON.parse(localStorage.getItem(NUVEM_CHAVE) || "null"); if (c && c.token && c.repo) { nuvem.token = c.token; nuvem.repo = c.repo; nuvem.branch = c.branch || "main"; nuvem.sha = c.sha || null; nuvem.ultimaSync = c.ultimaSync || null; nuvem.pendente = !!c.pendente; } } catch (e) {} }
+function nuvemGravarConfig(){ try { localStorage.setItem(NUVEM_CHAVE, JSON.stringify({ token: nuvem.token, repo: nuvem.repo, branch: nuvem.branch, sha: nuvem.sha, ultimaSync: nuvem.ultimaSync, pendente: nuvem.pendente })); } catch (e) {} }
+function nuvemLigada(){ return !!(nuvem.token && nuvem.repo); }
+function nuvemUrl(){ return "https://api.github.com/repos/" + nuvem.repo + "/contents/" + NUVEM_ARQUIVO; }
+function nuvemHeaders(){ return { "Authorization": "Bearer " + nuvem.token, "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" }; }
+async function nuvemRepoInfo(){
+  var rr = await fetch("https://api.github.com/repos/" + nuvem.repo + "?_=" + Date.now(), { headers: nuvemHeaders(), cache: "no-store" });
+  if (rr.status === 404) throw new Error("a chave não tem acesso ao repositório " + nuvem.repo + " — confira o nome e, na página da chave, marque esse repositório");
+  if (rr.status === 401) throw new Error("chave inválida ou vencida");
+  if (!rr.ok) throw new Error("GitHub respondeu " + rr.status);
+  return rr.json();
+}
+async function nuvemBaixar(){
+  if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(nuvem.token)) throw new Error("a chave parece incompleta — copie de novo");
+  var r = await fetch(nuvemUrl() + "?ref=" + encodeURIComponent(nuvem.branch) + "&_=" + Date.now(), { headers: nuvemHeaders(), cache: "no-store" });
+  if (r.status === 404) {
+    var info = await nuvemRepoInfo();
+    if (info.default_branch && info.default_branch !== nuvem.branch) { nuvem.branch = info.default_branch; nuvemGravarConfig(); return nuvemBaixar(); }
+    return { obj: null, sha: null }; // arquivo ainda não existe
+  }
+  if (r.status === 401) throw new Error("chave inválida ou vencida");
+  if (!r.ok) throw new Error("GitHub respondeu " + r.status);
+  var j = await r.json(); var obj;
+  try { obj = JSON.parse(utf8b64(j.content)); } catch (e) { throw new Error("arquivo na nuvem está corrompido"); }
+  return { obj: obj, sha: j.sha };
+}
+async function nuvemSubir(obj, sha){
+  var corpo = { message: "CRM de tráfego — " + new Date().toLocaleString("pt-BR"), content: b64utf8(JSON.stringify(obj)), branch: nuvem.branch };
+  if (sha) corpo.sha = sha;
+  var r = await fetch(nuvemUrl(), { method: "PUT", headers: Object.assign({ "Content-Type": "application/json" }, nuvemHeaders()), body: JSON.stringify(corpo) });
+  if (r.status === 404) throw new Error("sem permissão de escrita no repositório " + nuvem.repo + " — na chave, em Contents, escolha Read and write");
+  if (r.status === 409 || r.status === 422) return null; // alguém gravou antes: baixa e mescla de novo
+  if (!r.ok) throw new Error("GitHub respondeu " + r.status + " ao gravar");
+  var j = await r.json(); return j.content.sha;
+}
+function mesclarLista(a, b){
+  var m = {};
+  (a || []).concat(b || []).forEach(function(x){ if (!x || !x.id) return; var atual = m[x.id]; if (!atual || (x.atualizado_em || "") > (atual.atualizado_em || "")) m[x.id] = x; });
+  return Object.keys(m).map(function(k){ return m[k]; });
+}
+function mesclar(local, remoto){
+  if (!remoto) return local;
+  var out = { versao: 1, lojas: mesclarLista(local.lojas, remoto.lojas), leads: mesclarLista(local.leads, remoto.leads), atribuicoes: {}, config: local.config, config_em: local.config_em || "" };
+  var at = Object.assign({}, remoto.atribuicoes || {}); for (var k in (local.atribuicoes || {})) { var l = local.atribuicoes[k], r = at[k]; if (!r || (l.em || "") > (r.em || "")) at[k] = l; } out.atribuicoes = at;
+  if ((remoto.config_em || "") > (local.config_em || "")) { out.config = remoto.config; out.config_em = remoto.config_em; }
+  var limite = new Date(Date.now() - 120 * 86400000).toISOString();
+  out.leads = out.leads.filter(function(l){ return !(l.apagado && (l.atualizado_em || "") < limite); });
+  out.atualizado_em = new Date().toISOString();
+  return out;
+}
+async function nuvemSincronizar(motivo){
+  if (!nuvemLigada() || nuvem.ocupado) return;
+  if (!navigator.onLine) { nuvem.pendente = true; nuvemGravarConfig(); nuvemStatus("☁️ sem internet — sincroniza depois"); return; }
+  nuvem.ocupado = true; nuvemStatus("☁️ sincronizando…");
+  try {
+    for (var tentativa = 0; tentativa < 3; tentativa++) {
+      var baixado = await nuvemBaixar();
+      var junto = mesclar(CRM, baixado.obj);
+      var localJson = JSON.stringify(CRM), remotoJson = JSON.stringify(baixado.obj);
+      var juntoSemData = Object.assign({}, junto); delete juntoSemData.atualizado_em;
+      var remotoSemData = Object.assign({}, baixado.obj || {}); delete remotoSemData.atualizado_em;
+      var precisaSubir = !baixado.obj || JSON.stringify(juntoSemData) !== JSON.stringify(remotoSemData);
+      CRM = junto; gravarCRM("nuvem");
+      if (!precisaSubir) { nuvem.sha = baixado.sha; break; }
+      var sha = await nuvemSubir(junto, baixado.sha);
+      if (sha) { nuvem.sha = sha; break; }
+    }
+    nuvem.pendente = false; nuvem.erro = ""; nuvem.ultimaSync = new Date().toISOString(); nuvemGravarConfig();
+    nuvemStatus("☁️ sincronizado " + horaCurta(nuvem.ultimaSync)); render();
+  } catch (e) {
+    nuvem.erro = e.message; nuvem.pendente = true; nuvemGravarConfig(); nuvemStatus("⚠️ nuvem: " + e.message); if (tela === "ajustes") render();
+  } finally { nuvem.ocupado = false; }
+}
+function nuvemStatus(txt){ $("cabStatus").textContent = txt; }
+function nuvemAgendarEnvio(){ if (!nuvemLigada()) return; nuvem.pendente = true; nuvemGravarConfig(); clearTimeout(nuvemTimer); nuvemTimer = setTimeout(function(){ nuvemSincronizar("edicao"); }, 2500); }
+async function nuvemConectar(){
+  var repo = $("nvRepo").value.trim().replace(/^https?:\/\/github\.com\//, "").replace(/\.git$/, "").replace(/\/+$/, ""); var token = limparChave($("nvToken").value);
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { toast("Informe o repositório como usuário/nome."); return; }
+  if (!token) { toast("Cole a chave de acesso."); return; }
+  nuvem.token = token; nuvem.repo = repo; nuvem.branch = "main"; nuvem.sha = null; nuvem.erro = "";
+  try {
+    var info = await nuvemRepoInfo();
+    if (info.private === false && !confirm("ATENÇÃO: o repositório " + repo + " é PÚBLICO. Nome e telefone dos leads ficariam visíveis para qualquer pessoa. Quer usar mesmo assim?")) { nuvem.token = ""; nuvem.repo = ""; return; }
+    if (info.default_branch) nuvem.branch = info.default_branch;
+  } catch (e) { nuvem.token = ""; nuvem.repo = ""; toast("Não conectou: " + e.message); return; }
+  nuvemGravarConfig(); await nuvemSincronizar("conectar"); render();
+  if (!nuvem.erro) toast("Nuvem conectada."); nuvemIniciarPoll();
+}
+function nuvemSair(){ if (!confirm("Desconectar este aparelho da nuvem? Os leads continuam aqui.")) return; nuvem = { token: "", repo: "", branch: "main", sha: null, ultimaSync: null, pendente: false, ocupado: false, erro: "" }; try { localStorage.removeItem(NUVEM_CHAVE); } catch (e) {} clearInterval(nuvemPoll); nuvemStatus(""); render(); }
+function nuvemIniciarPoll(){ clearInterval(nuvemPoll); if (!nuvemLigada()) return; nuvemPoll = setInterval(function(){ if (document.visibilityState === "visible") nuvemSincronizar("poll"); }, 3 * 60 * 1000); }
+
+// ============================================================ modal, eventos
+function abrirModal(html){ $("modal").innerHTML = html; $("modalFundo").classList.add("aberto"); }
+function fecharModal(){ $("modalFundo").classList.remove("aberto"); $("modal").innerHTML = ""; }
+function irPara(t){ tela = t; document.querySelectorAll("nav button").forEach(function(b){ b.classList.toggle("ativa", b.dataset.tela === t); }); document.querySelectorAll(".tela").forEach(function(s){ s.classList.toggle("ativa", s.id === "tela-" + t); }); window.scrollTo(0, 0); render(); }
+
+document.addEventListener("click", function(ev){
+  var b = ev.target.closest("[data-tela]"); if (b) { irPara(b.dataset.tela); return; }
+  var p = ev.target.closest("[data-p]"); if (p) { periodo.tipo = p.dataset.p; if (periodo.tipo === "custom") { periodo.inicio = periodo.inicio || somaDias(referencia(), -29); periodo.fim = periodo.fim || referencia(); $("dtInicio").value = periodo.inicio; $("dtFim").value = periodo.fim; } render(); return; }
+  var l = ev.target.closest("[data-l]"); if (l) { lojaFiltro = l.dataset.l; render(); return; }
+  var ir = ev.target.closest("[data-ir]"); if (ir) { ev.preventDefault(); irPara(ir.dataset.ir); return; }
+  if (ev.target.closest("[data-novo-lead]")) { abrirLead(null); return; }
+  var ed = ev.target.closest("[data-editar-lead]"); if (ed) { abrirLead(ed.dataset.editarLead); return; }
+  var sl = ev.target.closest("[data-salvar-lead]"); if (sl) { salvarLead(sl.dataset.salvarLead); return; }
+  var ap = ev.target.closest("[data-apagar-lead]"); if (ap) { apagarLead(ap.dataset.apagarLead); return; }
+  var st = ev.target.closest("[data-lead-status]"); if (st) { var ld = CRM.leads.find(function(x){ return x.id === st.dataset.leadStatus; }); if (ld) { var agora = new Date().toISOString(); mudarStatus(ld, st.dataset.status, agora, ld.status); ld.atualizado_em = agora; gravarCRM("lead"); render(); } return; }
+  var lf = ev.target.closest("[data-lf]"); if (lf) { leadsFiltro.status = lf.dataset.lf; render(); return; }
+  if (ev.target.closest("[data-exportar-csv]")) { exportarCSV(); return; }
+  if (ev.target.closest("[data-exportar-json]")) { var blob = new Blob([JSON.stringify(CRM, null, 1)], { type: "application/json" }); var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "crm-backup-" + hojeLocal() + ".json"; a.click(); return; }
+  var cs = ev.target.closest("[data-camp-so]"); if (cs) { campanhasSo = cs.dataset.campSo; render(); return; }
+  var camp = ev.target.closest("[data-camp]"); if (camp && !ev.target.closest("select")) { campanhaAberta = campanhaAberta === camp.dataset.camp ? null : camp.dataset.camp; render(); return; }
+  var svl = ev.target.closest("[data-salvar-loja]"); if (svl) { salvarLoja(svl.dataset.salvarLoja); return; }
+  var apl = ev.target.closest("[data-apagar-loja]"); if (apl) { var lj = CRM.lojas.find(function(x){ return x.id === apl.dataset.apagarLoja; }); if (lj && confirm("Remover a loja " + lj.nome + "? As campanhas dela ficam sem loja.")) { lj.apagado = true; lj.atualizado_em = new Date().toISOString(); gravarCRM("loja"); render(); } return; }
+  if (ev.target.closest("[data-nova-loja]")) { var n = lojas().length; CRM.lojas.push({ id: "loja-" + uid(), nome: "Nova loja", cor: CORES_LOJA[n % CORES_LOJA.length], palavras: [], padrao: false, meta_gasto_mes: 0, meta_custo_msg: 15, atualizado_em: new Date().toISOString() }); gravarCRM("loja"); render(); return; }
+  if (ev.target.closest("[data-salvar-cfg]")) { CRM.config = { limite_custo_msg: Number($("cfgCusto").value) || 15, limite_freq: Number($("cfgFreq").value) || 3 }; CRM.config_em = new Date().toISOString(); gravarCRM("config"); toast("Regras salvas."); return; }
+  if (ev.target.closest("[data-nuvem-conectar]")) { nuvemConectar(); return; }
+  if (ev.target.closest("[data-nuvem-agora]")) { nuvemSincronizar("manual"); return; }
+  if (ev.target.closest("[data-nuvem-sair]")) { nuvemSair(); return; }
+  if (ev.target.closest("[data-recarregar-meta]")) { carregarMeta(true); return; }
+  if (ev.target.closest("[data-fechar]") || ev.target === $("modalFundo")) { fecharModal(); return; }
+});
+document.addEventListener("change", function(ev){
+  var s = ev.target.closest("[data-loja-camp]"); if (s) { CRM.atribuicoes[s.dataset.lojaCamp] = { loja_id: s.value, em: new Date().toISOString() }; gravarCRM("atribuicao"); render(); return; }
+  if (ev.target.id === "dtInicio" || ev.target.id === "dtFim") { periodo.inicio = $("dtInicio").value || periodo.inicio; periodo.fim = $("dtFim").value || periodo.fim; render(); return; }
+  if (ev.target.id === "importarJson") { var f = ev.target.files[0]; if (!f) return; var rd = new FileReader(); rd.onload = function(){ try { var obj = JSON.parse(rd.result); if (!obj.lojas || !obj.leads) throw new Error("arquivo não é um backup do CRM"); CRM = mesclar(CRM, obj); gravarCRM("importar"); render(); toast("Backup restaurado e mesclado."); } catch (e) { toast("Não deu: " + e.message); } }; rd.readAsText(f); return; }
+});
+document.addEventListener("input", function(ev){ if (ev.target.id === "leadsBusca") { leadsFiltro.busca = ev.target.value; var pos = ev.target.selectionStart; render(); var el = $("leadsBusca"); el.focus(); el.setSelectionRange(pos, pos); } });
+document.addEventListener("visibilitychange", function(){ if (document.visibilityState === "visible") { carregarMeta(false); nuvemSincronizar("voltar"); } });
+window.addEventListener("online", function(){ nuvemSincronizar("online"); });
+
+// ============================================================ início
+carregarCRM(); nuvemLerConfig(); render(); carregarMeta(false);
+if (nuvemLigada()) { nuvemSincronizar("abrir"); nuvemIniciarPoll(); }
+if ("serviceWorker" in navigator) { /* sem service worker: o painel é leve e carrega direto do GitHub Pages */ }
+</script>
+</body>
+</html>
