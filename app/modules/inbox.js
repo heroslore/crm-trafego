@@ -51,6 +51,23 @@ function listaHtml(abertaId) {
   }).join("");
 }
 
+const NOME_MIDIA = { imagem: "🖼️ imagem", audio: "🎧 áudio", video: "🎬 vídeo", documento: "📎 documento", figurinha: "🌟 figurinha", localizacao: "📍 localização", contato: "👤 contato", reacao: "❤️ reação" };
+// Cada tipo de anexo é mostrado do jeito que dá para usar: imagem aparece,
+// áudio e vídeo tocam na hora, documento vira link. Se a instância não guardou
+// a mídia, sobra o aviso com link, em vez de um quadrado quebrado.
+function corpoMidia(m, url) {
+  if (m.tipo === "texto") return "";
+  const rotulo = NOME_MIDIA[m.tipo] || m.tipo;
+  if (!url) return `<span class="msg-midia">${rotulo}</span>`;
+  if (m.tipo === "imagem" || m.tipo === "figurinha") {
+    return `<a class="msg-midia-link" href="${esc(url)}" target="_blank" rel="noopener" data-ver-imagem="${esc(url)}"><img class="msg-img${m.tipo === "figurinha" ? " figurinha" : ""}" src="${esc(url)}" alt="${esc(rotulo)}" loading="lazy" onerror="this.parentNode.outerHTML='<a class=msg-midia href=&quot;${esc(url)}&quot; target=_blank rel=noopener>${esc(rotulo)} · abrir</a>'"></a>`;
+  }
+  if (m.tipo === "audio") return `<audio class="msg-audio" controls preload="none" src="${esc(url)}"></audio>`;
+  if (m.tipo === "video") return `<video class="msg-video" controls preload="metadata" src="${esc(url)}"></video>`;
+  if (m.tipo === "documento") return `<a class="msg-midia" href="${esc(url)}" target="_blank" rel="noopener" download>${rotulo} · baixar</a>`;
+  return `<span class="msg-midia">${rotulo}</span>`;
+}
+
 function painelLead(chat) {
   const lead = W.leadDoChat(chat);
   if (!lead) return `<div class="thread-lead"><span>Nenhum lead ligado a esta conversa.</span>${podeEditar() && !chat.grupo ? `<button class="btn btn-pq btn-primario" data-criar-lead>➕ Criar lead</button>` : ""}</div>`;
@@ -76,9 +93,9 @@ function threadHtml(chat) {
     const dia = m.ts ? new Date(m.ts * 1000).toISOString().slice(0, 10) : "";
     let sep = "";
     if (dia && dia !== diaAtual) { diaAtual = dia; sep = `<div class="msg-dia">${dia === hoje() ? "Hoje" : dia === somaDias(hoje(), -1) ? "Ontem" : dataBR(dia)}</div>`; }
-    const midia = m.tipo !== "texto" ? `<span class="msg-midia">${{ imagem: "🖼️ imagem", audio: "🎧 áudio", video: "🎬 vídeo", documento: "📎 documento", figurinha: "🌟 figurinha", localizacao: "📍 localização", contato: "👤 contato", reacao: "❤️ reação" }[m.tipo] || m.tipo}</span>` : "";
-    const img = m.tipo === "imagem" && W.urlMidia(m.id) ? `<img class="msg-img" src="${esc(W.urlMidia(m.id))}" alt="" loading="lazy" onerror="this.remove()">` : "";
-    return `${sep}<div class="msg ${m.minha ? "minha" : "dele"}">${img}${midia}${m.texto ? `<span class="msg-txt">${esc(m.texto)}</span>` : (midia || img ? "" : `<span class="msg-txt"><i>(sem texto)</i></span>`)}${m.anuncio ? `<span class="msg-ad">📣 veio do anúncio${m.anuncio.titulo ? ": " + esc(m.anuncio.titulo) : ""}</span>` : ""}<span class="msg-hora">${esc(horaMsg(m.ts))}${m.minha && m.status ? " ✓" : ""}</span></div>`;
+    const url = W.urlMidia(m.id);
+    const anexo = corpoMidia(m, url);
+    return `${sep}<div class="msg ${m.minha ? "minha" : "dele"}">${anexo}${m.texto ? `<span class="msg-txt">${esc(m.texto)}</span>` : (anexo ? "" : `<span class="msg-txt"><i>(sem texto)</i></span>`)}${m.anuncio ? `<span class="msg-ad">📣 veio do anúncio${m.anuncio.titulo ? ": " + esc(m.anuncio.titulo) : ""}</span>` : ""}<span class="msg-hora">${esc(horaMsg(m.ts))}${m.minha && m.status ? " ✓" : ""}</span></div>`;
   }).join("");
   const rr = W.respostasRapidas();
   return `<div class="thread-cab">
@@ -161,6 +178,10 @@ function render(root, ctx) {
         ctx.rerender();
       } catch (err) { toast("Não enviou: " + err.message, "erro"); btn.disabled = false; btn.textContent = "Enviar"; }
     });
+    root.querySelectorAll("[data-ver-imagem]").forEach((a) => a.addEventListener("click", (e) => {
+      e.preventDefault();
+      modal(`<img src="${esc(a.dataset.verImagem)}" alt="" style="max-width:100%;max-height:74vh;display:block;margin:0 auto;border-radius:10px"><p style="text-align:center;margin-top:10px"><a class="btn btn-pq" href="${esc(a.dataset.verImagem)}" target="_blank" rel="noopener">Abrir em nova aba</a></p>`, { titulo: "Imagem", largo: true });
+    }));
     const rap = root.querySelector("[data-rapida]");
     if (rap) rap.addEventListener("change", () => { const r = W.respostasRapidas().find((x) => x.id === rap.value); if (r && ta) { ta.value = (ta.value ? ta.value + " " : "") + r.texto; rascunhos.set(chat.id, ta.value); ta.focus(); } rap.value = ""; });
     on("[data-criar-lead]", "click", async () => {
