@@ -1,7 +1,7 @@
 // Automações internas: reagem a eventos do banco e executam ações simples (follow-up, tarefa, etiqueta, anotação).
 // Nunca tomam decisões de tráfego; só organizam o trabalho.
-import { db } from "./db.js?v=02b90ebf";
-import { hoje, somaDias, agora, diasEntre } from "./format.js?v=02b90ebf";
+import { db } from "./db.js?v=c59cb573";
+import { hoje, somaDias, agora, diasEntre } from "./format.js?v=c59cb573";
 
 const etapaAnterior = new Map();
 let ativo = false;

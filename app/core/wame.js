@@ -3,11 +3,11 @@
 //
 // A chave da instância NÃO fica no banco sincronizado: ela mora só neste aparelho
 // (localStorage), porque quem tem a chave controla o WhatsApp da loja.
-import { db } from "./db.js?v=02b90ebf";
-import { agora, hoje, telLimpo, uid, semAcento } from "./format.js?v=02b90ebf";
+import { db } from "./db.js?v=c59cb573";
+import { agora, hoje, telLimpo, uid, semAcento } from "./format.js?v=c59cb573";
 
 const CHAVE_CFG = "crm-trafego-wame";
-const BASES = ["https://us.api-wa.me", "https://server.api-wa.me"];
+export const BASES = ["https://us.api-wa.me", "https://server.api-wa.me"];
 export const PROVIDERS = [["whatsapp", "WhatsApp", "💬"], ["instagram", "Instagram", "📸"], ["messenger", "Messenger", "💠"]];
 
 export const cfg = {
@@ -18,6 +18,7 @@ export const cfg = {
 export const estado = {
   conectado: null, erro: "", carregando: false, ultima: null,
   perfil: null, chats: [], mensagens: {}, aberta: null, naoLidas: 0,
+  canaisIndisponiveis: {}, diagnostico: "", oficial: null,
 };
 
 const ouvintes = new Set();
@@ -47,7 +48,15 @@ function url(caminho, query) {
   for (const [k, v] of Object.entries(query || {})) if (v !== undefined && v !== null && v !== "") u.searchParams.set(k, v);
   return u.toString();
 }
-export async function req(metodo, caminho, { query, body, timeout = 25000 } = {}) {
+let fila = Promise.resolve();
+// Uma chamada de cada vez: a instância é a mesma para todos os pedidos e
+// chamadas simultâneas atrapalham mais do que ajudam.
+export function req(metodo, caminho, opcoes) {
+  const proxima = fila.then(() => chamar(metodo, caminho, opcoes || {}), () => chamar(metodo, caminho, opcoes || {}));
+  fila = proxima.catch(() => {});
+  return proxima;
+}
+async function chamar(metodo, caminho, { query, body, timeout = 25000 } = {}) {
   if (!cfg.key) throw new Error("chave da instância não configurada");
   const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), timeout);
   let r;
@@ -63,8 +72,12 @@ export async function req(metodo, caminho, { query, body, timeout = 25000 } = {}
     const msg = (j && (j.message || j.reason)) || `erro ${r.status}`;
     if (r.status === 404) throw new Error("instância não encontrada: confira a chave (key) no portal");
     if (r.status === 401 || r.status === 403) throw new Error("chave sem permissão");
-    if (r.status === 422) throw new Error(msg);
-    throw new Error(msg);
+    const err = new Error(msg);
+    err.status = r.status;
+    err.canalDesligado = r.status === 422;
+    err.soOficial = /oficial|cloud api|official/i.test(msg);
+    err.jaConectada = /already connected|já (está )?conectad/i.test(msg);
+    throw err;
   }
   return j;
 }
@@ -166,6 +179,32 @@ function normalizarMensagem(m, chatId) {
 
 // ---------------------------------------------------------------- endpoints
 export async function instancia() { return corpo(await req("GET", "/instance")); }
+// A API não fixa o nome do campo de status; aceitamos as formas conhecidas e,
+// quando nenhuma aparece, devolvemos null (desconhecido) em vez de "desconectado".
+export function lerConexao(d) {
+  if (!d || typeof d !== "object") return null;
+  const alvo = d.instance || d.data || d;
+  for (const k of ["phoneConnected", "phone_connected", "connected", "isConnected", "loggedIn", "logged_in", "online", "conectado"]) {
+    if (typeof alvo[k] === "boolean") return alvo[k];
+  }
+  for (const k of ["state", "status", "connection", "connectionState", "connectionStatus", "situacao"]) {
+    const v = alvo[k];
+    if (typeof v === "string") {
+      const t = v.toLowerCase();
+      if (["open", "connected", "online", "authenticated", "ready", "conectado", "conectada", "active"].includes(t)) return true;
+      if (["close", "closed", "disconnected", "offline", "qr", "qrcode", "connecting", "pending", "desconectado", "desconectada", "logged_out"].includes(t)) return false;
+    }
+  }
+  if (alvo.user || alvo.wid || alvo.me || alvo.jid || alvo.phone || alvo.number) return true;
+  return null;
+}
+export function lerOficial(d) {
+  const alvo = (d && (d.instance || d.data || d)) || {};
+  for (const k of ["official", "oficial", "isOfficial", "cloudApi", "cloud_api"]) if (typeof alvo[k] === "boolean") return alvo[k];
+  if (typeof alvo.provider === "string") return /official|cloud/i.test(alvo.provider);
+  if (typeof alvo.type === "string") return /official|cloud/i.test(alvo.type);
+  return null;
+}
 export async function conectarQr() { return corpo(await req("POST", "/instance")); }
 export async function desconectarInstancia() { return corpo(await req("DELETE", "/instance")); }
 export async function listarChats(provider = "whatsapp") {
@@ -257,28 +296,39 @@ export async function sincronizarLeads(chats) {
 
 // ---------------------------------------------------------------- polling
 let timer = null, ocupado = false;
+let falhasSeguidas = 0;
 export async function atualizar({ comMensagens = true } = {}) {
   if (!configurado() || ocupado) return;
   ocupado = true; estado.carregando = true; avisar("carregando");
   try {
     const canais = canaisAtivos();
-    let todos = [];
+    let todos = [], falhas = [];
+    const indisponiveis = {};
     for (const p of canais) {
       try { todos = todos.concat(await listarChats(p)); }
-      catch (e) { if (canais.length === 1 || !/422/.test(e.message)) estado.erro = e.message; }
+      catch (e) {
+        if (e.canalDesligado) indisponiveis[p] = e.message || "canal não conectado nesta instância";
+        else falhas.push(e.message);
+      }
     }
+    estado.canaisIndisponiveis = indisponiveis;
+    if (falhas.length && !todos.length) throw new Error(falhas[0]);
+    estado.erro = falhas[0] || "";
     todos.sort((a, b) => (b.fixado ? 1 : 0) - (a.fixado ? 1 : 0) || b.ts - a.ts);
     estado.chats = todos;
     estado.naoLidas = todos.reduce((s, c) => s + (c.naoLidas || 0), 0);
-    estado.erro = todos.length || !estado.erro ? "" : estado.erro;
-    estado.conectado = true; estado.ultima = agora();
+    if (!estado.erro) { estado.conectado = true; falhasSeguidas = 0; }
+    estado.ultima = agora();
     try { await sincronizarLeads(todos); } catch (e) { console.warn("auto-lead:", e.message); }
     if (comMensagens && estado.aberta) {
       const chat = todos.find((c) => c.id === estado.aberta) || { id: estado.aberta };
       try { estado.mensagens[chat.id] = await listarMensagens(chat.id, { limit: 60 }); } catch {}
     }
   } catch (e) {
-    estado.erro = e.message; estado.conectado = false;
+    // Uma falha isolada (internet oscilando) não apaga as conversas já carregadas
+    // nem muda o status: só a segunda seguida vira aviso.
+    falhasSeguidas++;
+    if (falhasSeguidas >= 2) { estado.erro = e.message; estado.conectado = false; }
   } finally { ocupado = false; estado.carregando = false; avisar("atualizou"); }
 }
 export function iniciarPolling() {
@@ -299,8 +349,17 @@ export async function abrirConversa(chatId) {
 export async function verificarConexao() {
   try {
     const d = await instancia();
-    estado.perfil = d || null;
-    estado.conectado = !!(d && (d.phoneConnected ?? d.connected ?? d.state === "open" ?? true));
+    estado.perfil = (d && (d.instance || d)) || null;
+    estado.oficial = lerOficial(d);
+    estado.diagnostico = JSON.stringify(d, null, 1).slice(0, 1200);
+    let conectado = lerConexao(d);
+    if (conectado === null) {
+      // O status não veio num campo conhecido: vale mais o teste prático —
+      // se a instância lista conversas, ela está funcionando.
+      try { await listarChats(canaisAtivos()[0] || "whatsapp"); conectado = true; }
+      catch (e) { conectado = e.canalDesligado ? null : false; }
+    }
+    estado.conectado = conectado;
     estado.erro = "";
     return d;
   } catch (e) { estado.erro = e.message; estado.conectado = false; throw e; }

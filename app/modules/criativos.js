@@ -1,11 +1,11 @@
-import { db } from "../core/db.js?v=02b90ebf";
-import { kpis, serieDiaria, mediaCampanhas } from "../core/metrics.js?v=02b90ebf";
-import { classificarCriativo, CLASSES_CRIATIVO } from "../core/rules.js?v=02b90ebf";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista, abas } from "../core/ui.js?v=02b90ebf";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=02b90ebf";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=02b90ebf";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=02b90ebf";
-import { podeEditar } from "../core/auth.js?v=02b90ebf";
+import { db } from "../core/db.js?v=c59cb573";
+import { kpis, serieDiaria, mediaCampanhas } from "../core/metrics.js?v=c59cb573";
+import { classificarCriativo, CLASSES_CRIATIVO } from "../core/rules.js?v=c59cb573";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista, abas } from "../core/ui.js?v=c59cb573";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=c59cb573";
+import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=c59cb573";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=c59cb573";
+import { podeEditar } from "../core/auth.js?v=c59cb573";
 
 let visao = "ranking", filtroClasse = "";
 function lista(root, ctx) {

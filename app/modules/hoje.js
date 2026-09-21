@@ -1,11 +1,11 @@
-import { db } from "../core/db.js?v=02b90ebf";
-import { kpis, porEntidade, mediaCampanhas } from "../core/metrics.js?v=02b90ebf";
-import { intervalo } from "../core/periods.js?v=02b90ebf";
-import { cartao, vazio, itemLista, badge, prioridadeBadge } from "../core/ui.js?v=02b90ebf";
-import { esc, brl, inteiro, mult, dataBR, hoje, diasEntre, pct } from "../core/format.js?v=02b90ebf";
-import { bannerDemo, agendaDoDia } from "./comum.js?v=02b90ebf";
-import { situacaoCampanha } from "../core/rules.js?v=02b90ebf";
-import * as W from "../core/wame.js?v=02b90ebf";
+import { db } from "../core/db.js?v=c59cb573";
+import { kpis, porEntidade, mediaCampanhas } from "../core/metrics.js?v=c59cb573";
+import { intervalo } from "../core/periods.js?v=c59cb573";
+import { cartao, vazio, itemLista, badge, prioridadeBadge } from "../core/ui.js?v=c59cb573";
+import { esc, brl, inteiro, mult, dataBR, hoje, diasEntre, pct } from "../core/format.js?v=c59cb573";
+import { bannerDemo, agendaDoDia } from "./comum.js?v=c59cb573";
+import { situacaoCampanha } from "../core/rules.js?v=c59cb573";
+import * as W from "../core/wame.js?v=c59cb573";
 
 export default {
   id: "hoje", titulo: "Hoje", icone: "☀️",
