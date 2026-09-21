@@ -1,5 +1,5 @@
 import { db } from "../core/db.js";
-import { kpis, vendasNoPeriodo, custoDaVenda, porEntidade } from "../core/metrics.js";
+import { kpis, vendasNoPeriodo, custoDaVenda, porEntidade, liquidoDaVenda, taxaPagamento, vendaVale } from "../core/metrics.js";
 import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, kpi, barrasH, toast, itemLista } from "../core/ui.js";
 import { esc, brl, inteiro, pct, mult, dataBR, hoje, agora } from "../core/format.js";
 import { bannerDemo, btnNovo } from "./comum.js";
@@ -22,7 +22,7 @@ export function abrirVenda(ctx, padrao = {}, id = null) {
 function aposSalvar(v, nova, ctx) {
   if (nova) {
     if (v.lead_id) { const l = db.get("leads", v.lead_id); if (l && l.stage !== "venda") { db.update("leads", l.id, { stage: "venda", last_contact: hoje() }); db.insert("interactions", { lead_id: l.id, type: "etapa", text: `Venda registrada: ${brl(v.value)}`, at: agora(), user_id: (usuario() || {}).id || "" }); } }
-    const p = db.get("products", v.product_id); if (p && p.stock != null) db.update("products", p.id, { stock: Math.max(0, Number(p.stock) - (Number(v.quantity) || 1)) });
+    const p = db.get("products", v.product_id); if (p && p.stock != null && vendaVale(v)) db.update("products", p.id, { stock: Math.max(0, Number(p.stock) - (Number(v.quantity) || 1)) });
     toast("Venda registrada.");
   }
   ctx.rerender();
@@ -34,16 +34,19 @@ export default {
     const iv = ctx.iv, q = new URLSearchParams(location.hash.split("?")[1] || "");
     const vendas = vendasNoPeriodo(iv).sort((a, b) => b.date.localeCompare(a.date)), k = kpis(iv);
     const vendedores = porEntidade(iv, "seller").filter((x) => x.k.sales > 0).sort((a, b) => b.k.revenue - a.k.revenue);
-    const pag = {}; for (const v of vendas) pag[v.payment || "outro"] = (pag[v.payment || "outro"] || 0) + Number(v.value || 0);
-    const origem = {}; for (const v of vendas) { const o = v.source || "outro"; origem[o] = (origem[o] || 0) + Number(v.value || 0); }
+    const pag = {}; for (const v of vendas) { if (!vendaVale(v)) continue; pag[v.payment || "outro"] = (pag[v.payment || "outro"] || 0) + liquidoDaVenda(v).receita; }
+    const origem = {}; for (const v of vendas) { if (!vendaVale(v)) continue; const o = v.source || "outro"; origem[o] = (origem[o] || 0) + liquidoDaVenda(v).receita; }
     root.innerHTML = `${bannerDemo()}<div class="pagina-cab"><div><h1>Vendas</h1><p class="sub">Cada venda liga produto, lead, campanha, conjunto, anúncio, criativo e vendedor. É daqui que saem faturamento, lucro, ROAS e CPA.</p></div><div class="pagina-acoes">${btnNovo("Registrar venda", 'data-novo="1"')}</div></div>
-      <div class="kpis">${kpi({ rotulo: "Vendas", valor: inteiro(k.sales) })}${kpi({ rotulo: "Faturamento", valor: brl(k.revenue), destaque: true })}${kpi({ rotulo: "Custo dos produtos", valor: brl(k.cost) })}${kpi({ rotulo: "Lucro bruto", valor: brl(k.gross_profit), sub: "margem " + pct(k.margin) })}${kpi({ rotulo: "Ticket médio", valor: brl(k.ticket) })}${kpi({ rotulo: "Custo por venda (CPA)", valor: brl(k.cpa) })}${kpi({ rotulo: "Conversão lead → venda", valor: pct(k.conversion) })}</div>
+      <div class="kpis">${kpi({ rotulo: "Vendas", valor: inteiro(k.sales), sub: k.canceled ? `${k.canceled} cancelada(s)` : "" })}${kpi({ rotulo: "Faturamento", valor: brl(k.revenue), destaque: true, sub: k.discount ? `já sem ${brl(k.discount)} de desconto` : "" })}${kpi({ rotulo: "Custo dos produtos", valor: brl(k.cost) })}${kpi({ rotulo: "Taxas e frete", valor: brl(k.fees + k.shipping), sub: `taxas ${brl(k.fees)} · frete ${brl(k.shipping)}` })}${kpi({ rotulo: "Lucro bruto", valor: brl(k.gross_profit), sub: "margem " + pct(k.margin) })}${kpi({ rotulo: "Lucro por venda", valor: brl(k.ticket_liquido) })}${kpi({ rotulo: "Ticket médio", valor: brl(k.ticket) })}${kpi({ rotulo: "Custo por venda (CPA)", valor: brl(k.cpa) })}${kpi({ rotulo: "Conversão lead → venda", valor: pct(k.conversion) })}</div>
       <div class="grid3">${cartao("Ranking de vendedores", vendedores.length ? `<div class="lista">${vendedores.map((x, i) => itemLista({ titulo: `<span class="ranking-pos ${i < 3 ? "p" + (i + 1) : ""}">${i + 1}</span>${esc(x.nome)}`, sub: `${inteiro(x.k.sales)} venda(s) · ${inteiro(x.k.leads)} lead(s) · conversão ${pct(x.k.conversion)}`, direita: `<b>${brl(x.k.revenue)}</b>` })).join("")}</div>` : vazio("Sem vendas no período."))}
       ${cartao("Por forma de pagamento", barrasH(Object.keys(pag).map((p) => ({ nome: rotuloOpcao("payment", p), valor: pag[p], cor: "var(--ciano)" })), { fmt: brl }))}
       ${cartao("Por origem", barrasH(Object.keys(origem).map((o) => ({ nome: rotuloOpcao("lead_source", o), valor: origem[o], cor: "var(--verde)" })), { fmt: brl }))}</div>
       ${cartao(`Vendas no período (${vendas.length})`, tabela("vendas", { colunas: [
         { key: "date", label: "Data", fmt: dataBR }, { key: "product", label: "Produto", valor: (v) => (db.get("products", v.product_id) || {}).name || "—", render: (v) => `<a href="#/produtos/${v.product_id}">${esc((db.get("products", v.product_id) || {}).name || "—")}</a>${Number(v.quantity) > 1 ? ` <small>× ${v.quantity}</small>` : ""}` },
-        { key: "value", label: "Valor", tipo: "num", fmt: brl }, { key: "cost", label: "Custo", tipo: "num", valor: custoDaVenda, fmt: brl }, { key: "profit", label: "Lucro", tipo: "num", valor: (v) => Number(v.value || 0) - custoDaVenda(v), fmt: brl },
+        { key: "value", label: "Valor", tipo: "num", fmt: brl }, { key: "discount", label: "Desconto", tipo: "num", fmt: brl }, { key: "cost", label: "Custo", tipo: "num", valor: custoDaVenda, fmt: brl },
+        { key: "taxas", label: "Taxas+frete", tipo: "num", valor: (v) => taxaPagamento(v) + Number(v.platform_fee || 0) + Number(v.shipping_cost || 0), fmt: brl },
+        { key: "profit", label: "Lucro", tipo: "num", valor: (v) => liquidoDaVenda(v).lucro, fmt: brl },
+        { key: "status", label: "Situação", render: (v) => badge(rotuloOpcao("sale_status", v.status || "confirmada"), v.status === "cancelada" || v.status === "devolvida" ? "vermelho" : v.status === "pendente" ? "amarelo" : "verde") },
         { key: "lead", label: "Lead", valor: (v) => (db.get("leads", v.lead_id) || {}).name || "", render: (v) => v.lead_id ? `<a href="#/leads/${v.lead_id}">${esc((db.get("leads", v.lead_id) || {}).name || "")}</a>` : "—" },
         { key: "campaign", label: "Campanha", valor: (v) => (db.get("campaigns", v.campaign_id) || {}).name || "", render: (v) => v.campaign_id ? `<a href="#/campanhas/${v.campaign_id}">${esc((db.get("campaigns", v.campaign_id) || {}).name || "")}</a>` : `<small>${esc(rotuloOpcao("lead_source", v.source))}</small>` },
         { key: "creative", label: "Criativo", valor: (v) => (db.get("creatives", v.creative_id) || {}).name || "" }, { key: "seller", label: "Vendedor", valor: (v) => (db.get("users", v.seller_user_id) || {}).name || "" }, { key: "payment", label: "Pagamento", render: (v) => esc(rotuloOpcao("payment", v.payment)) },

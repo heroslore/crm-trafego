@@ -1,10 +1,10 @@
 import { db } from "../core/db.js";
-import { comparar, serieDiaria, progressoMetas, porEntidade } from "../core/metrics.js";
+import { comparar, serieDiaria, progressoMetas, porEntidade, atendimento, filaDeAtendimento, pacing } from "../core/metrics.js";
 import { intervalo, rotulo as rotuloPeriodo } from "../core/periods.js";
-import { cartao, graficoLinhas, progresso, vazio, funil, itemLista, badge, chips, badgeOpcao, prioridadeBadge, tabela } from "../core/ui.js";
+import { cartao, graficoLinhas, progresso, vazio, funil, itemLista, badge, chips, badgeOpcao, prioridadeBadge, tabela, kpi, barrasH } from "../core/ui.js";
 import { esc, brl, inteiro, pct, mult, dataCurta, dataBR, brlCurto, hoje } from "../core/format.js";
 import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js";
-import { alertas } from "../core/rules.js";
+import { alertas, narrativaAtendimento, formatoMinutos } from "../core/rules.js";
 import { bannerDemo, cartoesKpi, cartoesContagem, KPIS_PRINCIPAIS, leadsParados, agendaDoDia, fechaEmBreve } from "./comum.js";
 
 let graficoSel = "fat_inv";
@@ -25,17 +25,48 @@ export default {
     const abertos = db.where("leads", (l) => !["venda", "perdido"].includes(l.stage));
     const valorEtapa = etapas.map(([id, nome]) => { const ls = abertos.filter((l) => l.stage === id); return { rotulo: nome, n: ls.length, extra: brlCurto(ls.reduce((s, l) => s + (Number(l.potential_value) || 0), 0)), cor: ["var(--ciano)", "var(--roxo)", "var(--roxo)", "var(--amarelo)", "var(--amarelo)", "var(--laranja)", "var(--azul)"][etapas.findIndex((e) => e[0] === id)] }; });
     const parados = leadsParados(14), agenda = agendaDoDia(), breve = fechaEmBreve(7);
+    const at = atendimento(iv), fila = filaDeAtendimento(), pc = pacing(intervalo({ tipo: "mes" }));
+    const faixa = (n, rot, cor) => ({ nome: rot, valor: n, cor, extra: at.medidos ? pct(n / at.medidos) : "" });
+    const cartaoAtendimento = cartao(`Atendimento dos leads <small>meta: primeiro contato em até ${at.sla} min</small>`, at.total ? `
+      <div class="kpis" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));margin-bottom:10px">
+        ${kpi({ rotulo: "Leads no período", valor: inteiro(at.total) })}
+        ${kpi({ rotulo: "Atendidos", valor: inteiro(at.atendidos), sub: at.taxaContato != null ? pct(at.taxaContato) + " de contato" : "" })}
+        ${kpi({ rotulo: "Nunca atendidos", valor: inteiro(at.naoAtendidos), destaque: at.naoAtendidos > 0 })}
+        ${kpi({ rotulo: "Tempo médio", valor: formatoMinutos(at.tempoMedio), sub: at.mediana != null ? "mediana " + formatoMinutos(at.mediana) : "", destaque: true })}
+        ${kpi({ rotulo: "Dentro da meta", valor: at.medidos ? pct(at.dentroSla / at.medidos) : "—", sub: `${at.dentroSla} de ${at.medidos}` })}
+        ${kpi({ rotulo: "Responderam", valor: inteiro(at.responderam), sub: at.taxaResposta != null ? pct(at.taxaResposta) + " dos atendidos" : "" })}
+        ${kpi({ rotulo: "Qualificados", valor: inteiro(at.qualificados), sub: at.taxaQualificacao != null ? pct(at.taxaQualificacao) : "" })}
+        ${kpi({ rotulo: "Compraram", valor: inteiro(at.compraram), sub: at.taxaFechamento != null ? pct(at.taxaFechamento) + " dos leads" : "" })}
+      </div>
+      <h3>Em quanto tempo o lead foi atendido</h3>
+      ${barrasH([faixa(at.ate5, "Em até 5 min", "var(--verde)"), faixa(at.ate15 - at.ate5, "5 a 15 min", "var(--ciano)"), faixa(at.ate60 - at.ate15, "15 min a 1 h", "var(--amarelo)"), faixa(at.acima60, "Mais de 1 h", "var(--vermelho)")], { vazioTxt: "Sem tempos medidos no período." })}
+      ${fila.esperando.length ? `<div class="aviso ${fila.foraSla.length ? "aviso-erro" : "aviso-alerta"}" style="margin-top:12px">${fila.foraSla.length ? `⏰ <b>${fila.foraSla.length} lead(s) passaram da meta</b> e seguem sem contato. ` : ""}${fila.esperando.length} na fila agora. Mais antigo: <a href="#/leads/${fila.esperando[0].lead.id}">${esc(fila.esperando[0].lead.name)}</a>, há ${formatoMinutos(fila.esperando[0].minutos)}.</div>` : `<div class="aviso aviso-ok" style="margin-top:12px">Ninguém esperando atendimento agora.</div>`}
+      ${fila.followups.length ? `<div class="aviso aviso-alerta">📅 ${fila.followups.length} follow-up(s) vencido(s) ou para hoje.</div>` : ""}`
+      : `<div class="vazio">Nenhum lead novo no período.</div>`, `<a href="#/leads" class="link">abrir funil</a>`);
+    const cartaoPacing = pc.meta ? cartao("Ritmo do orçamento do mês", `
+      <div class="kpis" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));margin-bottom:10px">
+        ${kpi({ rotulo: "Orçamento do mês", valor: brl(pc.meta) })}
+        ${kpi({ rotulo: "Gasto até hoje", valor: brl(pc.gasto), sub: `dia ${pc.decorridos} de ${pc.totalDias}` })}
+        ${kpi({ rotulo: "Deveria ter gasto", valor: brl(pc.esperado) })}
+        ${kpi({ rotulo: "Projeção do mês", valor: brl(pc.projecao), destaque: true, sub: pc.projecao > pc.meta ? "acima do limite" : "dentro do limite" })}
+        ${kpi({ rotulo: "Diário sugerido", valor: brl(pc.diarioSugerido), sub: "para fechar no limite" })}
+      </div>${progresso(pc.gasto, pc.meta, pc.gasto > pc.meta ? "var(--vermelho)" : "")}
+      <p class="sub" style="margin-top:6px">${pc.ritmo != null ? (pc.ritmo > 1.08 ? `Gastando ${pct(pc.ritmo - 1)} acima do ritmo previsto.` : pc.ritmo < 0.9 ? `Gastando ${pct(1 - pc.ritmo)} abaixo do ritmo: sobra orçamento para escalar.` : "No ritmo certo.") : ""}</p>`)
+      : cartao("Ritmo do orçamento do mês", `<div class="vazio">Defina o investimento máximo mensal em <a href="#/config?aba=metas">Configurações → Metas</a> para acompanhar o ritmo do gasto.</div>`);
     const topCamp = porEntidade(iv, "campaign").filter((x) => x.k.spend > 0 || x.k.sales > 0).sort((a, b) => (b.k.revenue - a.k.revenue) || (b.k.leads - a.k.leads)).slice(0, 5);
     const alertasLista = alertas(iv).slice(0, 6);
 
     root.innerHTML = `${bannerDemo()}
       <div class="pagina-cab"><div><h1>Dashboard</h1><p class="sub">${esc(rotuloPeriodo(iv))} · comparado com o período anterior de ${iv.dias} dia(s)</p></div><div class="pagina-acoes"><a class="btn" href="#/hoje">☀️ Hoje</a><a class="btn" href="#/decisoes">🎯 Decisões</a></div></div>
       <div class="kpis">${cartoesKpi(cmp, serie, KPIS_PRINCIPAIS)}${cartoesContagem()}</div>
+      ${cartao("O que aconteceu depois que o lead chegou", `<div class="narrativa">${narrativaAtendimento(iv).map((f) => `<p>${esc(f)}</p>`).join("")}</div>`, `<a href="#/decisoes?aba=ia" class="link">análise completa</a>`)}
+      ${cartaoAtendimento}
       <div class="grid2">
         ${cartao("Evolução no período", grafico, chips(GRAFICOS, graficoSel, "data-grafico"))}
         ${cartao("Alertas", alertasLista.length ? `<div class="lista">${alertasLista.map((a) => itemLista({ titulo: esc(a.texto), sub: esc(a.categoria), badges: prioridadeBadge(a.prioridade), href: a.link })).join("")}</div>` : `<div class="aviso aviso-ok">Nenhum alerta com os dados atuais.</div>`, `<a href="#/decisoes" class="link">ver central</a>`)}
       </div>
       <div class="grid2">
+        ${cartaoPacing}
         ${cartao("Metas", metas.length ? metas.map((m) => { const r = m.realizado || 0; const p = m.meta ? r / m.meta : 0; const fmt = m.tipo === "money" ? brl : m.tipo === "mult" ? mult : inteiro; return `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:.86rem"><span>${esc(m.rotulo)}</span><span><b>${fmt(r)}</b> de ${fmt(m.meta)} · ${pct(p)}</span></div>${progresso(m.limite ? (p > 1 ? 1 : p) : p, 1, m.limite && p > 1 ? "var(--vermelho)" : (m.limite ? "var(--amarelo)" : ""))}</div>`; }).join("") : `<div class="vazio">Defina metas em Configurações → Metas para acompanhar o progresso aqui.</div>`, `<a href="#/config?aba=metas" class="link">editar metas</a>`)}
         ${cartao("Valor por etapa", `<div class="sub" style="margin-bottom:8px">${abertos.length} negócio(s) em aberto · ${brl(abertos.reduce((s, l) => s + (Number(l.potential_value) || 0), 0))} potencial</div>${funil(valorEtapa)}`, `<a href="#/leads" class="link">abrir funil</a>`)}
       </div>

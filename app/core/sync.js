@@ -61,7 +61,8 @@ export function aplicarMeta(d) {
   const metricas = indicePorExterno("campaign_metrics");
   for (const l of d.diario_anuncio || []) {
     const ext = `meta:${l.data}:${l.anuncio_id}`;
-    up("campaign_metrics", metricas, ext, { date: l.data, campaign_id: idCamp[l.campanha_id] || "", ad_set_id: idSet[l.conjunto_id] || "", ad_id: idAd[l.anuncio_id] || "", creative_id: idCr[l.anuncio_id] || "", spend: l.gasto, impressions: l.impressoes, reach: l.alcance, clicks: l.cliques, link_clicks: l.cliques_link, results: l.mensagens, frequency: l.frequencia, source: "meta" }, ["spend", "impressions", "reach", "clicks", "link_clicks", "results", "frequency", "campaign_id", "ad_set_id", "ad_id", "creative_id"]);
+    const v = l.video || {};
+    up("campaign_metrics", metricas, ext, { date: l.data, campaign_id: idCamp[l.campanha_id] || "", ad_set_id: idSet[l.conjunto_id] || "", ad_id: idAd[l.anuncio_id] || "", creative_id: idCr[l.anuncio_id] || "", spend: l.gasto, impressions: l.impressoes, reach: l.alcance, clicks: l.cliques, link_clicks: l.cliques_link, results: l.mensagens, frequency: l.frequencia, video_3s: v.video_3s || 0, thruplay: v.thruplay || 0, video_p25: v.video_p25 || 0, video_p50: v.video_p50 || 0, video_p75: v.video_p75 || 0, video_p95: v.video_p95 || 0, source: "meta" }, ["spend", "impressions", "reach", "clicks", "link_clicks", "results", "frequency", "video_3s", "thruplay", "video_p25", "video_p50", "video_p75", "video_p95", "campaign_id", "ad_set_id", "ad_id", "creative_id"]);
   }
   // dias em que a campanha teve entrega sem linha de anúncio (raro): usa a linha de campanha
   const diasComAnuncio = new Set((d.diario_anuncio || []).map((l) => `${l.data}:${l.campanha_id}`));

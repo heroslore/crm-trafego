@@ -21,6 +21,7 @@ import produtos from "./modules/produtos.js";
 import publicos from "./modules/publicos.js";
 import leads from "./modules/leads.js";
 import vendas from "./modules/vendas.js";
+import clientes from "./modules/clientes.js";
 import financeiro from "./modules/financeiro.js";
 import testes from "./modules/testes.js";
 import planejamento from "./modules/planejamento.js";
@@ -33,11 +34,11 @@ import calculadoras from "./modules/calculadoras.js";
 import concorrentes from "./modules/concorrentes.js";
 import config from "./modules/config.js";
 
-export const MODULOS = [dashboard, hoje_, inbox, decisoes, campanhas, anuncios, criativos, produtos, publicos, leads, vendas, financeiro, testes, planejamento, tarefas, calendario, briefings, ideias, relatorios, calculadoras, concorrentes, config];
+export const MODULOS = [dashboard, hoje_, inbox, decisoes, campanhas, anuncios, criativos, produtos, publicos, leads, vendas, clientes, financeiro, testes, planejamento, tarefas, calendario, briefings, ideias, relatorios, calculadoras, concorrentes, config];
 const SECOES = [
   ["Dia a dia", ["hoje", "inbox", "dashboard", "decisoes"]],
   ["Tráfego", ["campanhas", "anuncios", "criativos", "publicos", "testes"]],
-  ["Vendas", ["leads", "vendas", "produtos", "financeiro"]],
+  ["Vendas", ["leads", "vendas", "clientes", "produtos", "financeiro"]],
   ["Organização", ["planejamento", "tarefas", "calendario", "briefings", "ideias"]],
   ["Análise", ["relatorios", "calculadoras", "concorrentes"]],
   ["", ["config"]],

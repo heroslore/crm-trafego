@@ -21,7 +21,7 @@ export function cartoesContagem() {
   const c = contagensAtivas();
   return kpi({ rotulo: "Campanhas ativas", valor: inteiro(c.campanhas_ativas), sub: "" }) + kpi({ rotulo: "Anúncios ativos", valor: inteiro(c.anuncios_ativos), sub: "" });
 }
-export const KPIS_PRINCIPAIS = ["spend", "revenue", "gross_profit", "net_profit", "roas", "roi", "leads", "sales", "conversion", "cpl", "cpa", "ticket", "ctr", "cpc", "cpm"];
+export const KPIS_PRINCIPAIS = ["spend", "revenue", "gross_profit", "net_profit", "roas", "roi", "leads", "qualified", "sales", "conversion", "cpl", "cpl_qualificado", "cpa", "ticket", "ctr", "cpc", "cpm"];
 
 // Tabela de kpis em linha (para detalhes)
 export function linhaNumeros(k, chaves = ["spend", "revenue", "gross_profit", "roas", "leads", "sales", "cpl", "cpa", "ctr", "cpc", "cpm", "ticket"]) {
