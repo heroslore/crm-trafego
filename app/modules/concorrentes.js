@@ -1,8 +1,8 @@
-import { db } from "../core/db.js?v=6e46ccb4";
-import { cartao, tabela, abrirFormulario, vazio } from "../core/ui.js?v=6e46ccb4";
-import { esc, dataBR, brl } from "../core/format.js?v=6e46ccb4";
-import { bannerDemo, btnNovo } from "./comum.js?v=6e46ccb4";
-import { podeEditar } from "../core/auth.js?v=6e46ccb4";
+import { db } from "../core/db.js?v=302fb635";
+import { cartao, tabela, abrirFormulario, vazio } from "../core/ui.js?v=302fb635";
+import { esc, dataBR, brl } from "../core/format.js?v=302fb635";
+import { bannerDemo, btnNovo } from "./comum.js?v=302fb635";
+import { podeEditar } from "../core/auth.js?v=302fb635";
 
 export default {
   id: "concorrentes", titulo: "Concorrentes", icone: "🕵️",
