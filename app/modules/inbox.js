@@ -59,13 +59,40 @@ function corpoMidia(m, url) {
   if (m.tipo === "texto") return "";
   const rotulo = NOME_MIDIA[m.tipo] || m.tipo;
   if (!url) return `<span class="msg-midia">${rotulo}</span>`;
+  const attrs = `data-midia="${esc(m.id)}" data-midia-rotulo="${esc(rotulo)}"`;
   if (m.tipo === "imagem" || m.tipo === "figurinha") {
-    return `<a class="msg-midia-link" href="${esc(url)}" target="_blank" rel="noopener" data-ver-imagem="${esc(url)}"><img class="msg-img${m.tipo === "figurinha" ? " figurinha" : ""}" src="${esc(url)}" alt="${esc(rotulo)}" loading="lazy" onerror="this.parentNode.outerHTML='<a class=msg-midia href=&quot;${esc(url)}&quot; target=_blank rel=noopener>${esc(rotulo)} · abrir</a>'"></a>`;
+    return `<a class="msg-midia-link" href="${esc(url)}" target="_blank" rel="noopener" data-ver-imagem="${esc(url)}"><img class="msg-img${m.tipo === "figurinha" ? " figurinha" : ""}" src="${esc(url)}" alt="${esc(rotulo)}" loading="lazy" ${attrs}></a>`;
   }
-  if (m.tipo === "audio") return `<audio class="msg-audio" controls preload="none" src="${esc(url)}"></audio>`;
-  if (m.tipo === "video") return `<video class="msg-video" controls preload="metadata" src="${esc(url)}"></video>`;
-  if (m.tipo === "documento") return `<a class="msg-midia" href="${esc(url)}" target="_blank" rel="noopener" download>${rotulo} · baixar</a>`;
+  if (m.tipo === "audio") return `<audio class="msg-audio" controls preload="none" src="${esc(url)}" ${attrs}></audio>`;
+  if (m.tipo === "video") return `<video class="msg-video" controls preload="metadata" src="${esc(url)}" ${attrs}></video>`;
+  if (m.tipo === "documento") return `<a class="msg-midia" href="${esc(url)}" target="_blank" rel="noopener" download ${attrs}>${rotulo} · baixar</a>`;
   return `<span class="msg-midia">${rotulo}</span>`;
+}
+
+// Se o arquivo não abrir pela URL escolhida, pede em JSON (base64) antes de
+// desistir. Só então vira link. Assim a conversa funciona em qualquer
+// configuração da instância, sem ninguém precisar mexer em nada.
+function religarMidias(root) {
+  root.querySelectorAll("[data-midia]").forEach((el) => {
+    if (el.tagName === "A") return;
+    if (el.dataset.tentou === "1") return;
+    const falhou = async () => {
+      if (el.dataset.tentou === "1") return;
+      el.dataset.tentou = "1";
+      try {
+        const nova = await W.midiaComoUrl(el.dataset.midia);
+        el.src = nova;
+        const pai = el.closest("[data-ver-imagem]");
+        if (pai) pai.dataset.verImagem = nova;
+      } catch {
+        const rotulo = el.dataset.midiaRotulo || "arquivo";
+        const alvo = el.closest(".msg-midia-link") || el;
+        alvo.outerHTML = `<span class="msg-midia">${esc(rotulo)} · não disponível</span>`;
+      }
+    };
+    el.addEventListener("error", falhou, { once: true });
+    if (el.tagName === "IMG" && el.complete && el.naturalWidth === 0) falhou();
+  });
 }
 
 function painelLead(chat) {
@@ -178,6 +205,7 @@ function render(root, ctx) {
         ctx.rerender();
       } catch (err) { toast("Não enviou: " + err.message, "erro"); btn.disabled = false; btn.textContent = "Enviar"; }
     });
+    religarMidias(root);
     root.querySelectorAll("[data-ver-imagem]").forEach((a) => a.addEventListener("click", (e) => {
       e.preventDefault();
       modal(`<img src="${esc(a.dataset.verImagem)}" alt="" style="max-width:100%;max-height:74vh;display:block;margin:0 auto;border-radius:10px"><p style="text-align:center;margin-top:10px"><a class="btn btn-pq" href="${esc(a.dataset.verImagem)}" target="_blank" rel="noopener">Abrir em nova aba</a></p>`, { titulo: "Imagem", largo: true });
