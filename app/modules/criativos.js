@@ -1,11 +1,11 @@
-import { db } from "../core/db.js?v=302fb635";
-import { kpis, serieDiaria, mediaCampanhas } from "../core/metrics.js?v=302fb635";
-import { classificarCriativo, CLASSES_CRIATIVO, diagnosticoVideo } from "../core/rules.js?v=302fb635";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista, abas, kpi, barrasH } from "../core/ui.js?v=302fb635";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=302fb635";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=302fb635";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=302fb635";
-import { podeEditar } from "../core/auth.js?v=302fb635";
+import { db } from "../core/db.js?v=43ebd473";
+import { kpis, serieDiaria, mediaCampanhas } from "../core/metrics.js?v=43ebd473";
+import { classificarCriativo, CLASSES_CRIATIVO, diagnosticoVideo } from "../core/rules.js?v=43ebd473";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista, abas, kpi, barrasH } from "../core/ui.js?v=43ebd473";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=43ebd473";
+import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=43ebd473";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=43ebd473";
+import { podeEditar } from "../core/auth.js?v=43ebd473";
 
 let visao = "ranking", filtroClasse = "";
 function lista(root, ctx) {

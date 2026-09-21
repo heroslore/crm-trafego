@@ -1,10 +1,10 @@
-import { db } from "../core/db.js?v=302fb635";
-import { kpis, serieDiaria, porEntidade, custosExtrasNoPeriodo } from "../core/metrics.js?v=302fb635";
-import { cartao, tabela, abrirFormulario, vazio, kpi, abas, graficoLinhas, barrasH } from "../core/ui.js?v=302fb635";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=302fb635";
-import { bannerDemo, btnNovo } from "./comum.js?v=302fb635";
-import { rotulo as rotuloOpcao } from "../core/schema.js?v=302fb635";
-import { podeEditar } from "../core/auth.js?v=302fb635";
+import { db } from "../core/db.js?v=43ebd473";
+import { kpis, serieDiaria, porEntidade, custosExtrasNoPeriodo } from "../core/metrics.js?v=43ebd473";
+import { cartao, tabela, abrirFormulario, vazio, kpi, abas, graficoLinhas, barrasH } from "../core/ui.js?v=43ebd473";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=43ebd473";
+import { bannerDemo, btnNovo } from "./comum.js?v=43ebd473";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=43ebd473";
+import { podeEditar } from "../core/auth.js?v=43ebd473";
 
 let aba = "dia";
 const colsBase = [{ key: "spend", label: "Investimento", tipo: "num", valor: (l) => l.k.spend, fmt: brl }, { key: "revenue", label: "Faturamento", tipo: "num", valor: (l) => l.k.revenue, fmt: brl }, { key: "cost", label: "Custo produtos", tipo: "num", valor: (l) => l.k.cost, fmt: brl }, { key: "taxas", label: "Taxas+frete", tipo: "num", valor: (l) => l.k.fees + l.k.shipping, fmt: brl }, { key: "gross", label: "Lucro bruto", tipo: "num", valor: (l) => l.k.gross_profit, fmt: brl }, { key: "net", label: "Lucro líquido", tipo: "num", valor: (l) => l.k.gross_profit - l.k.spend, fmt: brl }, { key: "roas", label: "ROAS", tipo: "num", valor: (l) => l.k.roas, fmt: mult }, { key: "roi", label: "ROI", tipo: "num", valor: (l) => l.k.roi, fmt: (v) => pct(v) }];

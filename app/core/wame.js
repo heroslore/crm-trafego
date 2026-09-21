@@ -3,8 +3,8 @@
 //
 // A chave da instância NÃO fica no banco sincronizado: ela mora só neste aparelho
 // (localStorage), porque quem tem a chave controla o WhatsApp da loja.
-import { db } from "./db.js?v=302fb635";
-import { agora, hoje, telLimpo, uid, semAcento } from "./format.js?v=302fb635";
+import { db } from "./db.js?v=43ebd473";
+import { agora, hoje, telLimpo, uid, semAcento } from "./format.js?v=43ebd473";
 
 const CHAVE_CFG = "crm-trafego-wame";
 export const BASES = ["https://us.api-wa.me", "https://server.api-wa.me"];
@@ -230,7 +230,27 @@ export async function digitando(chat, ligado = true) {
   const to = chat.provider === "whatsapp" ? (chat.telefone || idDoChat(chat.id)) : idDoChat(chat.id);
   try { await req("POST", "/message/presence", { body: { to, status: ligado ? "composing" : "paused", provider: chat.provider } }); } catch {}
 }
-export function urlMidia(mensagemId) { return cfg.key ? `${cfg.base}/${encodeURIComponent(cfg.key)}/message/${encodeURIComponent(mensagemId)}/media` : ""; }
+// A API devolve JSON com base64 por padrão; ?format=binary entrega o arquivo,
+// que é o que <img>, <audio> e <video> conseguem abrir direto.
+export function urlMidia(mensagemId, formato = "binary") {
+  if (!cfg.key || !mensagemId) return "";
+  return `${cfg.base}/${encodeURIComponent(cfg.key)}/message/${encodeURIComponent(mensagemId)}/media?format=${formato}`;
+}
+// Liga/desliga opções da instância (salvar mídia, marcar como lida, presença).
+export async function ajustarInstancia({ saveMedia, markMessageRead, receiveStatusMessage, receivePresence } = {}) {
+  const atualCfg = (estado.perfil && (estado.perfil.settings || estado.perfil)) || {};
+  const q = {
+    markMessageRead: markMessageRead ?? !!atualCfg.markMessageRead,
+    saveMedia: saveMedia ?? !!atualCfg.saveMedia,
+    receiveStatusMessage: receiveStatusMessage ?? !!atualCfg.receiveStatusMessage,
+    receivePresence: receivePresence ?? !!atualCfg.receivePresence,
+  };
+  return corpo(await req("PATCH", "/instance", { query: q }));
+}
+export function salvaMidia() {
+  const c = (estado.perfil && (estado.perfil.settings || estado.perfil)) || {};
+  return c.saveMedia === undefined ? null : !!c.saveMedia;
+}
 export async function sincronizarHistoricoMeta() { return corpo(await req("POST", "/instance/meta/history-sync", { query: { hours: 168 }, timeout: 60000 })); }
 
 // ---------------------------------------------------------------- ligação com o CRM
