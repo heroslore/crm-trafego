@@ -21,6 +21,7 @@ jobs:
         run: |
           mkdir -p site/dados
           cp index.html manifest.json icone.svg site/
+          cp -r app site/app
           cp dados/meta.json site/dados/
           touch site/.nojekyll
       - name: Envia para o branch gh-pages
