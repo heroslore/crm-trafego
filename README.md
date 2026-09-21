@@ -1,103 +1,80 @@
-# CRM de Tráfego — Lojas
+# CRM de Tráfego
 
-Painel para analisar o tráfego pago das lojas e acompanhar os leads até a venda.
-Repositório próprio, separado do Controle de Gás.
+Central de comando de tráfego pago e CRM para a empresa: campanhas, anúncios, criativos,
+produtos, públicos, leads, vendas, financeiro, testes A/B, planejamento, tarefas, calendário,
+relatórios, concorrentes e configurações. Funciona em computador e celular, instalável como app.
 
-**Endereço (depois de ir para o `main`):** https://heroslore.github.io/crm-trafego/
+**Endereço:** https://heroslore.github.io/crm-trafego/
 
-No celular, abra no Chrome e use "Adicionar à tela inicial" para virar um app.
+## Módulos
 
-## O que tem
-
-| Aba | O que mostra |
+| Área | O que faz |
 |---|---|
-| **Painel** | investimento, mensagens, custo por mensagem, vendas, faturamento, custo por venda, ROAS, alcance, cliques, CTR, CPM, frequência; comparação com o período anterior; gráfico dia a dia; alertas automáticos; melhor campanha, melhor criativo, melhor dia e melhor horário; leads recentes |
-| **Lojas** | os mesmos números separados por loja, comparação entre lojas, funil (mensagens → leads → orçamento → venda), meta de investimento do mês |
-| **Campanhas** | cada campanha com status, objetivo, orçamento, loja, gasto, mensagens, custo/msg, cliques, CTR, frequência; ao tocar: público configurado, anúncios com miniatura e texto, gráfico da campanha |
-| **Público** | gênero, faixa de idade, públicos mais baratos, onde o anúncio aparece (Reels, Stories, Feed…), aparelho, região, hora do dia e dia da semana |
-| **Leads** | o CRM em si: cadastro de lead com origem (campanha/anúncio, orgânico, indicação…), produto, valor, situação (novo → em atendimento → orçamento → vendido/perdido), botão do WhatsApp, busca, exportar CSV |
-| **Ajustes** | lojas e palavras-chave, metas, regras dos alertas, nuvem dos leads, backup |
+| **Hoje** | responde rápido: gastei, vendi, lucrei, leads, vendas, melhor/pior campanha, produto mais vendido, campanha gastando sem vender, lead parado, tarefa urgente |
+| **Dashboard** | investimento, faturamento, lucro bruto e após anúncios, ROAS, ROI, leads, vendas, conversão, CPL, CPA, ticket, CTR, CPC, CPM, campanhas e anúncios ativos, com variação vs período anterior e avaliação (Excelente/Bom/Atenção/Ruim) pelas metas; gráficos por dia; metas com barra de progresso; valor por etapa; negócios parados; agenda; fecha em breve |
+| **Central de Decisões** | "O que precisa da minha atenção hoje?" por prioridade (urgente/alta/média/baixa); oportunidades de campanha; alertas automáticos; Analista de Tráfego IA (texto explicativo, nunca decide sozinho) |
+| **Campanhas** | plataforma, objetivo, produto, categoria, datas, status, orçamentos, gasto, faturamento, leads, vendas, CPL, CPA, CTR, CPC, CPM, ROAS, ROI, ticket, decisão da campanha e observações; lançamento manual de métricas; conjuntos e anúncios |
+| **Anúncios / Criativos** | biblioteca com tipo, copy, CTA, responsável, link/arquivo, métricas, ranking visual e classificação automática (campeão, bom, em teste, saturando, baixo, pausar) |
+| **Produtos** | estoque, custo, preço, margem, vendas 7/30 dias, faturamento, lucro, campanhas relacionadas; classificação automática (campeão, potencial, normal, baixa saída, parado, estoque crítico) e filtros "vendendo muito", "precisa de campanha", "parado", "estoque alto", "acabando" |
+| **Públicos** | biblioteca e ranking dos públicos; recortes da Meta (idade, gênero, posicionamento, aparelho, região, hora) |
+| **Leads** | Kanban com 9 etapas, ficha do lead com histórico de interações, follow-up, etiquetas, WhatsApp, motivo de perda e relatório de perdas |
+| **Vendas** | cada venda liga produto → lead → campanha → conjunto → anúncio → criativo → vendedor; baixa estoque; ranking de vendedores |
+| **Financeiro** | por dia, campanha, produto e plataforma: investimento, faturamento, custo dos produtos, lucro bruto, custo de tráfego, lucro líquido; outros custos |
+| **Testes A/B** | hipótese, criativos, métricas A × B, resultado, aprendizado e "o que usar nas próximas campanhas" |
+| **Planejamento** | tarefas fixas de segunda a domingo, editáveis, com marcação por semana |
+| **Tarefas** | Kanban (ideias → finalizado) com responsável, prioridade, prazo, produto e campanha |
+| **Calendário** | mensal com campanhas, promoções, datas comemorativas, lançamentos e conteúdo; avisos 30/15/7/3 dias antes |
+| **Briefings / Ideias** | solicitação de criativo com status até publicado; banco de ideias por status |
+| **Relatórios** | semanal e mensal automáticos (TOP 5, piores, crescimento, comparação com o período anterior), comparador de períodos, rankings, analista |
+| **Calculadoras** | ROAS, ROI, CPA máximo, orçamento necessário, leads necessários, ponto de equilíbrio |
+| **Configurações** | empresas/lojas, usuários e perfis (admin, gestor, marketing, criador, vendedor, visualizador), metas, regras de alerta, automações, importação CSV/XLSX do Gerenciador de Anúncios, integrações, nuvem e backup |
 
-Períodos: ontem, 7, 14, 30 e 90 dias, este mês, mês passado, tudo ou datas livres.
-Filtro por loja em todas as abas.
+## Como os dados entram
 
-### Como as campanhas viram "lojas"
+- **Meta Ads**: o coletor (`coletor/coletar.py`) roda todo dia (GitHub Actions 08:20 / rotina do
+  Claude 08:30) e grava `dados/meta.json`. O CRM transforma isso em campanhas, conjuntos,
+  anúncios, criativos e métricas diárias, sem apagar o que você editou (produto, decisão, notas).
+- **Google, TikTok e outras**: lançamento manual em Campanhas ou importação CSV/XLSX.
+- **Leads e vendas**: lançados no CRM (é daí que saem faturamento, lucro, ROAS e CPA).
+- **Dados de demonstração**: entram na primeira abertura, marcados como `[DEMO]`, e podem ser
+  removidos em Configurações → Dados.
 
-O Gerenciador de Anúncios não sabe de qual loja é cada campanha. O CRM decide assim:
+## Onde os dados ficam
 
-1. se você escolheu a loja no seletor da aba Campanhas, vale essa escolha;
-2. senão, procura as **palavras-chave** de cada loja (Ajustes) no nome da campanha;
-3. senão, usa a loja marcada como **padrão**.
+No próprio aparelho (`localStorage`). Para usar em vários aparelhos, ligue a **nuvem** em
+Configurações apontando para um repositório **privado** do GitHub. Backup em JSON a qualquer hora.
 
-Já vem com "Loja de iPhone" (padrão; palavras: iphone, celular, boleto, importados) e
-"Depósito de Gás e Água" (palavras: gás, água, botijão, galão). Edite à vontade.
+## Arquitetura e código
 
-## Automação (nada para fazer no dia a dia)
+Veja [ARQUITETURA.md](ARQUITETURA.md). Resumo:
 
 ```
-Meta Ads ──(todo dia 08:20, GitHub Actions)──> dados/meta.json ──> site republicado
+index.html            casca (menu, topo, período)
+app/main.js           roteador, busca, notificações, perfil
+app/core/schema.js    tabelas, campos, relacionamentos
+app/core/db.js        banco no navegador (insert/update/remove, eventos, backup, demo)
+app/core/metrics.js   todos os indicadores
+app/core/rules.js     classificações, alertas, oportunidades, decisões, analista
+app/core/ui.js        componentes (kpi, tabela, kanban, formulário, gráficos, modal)
+app/core/sync.js      Meta (dados/meta.json) e nuvem GitHub
+app/core/importer.js  CSV / XLSX
+app/core/auth.js      perfis e permissões
+app/core/automations.js  fluxos automáticos (follow-up, tarefa, etiqueta, nota)
+app/modules/*.js      uma tela por arquivo
+coletor/coletar.py    Meta Ads -> dados/meta.json
 ```
 
-O workflow `.github/workflows/crm-coleta.yml` roda `coletor/coletar.py`, que:
-
-- lê conta, campanhas, conjuntos (público configurado) e anúncios (com miniatura e texto);
-- baixa as métricas **dia a dia** por campanha e por anúncio (gasto, alcance, impressões,
-  cliques, mensagens, frequência, CPM, CTR e as ações da Meta);
-- baixa os recortes de público dos últimos 30 dias (idade × gênero, posicionamento,
-  aparelho, região, hora do dia);
-- calcula os alertas de ontem (gastou e não gerou mensagem, custo por mensagem alto,
-  frequência alta);
-- grava tudo em `dados/meta.json`, mantendo o histórico antigo e refazendo só os
-  últimos 45 dias (a Meta ajusta números retroativamente);
-- faz commit no `main` e dispara a publicação do site.
-
-### Configuração única (2 minutos)
-
-No GitHub: **Settings → Secrets and variables → Actions → New repository secret**, crie:
-
-| Segredo | Valor |
-|---|---|
-| `META_ACCESS_TOKEN` | o mesmo token do usuário do sistema da Meta usado na automação do Trello (`ads_read`, `read_insights`) |
-| `META_AD_ACCOUNT_ID` | `act_` + número da conta de anúncios |
-
-Depois, em **Actions → "CRM — coleta do Meta Ads" → Run workflow** para rodar a primeira
-vez na hora (ou espere as 08:20). Sem os segredos o workflow falha com a mensagem dizendo
-o que falta; o painel continua mostrando o último `meta.json` que estiver no repositório.
-
-O repositório é público: o arquivo `meta.json` (gasto e resultados das campanhas) fica
-visível para quem abrir o repositório. Leads **não** vão para ele (veja abaixo).
-
-### Leads na nuvem (para ver em mais de um celular)
-
-Os leads ficam no aparelho (localStorage). Para sincronizar entre celulares, em
-**Ajustes → Leads na nuvem** informe um **repositório privado** (ex.: `heroslore/crm-dados`)
-e uma chave fine-grained com `Contents: Read and write` só nesse repositório. O CRM grava
-`crm.json` lá, mescla o que foi lançado em cada aparelho e propaga exclusões. O CRM avisa
-e pede confirmação se o repositório escolhido for público.
-
-## Rodar à mão
+## Rodar localmente
 
 ```bash
-python3 coletor/coletar.py --verificar        # testa credenciais e acesso
-python3 coletor/coletar.py --dry-run          # coleta e mostra o resumo sem gravar
-python3 coletor/coletar.py                    # atualiza dados/meta.json (últimos 45 dias + histórico)
-python3 coletor/coletar.py --completo         # baixa o histórico inteiro de novo
-python3 -m unittest coletor/test_coletar.py   # testes do coletor
-python3 -m http.server 8000 --directory .          # abre o painel em http://localhost:8000
+python3 -m http.server 8000          # abre http://localhost:8000
+python3 coletor/coletar.py --verificar
+python3 -m unittest coletor/test_coletar.py
 ```
 
-Só biblioteca padrão do Python 3.11+. O painel é um único `index.html` sem dependências.
+Sem dependências para instalar. O leitor de XLSX é carregado sob demanda de um CDN.
 
-## Arquivos
+## Configuração única
 
-```
-crm-trafego/
-├── index.html            painel (CRM inteiro)
-├── manifest.json         para instalar como app
-├── icone.svg
-├── coletor/
-│   ├── coletar.py        Meta Ads -> dados/meta.json
-│   └── test_coletar.py
-└── dados/
-    └── meta.json         gerado pela automação (não editar à mão)
-```
+Segredos `META_ACCESS_TOKEN` e `META_AD_ACCOUNT_ID` em Settings → Secrets → Actions
+(mesmos valores da automação do Trello). Pages: Settings → Pages → branch `gh-pages`.

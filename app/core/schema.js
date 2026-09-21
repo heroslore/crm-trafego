@@ -1,0 +1,362 @@
+// Definição das tabelas, campos e relacionamentos.
+// Usado por db.js (validação/índices), ui.js (formulários e tabelas) e pelos módulos.
+// Tipos: text, textarea, number, money, percent, date, datetime, select, rel, bool, image, url, json, tags
+
+export const OPCOES = {
+  platform: [["meta", "Meta Ads"], ["instagram", "Instagram"], ["facebook", "Facebook"], ["google", "Google Ads"], ["tiktok", "TikTok Ads"], ["outra", "Outra"]],
+  objective: [["vendas", "Vendas"], ["leads", "Leads"], ["whatsapp", "WhatsApp"], ["reconhecimento", "Reconhecimento"], ["engajamento", "Engajamento"], ["trafego", "Tráfego"], ["remarketing", "Remarketing"]],
+  campaign_status: [["planejada", "Planejada"], ["producao", "Em produção"], ["ativa", "Ativa"], ["pausada", "Pausada"], ["finalizada", "Finalizada"]],
+  decision: [["", "— sem decisão —"], ["manter", "Manter"], ["escalar", "Escalar"], ["reduzir", "Reduzir orçamento"], ["trocar_criativo", "Trocar criativo"], ["trocar_publico", "Trocar público"], ["revisar_oferta", "Revisar oferta"], ["pausar", "Pausar"], ["encerrar", "Encerrar"]],
+  creative_type: [["video", "Vídeo"], ["foto", "Foto"], ["carrossel", "Carrossel"], ["story", "Story"], ["reels", "Reels"]],
+  audience_type: [["aberto", "Público aberto"], ["interesse", "Interesse"], ["lookalike", "Lookalike"], ["remarketing", "Remarketing"], ["clientes", "Clientes"], ["engajamento_ig", "Engajamento Instagram"], ["visitantes", "Visitantes"], ["carrinho", "Carrinho abandonado"]],
+  lead_stage: [["novo", "Novo lead"], ["contato", "Contato iniciado"], ["respondeu", "Cliente respondeu"], ["interessado", "Interessado"], ["negociacao", "Negociação"], ["aguardando_pagamento", "Aguardando pagamento"], ["venda", "Venda realizada"], ["followup", "Follow-up"], ["perdido", "Perdido"]],
+  lead_source: [["meta", "Anúncio Meta (Instagram/Facebook)"], ["google", "Google"], ["tiktok", "TikTok"], ["organico", "Orgânico"], ["whatsapp", "WhatsApp direto"], ["indicacao", "Indicação"], ["loja", "Loja física"], ["outro", "Outro"]],
+  loss_reason: [["", "—"], ["caro", "Achou caro"], ["sem_dinheiro", "Sem dinheiro"], ["sem_limite", "Sem limite"], ["nao_respondeu", "Não respondeu"], ["concorrente", "Comprou do concorrente"], ["indisponivel", "Produto indisponível"], ["pesquisando", "Apenas pesquisando"], ["desistiu", "Desistiu"], ["outro", "Outro"]],
+  payment: [["pix", "Pix"], ["cartao", "Cartão"], ["boleto", "Boleto"], ["dinheiro", "Dinheiro"], ["crediario", "Crediário"], ["outro", "Outro"]],
+  task_status: [["ideias", "Ideias"], ["a_fazer", "A fazer"], ["producao", "Em produção"], ["aguardando_criativo", "Aguardando criativo"], ["pronto", "Pronto para anunciar"], ["ativa", "Campanha ativa"], ["analisando", "Analisando"], ["finalizado", "Finalizado"]],
+  priority: [["urgente", "Urgente"], ["alta", "Alta"], ["media", "Média"], ["baixa", "Baixa"]],
+  event_type: [["campanha", "Campanha"], ["promocao", "Promoção"], ["comemorativa", "Data comemorativa"], ["lancamento", "Lançamento"], ["video", "Produção de vídeo"], ["publicacao", "Publicação"], ["reels", "Reels"], ["stories", "Stories"], ["trafego", "Campanha de tráfego"], ["outro", "Outro"]],
+  briefing_status: [["solicitado", "Solicitado"], ["producao", "Em produção"], ["pronto", "Pronto"], ["aprovado", "Aprovado"], ["publicado", "Publicado"]],
+  briefing_format: [["video", "Vídeo"], ["foto", "Foto"], ["reels", "Reels"], ["story", "Story"], ["carrossel", "Carrossel"]],
+  idea_type: [["campanha", "Ideia de campanha"], ["video", "Ideia de vídeo"], ["promocao", "Promoção"], ["copy", "Copy"], ["gancho", "Gancho"], ["concorrente", "Referência de concorrente"]],
+  idea_status: [["ideia", "Ideia"], ["avaliar", "Avaliar"], ["produzir", "Produzir"], ["testando", "Testando"], ["funcionou", "Funcionou"], ["nao_funcionou", "Não funcionou"]],
+  role: [["admin", "Administrador"], ["gestor", "Gestor de tráfego"], ["marketing", "Marketing"], ["criador", "Criador de conteúdo"], ["vendedor", "Vendedor"], ["visualizador", "Visualizador"]],
+  metric_source: [["manual", "Lançamento manual"], ["import", "Importação"], ["meta", "Meta Ads (automático)"]],
+  ab_result: [["", "Em andamento"], ["a", "Venceu A"], ["b", "Venceu B"], ["empate", "Empate"], ["inconclusivo", "Inconclusivo"]],
+  interaction_type: [["nota", "Anotação"], ["whatsapp", "WhatsApp"], ["ligacao", "Ligação"], ["email", "E-mail"], ["visita", "Visita / loja"], ["etapa", "Mudança de etapa"], ["tarefa", "Tarefa"]],
+  automation_trigger: [["lead_criado", "Quando um lead é criado"], ["etapa_mudou", "Quando o lead muda para a etapa…"], ["venda_registrada", "Quando uma venda é registrada"], ["sem_resposta_24h", "Quando um lead novo fica 24h sem resposta"]],
+  automation_action: [["followup", "Agendar follow-up em N dias"], ["tarefa", "Criar tarefa para o responsável"], ["etiqueta", "Adicionar etiqueta ao lead"], ["nota", "Registrar anotação no histórico"]],
+  cost_type: [["ferramenta", "Ferramenta"], ["agencia", "Agência / gestor"], ["producao", "Produção de conteúdo"], ["outro", "Outro"]],
+};
+
+export function rotulo(grupo, valor) {
+  const o = (OPCOES[grupo] || []).find((x) => x[0] === valor);
+  return o ? o[1] : (valor || "—");
+}
+
+const f = (key, label, type = "text", extra = {}) => ({ key, label, type, ...extra });
+
+export const TABELAS = {
+  users: {
+    titulo: "Usuários", singular: "Usuário", campos: [
+      f("name", "Nome", "text", { required: true, list: true }),
+      f("role", "Perfil", "select", { options: "role", required: true, list: true }),
+      f("email", "E-mail", "text", { list: true }),
+      f("pin", "PIN de acesso (opcional)", "text"),
+      f("active", "Ativo", "bool", { default: true, list: true }),
+    ],
+  },
+  companies: {
+    titulo: "Empresas / lojas", singular: "Empresa", campos: [
+      f("name", "Nome da empresa / loja", "text", { required: true, list: true }),
+      f("segment", "Segmento", "text", { list: true }),
+      f("keywords", "Palavras-chave (campanhas da Meta com estas palavras no nome entram nesta loja)", "tags"),
+      f("currency", "Moeda", "text", { default: "BRL" }),
+      f("timezone", "Fuso horário", "text", { default: "America/Bahia" }),
+    ],
+  },
+  products: {
+    titulo: "Produtos", singular: "Produto", campos: [
+      f("name", "Nome", "text", { required: true, list: true }),
+      f("company_id", "Empresa / loja", "rel", { rel: "companies" }),
+      f("category", "Categoria", "text", { list: true }),
+      f("photo", "Foto", "image"),
+      f("sku", "SKU", "text", { list: true }),
+      f("stock", "Estoque atual", "number", { default: 0, list: true }),
+      f("stock_min", "Estoque mínimo", "number", { default: 0 }),
+      f("cost", "Custo (R$)", "money", { default: 0, list: true }),
+      f("price", "Preço de venda (R$)", "money", { default: 0, list: true }),
+      f("active", "Ativo", "bool", { default: true }),
+      f("notes", "Observações", "textarea"),
+    ],
+  },
+  campaigns: {
+    titulo: "Campanhas", singular: "Campanha", campos: [
+      f("name", "Nome da campanha", "text", { required: true, list: true }),
+      f("company_id", "Empresa / loja", "rel", { rel: "companies" }),
+      f("platform", "Plataforma", "select", { options: "platform", default: "meta", list: true }),
+      f("objective", "Objetivo", "select", { options: "objective", default: "vendas", list: true }),
+      f("product_id", "Produto anunciado", "rel", { rel: "products", list: true }),
+      f("category", "Categoria", "text"),
+      f("audience_id", "Público principal", "rel", { rel: "audiences" }),
+      f("start_date", "Data de início", "date", { list: true }),
+      f("end_date", "Término previsto", "date"),
+      f("status", "Status", "select", { options: "campaign_status", default: "planejada", list: true }),
+      f("daily_budget", "Orçamento diário (R$)", "money"),
+      f("total_budget", "Orçamento total (R$)", "money"),
+      f("decision", "Decisão da campanha", "select", { options: "decision", default: "" }),
+      f("notes", "Observações", "textarea"),
+      f("external_id", "Id na plataforma", "text", { readonly: true }),
+      f("source", "Origem dos dados", "select", { options: "metric_source", default: "manual", readonly: true }),
+    ],
+  },
+  ad_sets: {
+    titulo: "Conjuntos de anúncios", singular: "Conjunto", campos: [
+      f("name", "Nome", "text", { required: true, list: true }),
+      f("campaign_id", "Campanha", "rel", { rel: "campaigns", required: true, list: true }),
+      f("audience_id", "Público", "rel", { rel: "audiences", list: true }),
+      f("status", "Status", "select", { options: "campaign_status", default: "ativa", list: true }),
+      f("daily_budget", "Orçamento diário (R$)", "money"),
+      f("targeting", "Segmentação (resumo)", "text"),
+      f("external_id", "Id na plataforma", "text", { readonly: true }),
+    ],
+  },
+  ads: {
+    titulo: "Anúncios", singular: "Anúncio", campos: [
+      f("name", "Nome", "text", { required: true, list: true }),
+      f("campaign_id", "Campanha", "rel", { rel: "campaigns", required: true, list: true }),
+      f("ad_set_id", "Conjunto", "rel", { rel: "ad_sets", list: true }),
+      f("creative_id", "Criativo", "rel", { rel: "creatives", list: true }),
+      f("status", "Status", "select", { options: "campaign_status", default: "ativa", list: true }),
+      f("external_id", "Id na plataforma", "text", { readonly: true }),
+    ],
+  },
+  creatives: {
+    titulo: "Criativos", singular: "Criativo", campos: [
+      f("name", "Nome", "text", { required: true, list: true }),
+      f("type", "Tipo", "select", { options: "creative_type", default: "video", list: true }),
+      f("product_id", "Produto", "rel", { rel: "products", list: true }),
+      f("campaign_id", "Campanha", "rel", { rel: "campaigns", list: true }),
+      f("thumbnail", "Imagem / miniatura", "image"),
+      f("link", "Link ou arquivo", "url"),
+      f("copy", "Copy utilizada", "textarea"),
+      f("cta", "CTA utilizado", "text"),
+      f("created_at_date", "Data de criação", "date"),
+      f("published_at", "Data de publicação", "date", { list: true }),
+      f("owner_user_id", "Responsável pela criação", "rel", { rel: "users", list: true }),
+      f("notes", "Observações", "textarea"),
+      f("external_id", "Id na plataforma", "text", { readonly: true }),
+    ],
+  },
+  audiences: {
+    titulo: "Públicos", singular: "Público", campos: [
+      f("name", "Nome do público", "text", { required: true, list: true }),
+      f("platform", "Plataforma", "select", { options: "platform", default: "meta", list: true }),
+      f("type", "Tipo", "select", { options: "audience_type", default: "aberto", list: true }),
+      f("description", "Descrição / segmentação", "textarea"),
+      f("notes", "Observações", "textarea"),
+    ],
+  },
+  leads: {
+    titulo: "Leads", singular: "Lead", campos: [
+      f("name", "Nome", "text", { required: true, list: true }),
+      f("company_id", "Empresa / loja", "rel", { rel: "companies" }),
+      f("phone", "Telefone", "text"),
+      f("whatsapp", "WhatsApp", "text", { list: true }),
+      f("product_id", "Produto de interesse", "rel", { rel: "products", list: true }),
+      f("source", "Origem", "select", { options: "lead_source", default: "meta", list: true }),
+      f("campaign_id", "Campanha de origem", "rel", { rel: "campaigns", list: true }),
+      f("ad_id", "Anúncio de origem", "rel", { rel: "ads" }),
+      f("creative_id", "Criativo de origem", "rel", { rel: "creatives" }),
+      f("entered_at", "Data de entrada", "date", { default: "hoje", list: true }),
+      f("owner_user_id", "Responsável pelo atendimento", "rel", { rel: "users", list: true }),
+      f("potential_value", "Valor potencial (R$)", "money"),
+      f("last_contact", "Último contato", "date"),
+      f("next_followup", "Próximo follow-up", "date"),
+      f("stage", "Status", "select", { options: "lead_stage", default: "novo", list: true }),
+      f("loss_reason", "Motivo de perda", "select", { options: "loss_reason", default: "" }),
+      f("expected_close", "Previsão de fechamento", "date"),
+      f("tags", "Etiquetas", "tags"),
+      f("notes", "Observações", "textarea"),
+    ],
+  },
+  interactions: {
+    titulo: "Histórico do lead", singular: "Interação", campos: [
+      f("lead_id", "Lead", "rel", { rel: "leads", required: true }),
+      f("type", "Tipo", "select", { options: "interaction_type", default: "nota", list: true }),
+      f("text", "Registro", "textarea", { list: true }),
+      f("at", "Quando", "datetime", { list: true }),
+      f("user_id", "Por", "rel", { rel: "users" }),
+    ],
+  },
+  automations: {
+    titulo: "Automações", singular: "Automação", campos: [
+      f("name", "Nome", "text", { required: true, list: true }),
+      f("trigger", "Gatilho", "select", { options: "automation_trigger", default: "lead_criado", list: true }),
+      f("stage", "Etapa (quando o gatilho for mudança de etapa)", "select", { options: "lead_stage", default: "" }),
+      f("action", "Ação", "select", { options: "automation_action", default: "followup", list: true }),
+      f("days", "Dias (para follow-up / prazo)", "number", { default: 1 }),
+      f("value", "Texto / etiqueta / título", "text"),
+      f("owner_user_id", "Responsável (para tarefa)", "rel", { rel: "users" }),
+      f("active", "Ativa", "bool", { default: true, list: true }),
+    ],
+  },
+  sales: {
+    titulo: "Vendas", singular: "Venda", campos: [
+      f("date", "Data da venda", "date", { default: "hoje", required: true, list: true }),
+      f("company_id", "Empresa / loja", "rel", { rel: "companies" }),
+      f("product_id", "Produto", "rel", { rel: "products", required: true, list: true }),
+      f("quantity", "Quantidade", "number", { default: 1 }),
+      f("value", "Valor da venda (R$)", "money", { required: true, list: true }),
+      f("product_cost", "Custo do produto (R$)", "money", { help: "Preenchido com o custo cadastrado no produto × quantidade se ficar vazio" }),
+      f("lead_id", "Lead", "rel", { rel: "leads" }),
+      f("seller_user_id", "Vendedor", "rel", { rel: "users", list: true }),
+      f("source", "Origem", "select", { options: "lead_source", default: "meta", list: true }),
+      f("campaign_id", "Campanha", "rel", { rel: "campaigns", list: true }),
+      f("ad_set_id", "Conjunto", "rel", { rel: "ad_sets" }),
+      f("ad_id", "Anúncio", "rel", { rel: "ads" }),
+      f("creative_id", "Criativo", "rel", { rel: "creatives" }),
+      f("payment", "Forma de pagamento", "select", { options: "payment", default: "pix" }),
+      f("notes", "Observações", "textarea"),
+    ],
+  },
+  campaign_metrics: {
+    titulo: "Métricas diárias", singular: "Métrica diária", campos: [
+      f("date", "Dia", "date", { default: "hoje", required: true, list: true }),
+      f("campaign_id", "Campanha", "rel", { rel: "campaigns", required: true, list: true }),
+      f("ad_set_id", "Conjunto", "rel", { rel: "ad_sets" }),
+      f("ad_id", "Anúncio", "rel", { rel: "ads" }),
+      f("creative_id", "Criativo", "rel", { rel: "creatives" }),
+      f("spend", "Investimento (R$)", "money", { default: 0, list: true }),
+      f("impressions", "Impressões", "number", { default: 0, list: true }),
+      f("reach", "Alcance", "number", { default: 0 }),
+      f("clicks", "Cliques", "number", { default: 0, list: true }),
+      f("link_clicks", "Cliques no link", "number", { default: 0 }),
+      f("results", "Resultados (leads/mensagens na plataforma)", "number", { default: 0, list: true }),
+      f("frequency", "Frequência", "number"),
+      f("source", "Origem", "select", { options: "metric_source", default: "manual", readonly: true }),
+    ],
+  },
+  financial_records: {
+    titulo: "Outros custos de tráfego", singular: "Custo", campos: [
+      f("date", "Data", "date", { default: "hoje", required: true, list: true }),
+      f("type", "Tipo", "select", { options: "cost_type", default: "ferramenta", list: true }),
+      f("description", "Descrição", "text", { required: true, list: true }),
+      f("value", "Valor (R$)", "money", { required: true, list: true }),
+    ],
+  },
+  marketing_goals: {
+    titulo: "Metas", singular: "Meta", campos: [
+      f("key", "Chave", "text", { readonly: true }),
+      f("label", "Meta", "text", { list: true }),
+      f("value", "Valor", "number", { list: true }),
+    ],
+  },
+  alerts: {
+    titulo: "Alertas", singular: "Alerta", campos: [
+      f("key", "Chave", "text"), f("dismissed_at", "Descartado em", "datetime"),
+    ],
+  },
+  tasks: {
+    titulo: "Tarefas", singular: "Tarefa", campos: [
+      f("title", "Título", "text", { required: true, list: true }),
+      f("description", "Descrição", "textarea"),
+      f("product_id", "Produto", "rel", { rel: "products", list: true }),
+      f("campaign_id", "Campanha relacionada", "rel", { rel: "campaigns" }),
+      f("lead_id", "Lead relacionado", "rel", { rel: "leads" }),
+      f("owner_user_id", "Responsável", "rel", { rel: "users", list: true }),
+      f("priority", "Prioridade", "select", { options: "priority", default: "media", list: true }),
+      f("due_date", "Data limite", "date", { list: true }),
+      f("status", "Status", "select", { options: "task_status", default: "a_fazer", list: true }),
+    ],
+  },
+  calendar_events: {
+    titulo: "Calendário", singular: "Evento", campos: [
+      f("title", "Título", "text", { required: true, list: true }),
+      f("date", "Data", "date", { required: true, default: "hoje", list: true }),
+      f("end_date", "Até (opcional)", "date"),
+      f("type", "Tipo", "select", { options: "event_type", default: "campanha", list: true }),
+      f("campaign_id", "Campanha", "rel", { rel: "campaigns" }),
+      f("product_id", "Produto", "rel", { rel: "products" }),
+      f("alert_days", "Avisar (dias antes)", "tags", { default: [30, 15, 7, 3] }),
+      f("notes", "Observações", "textarea"),
+    ],
+  },
+  competitors: {
+    titulo: "Concorrentes", singular: "Concorrente", campos: [
+      f("company", "Empresa", "text", { required: true, list: true }),
+      f("instagram", "Instagram", "url", { list: true }),
+      f("site", "Site", "url"),
+      f("product", "Produto", "text", { list: true }),
+      f("price", "Preço (R$)", "money", { list: true }),
+      f("promotion", "Promoção", "text"),
+      f("ad_type", "Tipo de anúncio", "text"),
+      f("creative_link", "Link do criativo", "url"),
+      f("image", "Imagem", "image"),
+      f("analyzed_at", "Data da análise", "date", { default: "hoje", list: true }),
+      f("notes", "Observações", "textarea"),
+    ],
+  },
+  ab_tests: {
+    titulo: "Testes A/B", singular: "Teste", campos: [
+      f("name", "Nome do teste", "text", { required: true, list: true }),
+      f("campaign_id", "Campanha", "rel", { rel: "campaigns", list: true }),
+      f("product_id", "Produto", "rel", { rel: "products" }),
+      f("hypothesis", "Hipótese", "textarea"),
+      f("start", "Data inicial", "date", { default: "hoje", list: true }),
+      f("end", "Data final", "date"),
+      f("audience_id", "Público", "rel", { rel: "audiences" }),
+      f("creative_a_id", "Criativo A", "rel", { rel: "creatives", list: true }),
+      f("creative_b_id", "Criativo B", "rel", { rel: "creatives", list: true }),
+      f("spend", "Investimento total (R$)", "money"),
+      f("a_ctr", "CTR A (%)", "number"), f("b_ctr", "CTR B (%)", "number"),
+      f("a_cpc", "CPC A (R$)", "money"), f("b_cpc", "CPC B (R$)", "money"),
+      f("a_cpl", "CPL A (R$)", "money"), f("b_cpl", "CPL B (R$)", "money"),
+      f("a_cpa", "CPA A (R$)", "money"), f("b_cpa", "CPA B (R$)", "money"),
+      f("a_conv", "Conversões A", "number"), f("b_conv", "Conversões B", "number"),
+      f("a_roas", "ROAS A", "number"), f("b_roas", "ROAS B", "number"),
+      f("result", "Resultado", "select", { options: "ab_result", default: "", list: true }),
+      f("learning", "Aprendizado", "textarea"),
+      f("apply_next", "Qual aprendizado devemos utilizar nas próximas campanhas?", "textarea"),
+    ],
+  },
+  briefings: {
+    titulo: "Briefings de criativos", singular: "Briefing", campos: [
+      f("product_id", "Produto", "rel", { rel: "products", required: true, list: true }),
+      f("objective", "Objetivo", "select", { options: "objective", default: "vendas", list: true }),
+      f("offer", "Oferta", "text"),
+      f("price", "Preço (R$)", "money"),
+      f("audience", "Público", "text"),
+      f("format", "Formato", "select", { options: "briefing_format", default: "video", list: true }),
+      f("hook", "Gancho sugerido", "textarea"),
+      f("argument", "Argumento principal", "textarea"),
+      f("cta", "CTA", "text"),
+      f("reference", "Referência (link)", "url"),
+      f("deadline", "Prazo", "date", { list: true }),
+      f("owner_user_id", "Responsável", "rel", { rel: "users", list: true }),
+      f("status", "Status", "select", { options: "briefing_status", default: "solicitado", list: true }),
+      f("creative_id", "Criativo resultante", "rel", { rel: "creatives" }),
+    ],
+  },
+  ideas: {
+    titulo: "Banco de ideias", singular: "Ideia", campos: [
+      f("title", "Título", "text", { required: true, list: true }),
+      f("type", "Tipo", "select", { options: "idea_type", default: "campanha", list: true }),
+      f("product_id", "Produto", "rel", { rel: "products", list: true }),
+      f("description", "Descrição", "textarea"),
+      f("link", "Referência (link)", "url"),
+      f("status", "Status", "select", { options: "idea_status", default: "ideia", list: true }),
+    ],
+  },
+  weekly_plan: {
+    titulo: "Planejamento da semana", singular: "Dia", campos: [
+      f("day", "Dia da semana", "number"), f("items", "Tarefas", "json"), f("done", "Concluídas por semana", "json"),
+    ],
+  },
+  settings: {
+    titulo: "Configurações", singular: "Configuração", campos: [f("data", "Dados", "json")],
+  },
+};
+
+// Relacionamentos (documentação e uso pelo db para integridade referencial leve)
+export const RELACOES = [
+  ["campaigns", "product_id", "products"], ["campaigns", "audience_id", "audiences"],
+  ["ad_sets", "campaign_id", "campaigns"], ["ad_sets", "audience_id", "audiences"],
+  ["ads", "campaign_id", "campaigns"], ["ads", "ad_set_id", "ad_sets"], ["ads", "creative_id", "creatives"],
+  ["creatives", "product_id", "products"], ["creatives", "campaign_id", "campaigns"], ["creatives", "owner_user_id", "users"],
+  ["leads", "product_id", "products"], ["leads", "campaign_id", "campaigns"], ["leads", "ad_id", "ads"], ["leads", "creative_id", "creatives"], ["leads", "owner_user_id", "users"],
+  ["sales", "product_id", "products"], ["sales", "lead_id", "leads"], ["sales", "seller_user_id", "users"], ["sales", "campaign_id", "campaigns"], ["sales", "ad_set_id", "ad_sets"], ["sales", "ad_id", "ads"], ["sales", "creative_id", "creatives"],
+  ["campaign_metrics", "campaign_id", "campaigns"], ["campaign_metrics", "ad_set_id", "ad_sets"], ["campaign_metrics", "ad_id", "ads"], ["campaign_metrics", "creative_id", "creatives"],
+  ["tasks", "product_id", "products"], ["tasks", "campaign_id", "campaigns"], ["tasks", "owner_user_id", "users"], ["tasks", "lead_id", "leads"],
+  ["calendar_events", "campaign_id", "campaigns"], ["calendar_events", "product_id", "products"],
+  ["ab_tests", "campaign_id", "campaigns"], ["ab_tests", "product_id", "products"], ["ab_tests", "audience_id", "audiences"], ["ab_tests", "creative_a_id", "creatives"], ["ab_tests", "creative_b_id", "creatives"],
+  ["briefings", "product_id", "products"], ["briefings", "owner_user_id", "users"], ["briefings", "creative_id", "creatives"],
+  ["ideas", "product_id", "products"],
+  ["interactions", "lead_id", "leads"], ["interactions", "user_id", "users"],
+  ["automations", "owner_user_id", "users"],
+  ["products", "company_id", "companies"], ["campaigns", "company_id", "companies"], ["leads", "company_id", "companies"], ["sales", "company_id", "companies"],
+];
+export const TABELAS_COM_EMPRESA = ["products", "campaigns", "leads", "sales"];
+
+export function campos(tabela) { return TABELAS[tabela].campos; }
+export function campo(tabela, key) { return TABELAS[tabela].campos.find((c) => c.key === key); }
