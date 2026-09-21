@@ -282,3 +282,6 @@ main.pagina { padding:18px 20px 40px; max-width:1400px; width:100%; }
 .efeito { font-size:.76rem; color:var(--texto2); text-align:right; line-height:1.5; }
 .efeito-wrap { min-width:150px; }
 @media (max-width:700px){ .linha-decisao { grid-template-columns:1fr; } .efeito, .efeito-wrap { text-align:left; } }
+
+.lateral .rodape .versao { font-size:.66rem; color:var(--mudo); margin-top:6px; padding-left:6px; }
+.lateral .rodape .versao a { color:var(--mudo); text-decoration:underline; }

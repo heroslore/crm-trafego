@@ -154,7 +154,10 @@ export default {
       toast("Buscando a versão mais nova…");
       try { if (window.caches) { for (const c of await caches.keys()) await caches.delete(c); } } catch {}
       db.gravarAgora();
-      const u = new URL(location.href); u.searchParams.set("v", Date.now()); location.replace(u.toString());
+      let nova = String(Date.now());
+      try { const r = await fetch("versao.json?_=" + Date.now(), { cache: "no-store" }); if (r.ok) { const j = await r.json(); if (j && j.versao) nova = j.versao; } } catch {}
+      try { sessionStorage.removeItem("crm-recarga-" + nova); } catch {}
+      const u = new URL(location.href); u.searchParams.set("v", nova); location.replace(u.toString());
     });
     on("[data-exportar]", "click", () => { const blob = new Blob([db.exportar()], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `crm-trafego-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click(); });
     on("#impBackup", "change", (el) => { const f = el.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { try { db.importar(JSON.parse(rd.result), confirm("OK = mesclar com os dados atuais · Cancelar = substituir tudo pelo backup") ? "mesclar" : "substituir"); toast("Backup restaurado."); ctx.rerender(); } catch (e) { toast("Não deu: " + e.message, "erro"); } }; rd.readAsText(f); });
