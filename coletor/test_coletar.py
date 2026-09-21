@@ -20,6 +20,23 @@ class TestAcoes(unittest.TestCase):
         self.assertEqual(coletar.mensagens_de({}), 0)
 
 
+class TestVideo(unittest.TestCase):
+    def test_soma_listas_de_acoes(self):
+        linha = {
+            "video_thruplay_watched_actions": [{"action_type": "video_view", "value": "120"}, {"action_type": "x", "value": "5"}],
+            "video_p50_watched_actions": [{"action_type": "video_view", "value": "60"}],
+            "actions": [{"action_type": "video_view", "value": "400"}],
+        }
+        v = coletar.metricas_video(linha)
+        self.assertEqual(v["thruplay"], 125)
+        self.assertEqual(v["video_p50"], 60)
+        self.assertEqual(v["video_3s"], 400)
+        self.assertEqual(v["video_p95"], 0)
+
+    def test_sem_video_fica_zerado(self):
+        self.assertEqual(coletar.metricas_video({}), {"thruplay": 0, "video_p25": 0, "video_p50": 0, "video_p75": 0, "video_p95": 0, "video_3s": 0})
+
+
 class TestJuncao(unittest.TestCase):
     def test_mantem_historico_antigo_e_troca_janela(self):
         antigo = [{"data": "2026-08-01", "campanha_id": "a", "gasto": 1},

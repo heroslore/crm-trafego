@@ -57,7 +57,18 @@ ACOES = {
     "pagina_destino": "landing_page_view",
 }
 
-CAMPOS_DIARIO = "spend,reach,impressions,clicks,inline_link_clicks,frequency,cpm,ctr,actions"
+CAMPOS_DIARIO = ("spend,reach,impressions,clicks,inline_link_clicks,frequency,cpm,ctr,actions,"
+                 "video_thruplay_watched_actions,video_p25_watched_actions,video_p50_watched_actions,"
+                 "video_p75_watched_actions,video_p95_watched_actions")
+
+# Métricas de vídeo: cada uma vem da Meta como lista de ações.
+CAMPOS_VIDEO = {
+    "thruplay": "video_thruplay_watched_actions",
+    "video_p25": "video_p25_watched_actions",
+    "video_p50": "video_p50_watched_actions",
+    "video_p75": "video_p75_watched_actions",
+    "video_p95": "video_p95_watched_actions",
+}
 CAMPOS_PUBLICO = "spend,reach,impressions,clicks,actions"
 
 
@@ -145,6 +156,19 @@ def mensagens_de(acoes):
         if acoes.get(chave):
             return acoes[chave]
     return 0
+
+
+def somar_acoes(linha, campo):
+    """Soma os valores de um campo que a Meta devolve como lista de ações."""
+    return int(sum(num(a.get("value")) for a in (linha.get(campo) or [])))
+
+
+def metricas_video(linha):
+    """Retenção do vídeo: 3 segundos, ThruPlay e os marcos de 25% a 95%."""
+    saida = {chave: somar_acoes(linha, campo) for chave, campo in CAMPOS_VIDEO.items()}
+    bruto = {a.get("action_type"): num(a.get("value")) for a in (linha.get("actions") or [])}
+    saida["video_3s"] = int(bruto.get("video_view", 0))
+    return saida
 
 
 # ---------------------------------------------------------------- coleta
@@ -237,6 +261,9 @@ def coletar_diario(nivel, desde, ate):
             "cpm": arred(l.get("cpm")), "ctr": arred(l.get("ctr"), 3),
             "mensagens": mensagens_de(acoes), "acoes": acoes,
         }
+        video = metricas_video(l)
+        if any(video.values()):
+            item["video"] = video
         if nivel == "ad":
             item["anuncio_id"] = l.get("ad_id")
             item["conjunto_id"] = l.get("adset_id")

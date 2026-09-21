@@ -22,8 +22,8 @@ function relatorioHtml(r, titulo) {
     ${cartao("Leitura do analista", analise(r.iv).map((p) => `<p style="margin:6px 0">${esc(p)}</p>`).join(""))}`;
 }
 function rankings(iv) {
-  const tipos = [["campaign", "Campanhas"], ["ad", "Anúncios"], ["creative", "Criativos"], ["product", "Produtos"], ["audience", "Públicos"], ["seller", "Vendedores"]];
-  const ordens = [["revenue", "Faturamento"], ["gross_profit", "Lucro"], ["roas", "ROAS"], ["sales", "Vendas"], ["cpa", "CPA"], ["conversion", "Conversão"]];
+  const tipos = [["campaign", "Campanhas"], ["ad_set", "Conjuntos"], ["ad", "Anúncios"], ["creative", "Criativos"], ["product", "Produtos"], ["audience", "Públicos"], ["seller", "Vendedores"]];
+  const ordens = [["revenue", "Faturamento"], ["gross_profit", "Lucro"], ["roas", "ROAS"], ["sales", "Vendas"], ["cpa", "CPA"], ["cpl_qualificado", "CPL qualificado"], ["conversion", "Conversão"]];
   const lista = porEntidade(iv, rankTipo).filter((x) => x.k.spend || x.k.sales || x.k.leads).sort((a, b) => { const va = a.k[rankOrdem], vb = b.k[rankOrdem]; if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1; return MENOR_MELHOR.has(rankOrdem) ? va - vb : vb - va; });
   const href = { campaign: "campanhas", ad: "anuncios", creative: "criativos", product: "produtos" }[rankTipo];
   return `${chips(tipos, rankTipo, "data-rank-tipo")}<div style="height:8px"></div>${chips(ordens, rankOrdem, "data-rank-ordem")}<div style="height:12px"></div>${cartao(`Melhores ${tipos.find((t) => t[0] === rankTipo)[1].toLowerCase()} por ${ordens.find((o) => o[0] === rankOrdem)[1].toLowerCase()}`, lista.length ? `<div class="lista">${lista.map((x, i) => itemLista({ titulo: `<span class="ranking-pos ${i < 3 ? "p" + (i + 1) : ""}">${i + 1}</span>${href ? `<a href="#/${href}/${x.id}">${esc(x.nome)}</a>` : esc(x.nome)}`, sub: `investido ${brl(x.k.spend)} · ${inteiro(x.k.leads_base)} lead(s) · ${inteiro(x.k.sales)} venda(s) · lucro ${brl(x.k.gross_profit)} · CPA ${brl(x.k.cpa)} · conversão ${pct(x.k.conversion)}`, direita: `<b>${fmtMetrica(rankOrdem, x.k[rankOrdem])}</b>` })).join("")}</div>` : vazio("Sem dados no período."))}`;

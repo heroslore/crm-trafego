@@ -32,7 +32,7 @@ sem servidor próprio. Funciona em computador e celular, instalável como app.
 |---|---|---|
 | `core/schema.js` | Define cada tabela: campos, tipos, opções, relações (`rel`) | Única fonte da verdade para formulários, listas e validação |
 | `core/db.js` | Banco de dados no navegador: tabelas, ids, `insert/update/remove/get/all/where`, índices, eventos `change`, persistência, exportação, dados de demonstração | Módulos nunca gravam no `localStorage` diretamente |
-| `core/metrics.js` | Agregações por período, campanha, anúncio, criativo, produto, público, vendedor, plataforma, dia; comparação de períodos; metas | Todo indicador é calculado aqui, nunca digitado |
+| `core/metrics.js` | Agregações por período, campanha, conjunto, anúncio, criativo, produto, público, vendedor, plataforma, dia; tempo de atendimento (SLA); qualificação; receita líquida com descontos, taxas e frete; retenção de vídeo; ritmo do orçamento; clientes e LTV; efeito de uma decisão | Todo indicador é calculado aqui, nunca digitado |
 | `core/rules.js` | Classificação automática (produto, criativo), alertas, oportunidades, central de decisões, textos do analista | Só sugere; nunca altera dados sozinho |
 | `core/ui.js` | Cartão KPI, tabela ordenável, kanban, formulário gerado pelo schema, modal, gráficos SVG, barra de progresso, badges, toast | Componentes puros: recebem dados, devolvem HTML/handlers |
 | `core/wame.js` | Cliente da API da api-wa.me: conversas, envio, polling, criação automática de lead e atribuição da conversa à campanha pelo contexto do anúncio | Chamado direto do navegador (a API responde com CORS aberto); a chave nunca entra no banco |
@@ -74,6 +74,16 @@ Perfis: administrador, gestor de tráfego, marketing, criador de conteúdo, vend
 visualizador. `auth.js` mapeia perfil → módulos visíveis e edição permitida. Como o app é
 estático, a proteção é de interface (organização do trabalho), não segurança contra alguém
 com acesso ao aparelho.
+
+## Roadmap de segurança
+
+Hoje: dados no `localStorage`, sincronização opcional para repositório privado, perfis
+aplicados na interface. É suficiente para a operação atual e para testar o sistema.
+
+Quando a equipe inteira entrar, migrar para servidor com banco (PostgreSQL ou equivalente):
+login por pessoa com senha, permissão verificada no servidor, trilha de auditoria e backup
+automático. O caminho já está preparado: `core/db.js` é o único ponto que fala com o
+armazenamento, e `core/auth.js` concentra as permissões. Os módulos não mudam.
 
 ## Convenções
 
