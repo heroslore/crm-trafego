@@ -1,0 +1,318 @@
+// Integração de mensagens (WhatsApp, Instagram e Messenger) pela API WAME (api-wa.me).
+// Chamada direto do navegador: a API responde com CORS liberado, então não há servidor no meio.
+//
+// A chave da instância NÃO fica no banco sincronizado: ela mora só neste aparelho
+// (localStorage), porque quem tem a chave controla o WhatsApp da loja.
+import { db } from "./db.js";
+import { agora, hoje, telLimpo, uid, semAcento } from "./format.js";
+
+const CHAVE_CFG = "crm-trafego-wame";
+const BASES = ["https://us.api-wa.me", "https://server.api-wa.me"];
+export const PROVIDERS = [["whatsapp", "WhatsApp", "💬"], ["instagram", "Instagram", "📸"], ["messenger", "Messenger", "💠"]];
+
+export const cfg = {
+  base: BASES[0], key: "",
+  canais: { whatsapp: true, instagram: false, messenger: false },
+  auto_lead: true, intervalo: 12, marcar_lido: true,
+};
+export const estado = {
+  conectado: null, erro: "", carregando: false, ultima: null,
+  perfil: null, chats: [], mensagens: {}, aberta: null, naoLidas: 0,
+};
+
+const ouvintes = new Set();
+export const onMensagens = (fn) => { ouvintes.add(fn); return () => ouvintes.delete(fn); };
+const avisar = (motivo) => { for (const f of ouvintes) { try { f(estado, motivo); } catch (e) { console.error(e); } } };
+
+// ---------------------------------------------------------------- configuração
+export function carregarCfg() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CHAVE_CFG) || "null");
+    if (c) Object.assign(cfg, c, { canais: { ...cfg.canais, ...(c.canais || {}) } });
+  } catch {}
+  return cfg;
+}
+export function salvarCfg(patch) {
+  Object.assign(cfg, patch, patch.canais ? { canais: { ...cfg.canais, ...patch.canais } } : {});
+  try { localStorage.setItem(CHAVE_CFG, JSON.stringify(cfg)); } catch {}
+  return cfg;
+}
+export function limparCfg() { cfg.key = ""; try { localStorage.removeItem(CHAVE_CFG); } catch {} pararPolling(); Object.assign(estado, { conectado: null, chats: [], mensagens: {}, perfil: null, erro: "" }); avisar("config"); }
+export const configurado = () => !!cfg.key;
+export const canaisAtivos = () => PROVIDERS.filter((p) => cfg.canais[p[0]]).map((p) => p[0]);
+
+// ---------------------------------------------------------------- chamadas
+function url(caminho, query) {
+  const u = new URL(`${cfg.base}/${encodeURIComponent(cfg.key)}${caminho}`);
+  for (const [k, v] of Object.entries(query || {})) if (v !== undefined && v !== null && v !== "") u.searchParams.set(k, v);
+  return u.toString();
+}
+export async function req(metodo, caminho, { query, body, timeout = 25000 } = {}) {
+  if (!cfg.key) throw new Error("chave da instância não configurada");
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), timeout);
+  let r;
+  try {
+    r = await fetch(url(caminho, query), { method: metodo, headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined, signal: ctrl.signal, cache: "no-store" });
+  } catch (e) {
+    clearTimeout(t);
+    throw new Error(e.name === "AbortError" ? "a API demorou demais para responder" : "sem conexão com a API de mensagens");
+  }
+  clearTimeout(t);
+  let j = null; try { j = await r.json(); } catch {}
+  if (!r.ok) {
+    const msg = (j && (j.message || j.reason)) || `erro ${r.status}`;
+    if (r.status === 404) throw new Error("instância não encontrada: confira a chave (key) no portal");
+    if (r.status === 401 || r.status === 403) throw new Error("chave sem permissão");
+    if (r.status === 422) throw new Error(msg);
+    throw new Error(msg);
+  }
+  return j;
+}
+// A API às vezes devolve { status, data } e às vezes o dado puro.
+const corpo = (j) => (j && typeof j === "object" && "data" in j) ? j.data : j;
+
+// ---------------------------------------------------------------- normalização
+export function soDigitos(v) { return String(v || "").replace(/\D/g, ""); }
+export function idDoChat(chatId) { return String(chatId || "").split("@")[0].split(":")[0]; }
+export function ehGrupo(chatId) { return String(chatId || "").includes("@g.us"); }
+export function ehStatus(chatId) { return String(chatId || "").startsWith("status@"); }
+// Compara telefones tolerando o nono dígito e o código do país.
+export function mesmoTelefone(a, b) {
+  const x = telLimpo(a), y = telLimpo(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  const fim = (s) => s.slice(-8);
+  return fim(x) === fim(y) && x.slice(-11, -8).replace(/^9/, "") === y.slice(-11, -8).replace(/^9/, "");
+}
+
+function normalizarChat(c, provider) {
+  const id = c.chatId || c.id || c.jid || c.remoteJid || "";
+  const contato = c.contact || {};
+  return {
+    id, provider,
+    telefone: provider === "whatsapp" ? idDoChat(contato.phone || id) : "",
+    externo: idDoChat(id),
+    nome: (contato.name || c.name || c.pushName || c.subject || c.notify || "").trim(),
+    grupo: ehGrupo(id),
+    ts: Number(c.timestamp || c.conversationTimestamp || c.messageTimestamp || c.lastMessageTime || 0) || 0,
+    naoLidas: Number(c.unreadCount ?? c.unread ?? 0) || 0,
+    fixado: !!(c.pinned || c.fixado),
+    previa: textoDaMensagem(c.lastMessage || c.ultimaMensagem) || c.preview || "",
+  };
+}
+// Extrai o texto de uma mensagem no formato Baileys (não oficial) ou Meta (oficial).
+export function textoDaMensagem(m) {
+  if (!m) return "";
+  if (typeof m === "string") return m;
+  const msg = m.message || m;
+  if (msg.conversation) return msg.conversation;
+  if (msg.extendedTextMessage?.text) return msg.extendedTextMessage.text;
+  if (msg.text?.body) return msg.text.body;
+  if (typeof msg.text === "string") return msg.text;
+  if (msg.imageMessage) return msg.imageMessage.caption || "";
+  if (msg.videoMessage) return msg.videoMessage.caption || "";
+  if (msg.documentMessage) return msg.documentMessage.caption || msg.documentMessage.fileName || "";
+  if (msg.buttonsResponseMessage?.selectedDisplayText) return msg.buttonsResponseMessage.selectedDisplayText;
+  if (msg.listResponseMessage?.title) return msg.listResponseMessage.title;
+  if (msg.templateButtonReplyMessage?.selectedDisplayText) return msg.templateButtonReplyMessage.selectedDisplayText;
+  if (msg.reactionMessage?.text) return msg.reactionMessage.text;
+  if (msg.ephemeralMessage) return textoDaMensagem(msg.ephemeralMessage);
+  if (msg.viewOnceMessage || msg.viewOnceMessageV2) return textoDaMensagem(msg.viewOnceMessage || msg.viewOnceMessageV2);
+  if (msg.caption) return msg.caption;
+  return "";
+}
+export function tipoDaMensagem(m) {
+  const msg = (m && (m.message || m)) || {};
+  if (msg.imageMessage || msg.type === "image" || msg.image) return "imagem";
+  if (msg.audioMessage || msg.type === "audio" || msg.audio) return "audio";
+  if (msg.videoMessage || msg.type === "video" || msg.video) return "video";
+  if (msg.documentMessage || msg.type === "document" || msg.document) return "documento";
+  if (msg.stickerMessage || msg.type === "sticker") return "figurinha";
+  if (msg.locationMessage || msg.liveLocationMessage || msg.type === "location") return "localizacao";
+  if (msg.contactMessage || msg.contactsArrayMessage) return "contato";
+  if (msg.reactionMessage) return "reacao";
+  return "texto";
+}
+// Contexto de anúncio (Click-to-WhatsApp): usado para atribuir o lead à campanha.
+export function contextoAnuncio(m) {
+  const msg = (m && (m.message || m)) || {};
+  const ctx = msg.extendedTextMessage?.contextInfo || msg.imageMessage?.contextInfo || msg.videoMessage?.contextInfo || msg.contextInfo || {};
+  const ext = ctx.externalAdReply || null;
+  const ref = m?.referral || msg.referral || null;
+  if (!ext && !ref && !ctx.conversionSource && !ctx.entryPointConversionSource) return null;
+  return {
+    titulo: (ext && (ext.title || ext.body)) || (ref && (ref.headline || ref.body)) || "",
+    fonte: ctx.conversionSource || ctx.entryPointConversionSource || (ref && ref.source_type) || "anuncio",
+    ctwa: ctx.ctwaClid || (ref && ref.ctwa_clid) || "",
+    id_anuncio: (ref && (ref.source_id || ref.ad_id)) || ctx.entryPointConversionApp || "",
+    url: (ext && ext.sourceUrl) || (ref && ref.source_url) || "",
+  };
+}
+function normalizarMensagem(m, chatId) {
+  const key = m.key || {};
+  const ts = Number(m.messageTimestamp || m.timestamp || key.timestamp || 0) || 0;
+  return {
+    id: key.id || m.id || uid(),
+    chatId: key.remoteJid || m.chatId || chatId,
+    minha: !!(key.fromMe ?? m.fromMe),
+    ts: ts > 1e12 ? Math.round(ts / 1000) : ts,
+    texto: textoDaMensagem(m),
+    tipo: tipoDaMensagem(m),
+    status: m.status || "",
+    autor: m.pushName || m.notify || "",
+    anuncio: contextoAnuncio(m),
+  };
+}
+
+// ---------------------------------------------------------------- endpoints
+export async function instancia() { return corpo(await req("GET", "/instance")); }
+export async function conectarQr() { return corpo(await req("POST", "/instance")); }
+export async function desconectarInstancia() { return corpo(await req("DELETE", "/instance")); }
+export async function listarChats(provider = "whatsapp") {
+  const d = corpo(await req("GET", "/chat", { query: { provider } })) || [];
+  const arr = Array.isArray(d) ? d : (d.chats || []);
+  return arr.map((c) => normalizarChat(c, provider)).filter((c) => c.id && !ehStatus(c.id));
+}
+export async function listarMensagens(chatId, { page = 1, limit = 50 } = {}) {
+  let d;
+  try { d = corpo(await req("GET", "/chat/messages", { query: { chatId, page, limit } })); }
+  catch (e) { d = corpo(await req("GET", `/chat/${encodeURIComponent(chatId)}`, { query: { page, limit } })); }
+  const arr = Array.isArray(d) ? d : (d?.messages || d?.data || []);
+  return arr.map((m) => normalizarMensagem(m, chatId)).sort((a, b) => a.ts - b.ts);
+}
+export async function enviarTexto(chat, texto) {
+  const to = chat.provider === "whatsapp" ? (chat.telefone || idDoChat(chat.id)) : idDoChat(chat.id);
+  return corpo(await req("POST", "/message/text", { body: { to, text: texto, provider: chat.provider } }));
+}
+export async function marcarLido(chat) {
+  try { await req("PATCH", "/chat", { query: { id: chat.id, action: "markRead", value: true } }); } catch {}
+}
+export async function digitando(chat, ligado = true) {
+  const to = chat.provider === "whatsapp" ? (chat.telefone || idDoChat(chat.id)) : idDoChat(chat.id);
+  try { await req("POST", "/message/presence", { body: { to, status: ligado ? "composing" : "paused", provider: chat.provider } }); } catch {}
+}
+export function urlMidia(mensagemId) { return cfg.key ? `${cfg.base}/${encodeURIComponent(cfg.key)}/message/${encodeURIComponent(mensagemId)}/media` : ""; }
+export async function sincronizarHistoricoMeta() { return corpo(await req("POST", "/instance/meta/history-sync", { query: { hours: 168 }, timeout: 60000 })); }
+
+// ---------------------------------------------------------------- ligação com o CRM
+export function leadDoChat(chat) {
+  const leads = db.all("leads");
+  let l = leads.find((x) => x.wa_chat_id === chat.id);
+  if (l) return l;
+  if (chat.provider === "whatsapp" && chat.telefone) {
+    l = leads.find((x) => mesmoTelefone(x.whatsapp, chat.telefone) || mesmoTelefone(x.phone, chat.telefone));
+    if (l) { db.update("leads", l.id, { wa_chat_id: chat.id, wa_provider: chat.provider }); return l; }
+  }
+  return null;
+}
+// Procura a campanha da qual o lead veio, pelo contexto de anúncio da primeira mensagem.
+function campanhaDoAnuncio(ad) {
+  if (!ad) return null;
+  if (ad.id_anuncio) {
+    const anuncio = db.all("ads").find((a) => a.external_id === ad.id_anuncio);
+    if (anuncio) return { campaign_id: anuncio.campaign_id, ad_id: anuncio.id, creative_id: anuncio.creative_id };
+    const camp = db.all("campaigns").find((c) => c.external_id === ad.id_anuncio);
+    if (camp) return { campaign_id: camp.id };
+  }
+  if (ad.titulo) {
+    const alvo = semAcento(ad.titulo);
+    const cr = db.all("creatives").find((c) => c.name && semAcento(c.name) === alvo);
+    if (cr) return { campaign_id: cr.campaign_id || "", creative_id: cr.id };
+    const camp = db.all("campaigns").find((c) => c.name && semAcento(c.name) === alvo);
+    if (camp) return { campaign_id: camp.id };
+  }
+  return null;
+}
+export function criarLeadDoChat(chat, primeiraMensagem) {
+  const origem = { whatsapp: "whatsapp", instagram: "meta", messenger: "meta" }[chat.provider] || "outro";
+  const dados = {
+    name: chat.nome || (chat.provider === "whatsapp" ? chat.telefone : `${chat.provider} ${chat.externo.slice(-6)}`) || "Sem nome",
+    whatsapp: chat.provider === "whatsapp" ? chat.telefone : "",
+    source: origem, stage: "novo", entered_at: chat.ts ? new Date(chat.ts * 1000).toISOString().slice(0, 10) : hoje(),
+    wa_chat_id: chat.id, wa_provider: chat.provider,
+    notes: chat.provider === "whatsapp" ? "" : `${chat.provider}: ${chat.externo}`,
+  };
+  const ad = primeiraMensagem && primeiraMensagem.anuncio;
+  const atrib = campanhaDoAnuncio(ad);
+  if (atrib) Object.assign(dados, atrib);
+  const lead = db.insert("leads", dados);
+  db.insert("interactions", { lead_id: lead.id, type: chat.provider === "whatsapp" ? "whatsapp" : "nota", at: agora(), user_id: "", text: `Primeira mensagem recebida${ad ? ` (veio do anúncio "${ad.titulo || ad.fonte}")` : ""}: ${(primeiraMensagem?.texto || "").slice(0, 200) || "(sem texto)"}` });
+  return lead;
+}
+// Cria leads para conversas novas que ainda não estão no CRM.
+export async function sincronizarLeads(chats) {
+  if (!cfg.auto_lead) return 0;
+  let n = 0;
+  for (const chat of chats) {
+    if (chat.grupo || leadDoChat(chat)) continue;
+    if (!chat.ts) continue;
+    let primeira = null;
+    try { const msgs = await listarMensagens(chat.id, { limit: 10 }); primeira = msgs.find((m) => !m.minha) || msgs[0]; if (!msgs.some((m) => !m.minha)) continue; }
+    catch { continue; }
+    criarLeadDoChat(chat, primeira); n++;
+    if (n >= 10) break; // não cria uma enxurrada de uma vez
+  }
+  return n;
+}
+
+// ---------------------------------------------------------------- polling
+let timer = null, ocupado = false;
+export async function atualizar({ comMensagens = true } = {}) {
+  if (!configurado() || ocupado) return;
+  ocupado = true; estado.carregando = true; avisar("carregando");
+  try {
+    const canais = canaisAtivos();
+    let todos = [];
+    for (const p of canais) {
+      try { todos = todos.concat(await listarChats(p)); }
+      catch (e) { if (canais.length === 1 || !/422/.test(e.message)) estado.erro = e.message; }
+    }
+    todos.sort((a, b) => (b.fixado ? 1 : 0) - (a.fixado ? 1 : 0) || b.ts - a.ts);
+    estado.chats = todos;
+    estado.naoLidas = todos.reduce((s, c) => s + (c.naoLidas || 0), 0);
+    estado.erro = todos.length || !estado.erro ? "" : estado.erro;
+    estado.conectado = true; estado.ultima = agora();
+    try { await sincronizarLeads(todos); } catch (e) { console.warn("auto-lead:", e.message); }
+    if (comMensagens && estado.aberta) {
+      const chat = todos.find((c) => c.id === estado.aberta) || { id: estado.aberta };
+      try { estado.mensagens[chat.id] = await listarMensagens(chat.id, { limit: 60 }); } catch {}
+    }
+  } catch (e) {
+    estado.erro = e.message; estado.conectado = false;
+  } finally { ocupado = false; estado.carregando = false; avisar("atualizou"); }
+}
+export function iniciarPolling() {
+  pararPolling();
+  if (!configurado()) return;
+  const ms = Math.max(6, Number(cfg.intervalo) || 12) * 1000;
+  timer = setInterval(() => { if (document.visibilityState === "visible") atualizar(); }, ms);
+  atualizar();
+}
+export function pararPolling() { clearInterval(timer); timer = null; }
+export async function abrirConversa(chatId) {
+  estado.aberta = chatId;
+  if (!chatId) return;
+  try { estado.mensagens[chatId] = await listarMensagens(chatId, { limit: 60 }); avisar("mensagens"); } catch (e) { estado.erro = e.message; avisar("erro"); }
+  const chat = estado.chats.find((c) => c.id === chatId);
+  if (chat && cfg.marcar_lido && chat.naoLidas) { await marcarLido(chat); chat.naoLidas = 0; estado.naoLidas = estado.chats.reduce((s, c) => s + (c.naoLidas || 0), 0); avisar("lido"); }
+}
+export async function verificarConexao() {
+  try {
+    const d = await instancia();
+    estado.perfil = d || null;
+    estado.conectado = !!(d && (d.phoneConnected ?? d.connected ?? d.state === "open" ?? true));
+    estado.erro = "";
+    return d;
+  } catch (e) { estado.erro = e.message; estado.conectado = false; throw e; }
+  finally { avisar("conexao"); }
+}
+export function respostasRapidas() {
+  const s = db.settings();
+  return Array.isArray(s.respostas_rapidas) ? s.respostas_rapidas : [
+    { id: "r1", titulo: "Saudação", texto: "Olá! Tudo bem? Aqui é da loja. Como posso ajudar?" },
+    { id: "r2", titulo: "Preço", texto: "O valor é R$ ___. Aceitamos Pix, cartão e crediário." },
+    { id: "r3", titulo: "Endereço", texto: "Estamos na ___. Funcionamos de segunda a sábado." },
+    { id: "r4", titulo: "Follow-up", texto: "Oi! Passando para saber se ainda tem interesse. Posso separar para você?" },
+  ];
+}
+export function salvarRespostas(lista) { db.setSettings({ respostas_rapidas: lista }); }

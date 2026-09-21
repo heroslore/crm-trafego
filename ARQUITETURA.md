@@ -35,6 +35,7 @@ sem servidor próprio. Funciona em computador e celular, instalável como app.
 | `core/metrics.js` | Agregações por período, campanha, anúncio, criativo, produto, público, vendedor, plataforma, dia; comparação de períodos; metas | Todo indicador é calculado aqui, nunca digitado |
 | `core/rules.js` | Classificação automática (produto, criativo), alertas, oportunidades, central de decisões, textos do analista | Só sugere; nunca altera dados sozinho |
 | `core/ui.js` | Cartão KPI, tabela ordenável, kanban, formulário gerado pelo schema, modal, gráficos SVG, barra de progresso, badges, toast | Componentes puros: recebem dados, devolvem HTML/handlers |
+| `core/wame.js` | Cliente da API da api-wa.me: conversas, envio, polling, criação automática de lead e atribuição da conversa à campanha pelo contexto do anúncio | Chamado direto do navegador (a API responde com CORS aberto); a chave nunca entra no banco |
 | `modules/*.js` | Cada tela exporta `{ id, titulo, icone, render(ctx) }` | Sem lógica de cálculo; usa metrics/rules/ui |
 
 ## Fluxo de dados
@@ -45,9 +46,15 @@ sem servidor próprio. Funciona em computador e celular, instalável como app.
    do usuário (produto, decisão, observações, categoria) são preservados.
 2. **Outras plataformas** (Google, TikTok…) entram por lançamento manual em Campanhas ou por
    importação CSV/XLSX (`importer.js`), que também gera `campaign_metrics` (origem `import`).
-3. **Leads e vendas** são lançados no CRM. Cada venda aponta para produto, lead, campanha,
+3. **Conversas** (WhatsApp, Instagram e Messenger) entram pela API da api-wa.me, lida a cada
+   poucos segundos pelo próprio navegador. Conversa nova de quem ainda não está no CRM vira
+   lead; quando a mensagem carrega contexto de anúncio (Click-to-WhatsApp), o lead já nasce
+   ligado à campanha e ao criativo. As mensagens não são copiadas para o banco: a tela lê a
+   API ao vivo e só o que importa (primeiro contato, envios, mudanças de etapa) vira histórico
+   do lead.
+4. **Leads e vendas** são lançados no CRM. Cada venda aponta para produto, lead, campanha,
    conjunto, anúncio, criativo e vendedor; é dela que saem faturamento, custo e lucro.
-4. Dashboard, Financeiro, Rankings, Relatórios e Central de Decisões só leem `metrics.js`.
+5. Dashboard, Financeiro, Rankings, Relatórios e Central de Decisões só leem `metrics.js`.
 
 ## Persistência
 
@@ -55,6 +62,9 @@ sem servidor próprio. Funciona em computador e celular, instalável como app.
 - Nuvem opcional: o banco inteiro em `crm.json` num repositório **privado** do GitHub,
   com mesclagem por `id` + `updated_at` e exclusões propagadas (`deleted_at`).
 - Backup: exportar/importar JSON em Configurações.
+- **Fora do banco, de propósito:** a chave da API de mensagens e a chave da nuvem ficam só no
+  `localStorage` do aparelho, nunca no backup nem na nuvem — quem tem a chave controla o
+  WhatsApp da loja.
 - Preparado para crescer: `db.js` isola o adaptador de armazenamento; trocar por
   IndexedDB ou por uma API REST não exige mexer nos módulos.
 
