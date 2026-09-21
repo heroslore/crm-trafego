@@ -50,20 +50,23 @@ function abaDados() {
     + cartao("Dados e backup", `<p class="sub">${esc(cont)}</p><div class="linha-btns" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-exportar>⬇️ Baixar backup (JSON)</button><label class="btn" style="cursor:pointer">⬆️ Restaurar backup <input type="file" id="impBackup" accept="application/json" style="display:none"></label>${db.temDemo() ? `<button class="btn btn-perigo" data-remover-demo>🧪 Remover dados de demonstração</button>` : `<button class="btn" data-inserir-demo>🧪 Inserir dados de demonstração</button>`}${ehAdmin() ? `<button class="btn btn-perigo" data-limpar>🗑️ Apagar tudo</button>` : ""}</div><p class="sub" style="margin-top:10px">Registros de demonstração são marcados e podem ser removidos de uma vez sem afetar os dados reais.</p>`);
 }
 
+const rotuloCanal = (c) => (W.PROVIDERS.find((x) => x[0] === c) || [, c])[1];
 function abaMensagens() {
   W.carregarCfg();
   const st = W.estado, p = st.perfil || {};
   const numero = p.phone || p.number || p.wid || p.user || (p.profile && p.profile.number) || "";
+  const canaisOff = Object.entries(st.canaisIndisponiveis || {});
   const status = st.erro ? `<div class="aviso aviso-erro">⚠️ ${esc(st.erro)}</div>`
-    : st.conectado === true ? `<div class="aviso aviso-ok">✓ Conectado${numero ? " · número " + esc(numero) : ""}${p.name ? " · " + esc(p.name) : ""}${st.ultima ? " · última leitura " + esc(horaCurta(st.ultima)) : ""}</div>`
-    : st.conectado === false ? `<div class="aviso aviso-alerta">Instância não conectada. Use o QR Code abaixo ou conecte pelo portal da api-wa.me.</div>`
+    : st.conectado === true ? `<div class="aviso aviso-ok">✓ Conectada${numero ? " · número " + esc(numero) : ""}${p.name ? " · " + esc(p.name) : ""}${st.oficial === true ? " · conta oficial (Cloud API)" : st.oficial === false ? " · conexão por QR Code" : ""}${st.ultima ? " · última leitura " + esc(horaCurta(st.ultima)) : ""}</div>`
+    : st.conectado === false ? `<div class="aviso aviso-alerta">A instância respondeu, mas está sem sessão do WhatsApp. Conecte pelo QR Code abaixo ou pelo portal da api-wa.me.</div>`
     : W.configurado() ? `<div class="aviso aviso-info">Chave salva. Clique em "Testar conexão".</div>` : "";
+  const avisoCanais = canaisOff.length ? `<div class="aviso aviso-alerta">${canaisOff.map(([c, m]) => `<b>${esc(rotuloCanal(c))}</b>: ${esc(m)}`).join("<br>")}<div style="margin-top:4px">Instagram e Messenger só aparecem quando você liga esses canais no portal da api-wa.me (a conexão por QR Code cobre apenas o WhatsApp).</div></div>` : "";
   const rr = W.respostasRapidas();
   return cartao("💬 WhatsApp, Instagram e Messenger (api-wa.me)", `
     <p class="sub" style="margin-bottom:10px">O CRM fala direto com a API da <b>api-wa.me</b> pelo navegador, sem servidor no meio. Cole a <b>key</b> da sua instância (a que aparece na URL <code>us.api-wa.me/SUA_KEY/...</code>).</p>
     <div class="aviso aviso-alerta"><b>A chave fica só neste aparelho</b>, fora do backup e da nuvem: quem tem a chave controla o WhatsApp da loja. Cada pessoa cola a dela no próprio celular. Esta é uma API não oficial do WhatsApp; usar um número que não seja o comercial não é recomendado.</div>
     <div class="form-grade">
-      <div class="campo"><label>Servidor</label><select id="wmBase">${["https://us.api-wa.me", "https://server.api-wa.me"].map((b) => `<option value="${b}"${W.cfg.base === b ? " selected" : ""}>${b}</option>`).join("")}</select></div>
+      <div class="campo"><label>Servidor</label><select id="wmBase">${[...new Set([...W.BASES, W.cfg.base].filter(Boolean))].map((b) => `<option value="${esc(b)}"${W.cfg.base === b ? " selected" : ""}>${esc(b)}</option>`).join("")}</select></div>
       <div class="campo"><label>Key da instância</label><input type="password" id="wmKey" value="${esc(W.cfg.key)}" placeholder="cole aqui a key" autocomplete="off"></div>
       <div class="campo"><label>Canais ligados</label><div style="display:flex;gap:12px;flex-wrap:wrap;padding-top:6px">${W.PROVIDERS.map(([v, t, i]) => `<label class="check" style="padding:0"><input type="checkbox" data-canal="${v}"${W.cfg.canais[v] ? " checked" : ""}> ${i} ${t}</label>`).join("")}</div></div>
       <div class="campo"><label>Atualizar a cada (segundos)</label><input type="number" id="wmInt" min="6" max="120" value="${esc(W.cfg.intervalo)}"></div>
@@ -74,11 +77,13 @@ function abaMensagens() {
       <button class="btn btn-primario" data-wm-salvar>💾 Salvar</button>
       <button class="btn" data-wm-testar>🔌 Testar conexão</button>
       <button class="btn" data-wm-qr>📱 Conectar por QR Code</button>
-      <button class="btn" data-wm-hist title="Puxa as conversas recentes de Instagram e Messenger para a instância">📥 Sincronizar Instagram/Messenger</button>
+      ${(W.cfg.canais.instagram || W.cfg.canais.messenger) ? `<button class="btn" data-wm-hist title="Puxa as conversas recentes de Instagram e Messenger (precisa desses canais ligados no portal)">📥 Puxar histórico do Instagram/Messenger</button>` : ""}
       ${W.configurado() ? `<button class="btn btn-perigo" data-wm-limpar>Remover chave deste aparelho</button>` : ""}
     </div>
     ${status}
+    ${avisoCanais}
     <div id="wmQr"></div>
+    ${st.diagnostico ? `<details style="margin-top:8px"><summary class="mudo" style="cursor:pointer;font-size:.8rem">Ver o que a API respondeu (diagnóstico)</summary><pre style="white-space:pre-wrap;font-size:.72rem;background:var(--card2);border:1px solid var(--borda);border-radius:8px;padding:8px;overflow:auto;max-height:220px">${esc(st.diagnostico)}</pre></details>` : ""}
     <h3>Respostas rápidas</h3>
     <p class="sub">Atalhos que aparecem no ⚡ da conversa. Uma por linha, no formato <code>Título | texto da mensagem</code>.</p>
     <textarea id="wmRR" style="min-height:120px">${esc(rr.map((r) => `${r.titulo} | ${r.texto}`).join("\n"))}</textarea>
@@ -107,9 +112,20 @@ export default {
         const qr = d && (d.qrcode || d.qr || d.base64 || d.qrCode || (d.data && (d.data.qrcode || d.data.qr)));
         alvo.innerHTML = qr ? `<div class="aviso aviso-info">Abra o WhatsApp no celular → Aparelhos conectados → Conectar aparelho e aponte para o código. Ele expira em cerca de 1 minuto.</div><img src="${/^data:/.test(qr) ? esc(qr) : "data:image/png;base64," + esc(qr)}" alt="QR Code" style="width:240px;border-radius:12px;background:#fff;padding:8px">`
           : `<div class="aviso aviso-ok">A API respondeu sem QR Code: a instância provavelmente já está conectada. Clique em "Testar conexão".</div>`;
-      } catch (e) { alvo.innerHTML = `<div class="aviso aviso-erro">Não deu: ${esc(e.message)}</div>`; }
+      } catch (e) {
+        alvo.innerHTML = e.jaConectada
+          ? `<div class="aviso aviso-ok">A instância já está conectada — não precisa de QR Code. Se as conversas não aparecerem, clique em "Testar conexão".</div>`
+          : `<div class="aviso aviso-erro">Não deu: ${esc(e.message)}</div>`;
+        if (e.jaConectada) W.estado.conectado = true;
+      }
     });
-    on("[data-wm-hist]", "click", async () => { try { await W.sincronizarHistoricoMeta(); toast("Pedido de sincronização enviado. As conversas aparecem em instantes."); W.atualizar(); } catch (e) { toast("Não deu: " + e.message, "erro"); } });
+    on("[data-wm-hist]", "click", async () => {
+      try { await W.sincronizarHistoricoMeta(); toast("Pedido enviado. As conversas de Instagram e Messenger aparecem em instantes."); W.atualizar(); }
+      catch (e) {
+        if (e.soOficial) modal(`<p>Puxar o histórico de Instagram e Messenger só funciona quando o número está ligado à <b>Cloud API oficial</b> da Meta. Sua instância está conectada por <b>QR Code</b>, que atende apenas o WhatsApp.</p><p class="sub" style="margin-top:8px">Para usar Instagram e Messenger aqui, ligue esses canais no portal da api-wa.me (o login é feito com a conta da Meta, não depende da aprovação de documentos do WhatsApp). Enquanto isso, deixe só o WhatsApp marcado nos canais.</p><div class="form-acoes"><button class="btn" data-fechar-modal>Entendi</button></div>`, { titulo: "Recurso da conta oficial" });
+        else toast("Não deu: " + e.message, "erro");
+      }
+    });
     on("[data-wm-limpar]", "click", () => { if (confirm("Remover a chave deste aparelho? As conversas deixam de aparecer aqui.")) { W.limparCfg(); ctx.rerender(); } });
     on("[data-wm-rr]", "click", () => {
       const linhas = root.querySelector("#wmRR").value.split("\n").map((l) => l.trim()).filter(Boolean).map((l, i) => { const [t, ...r] = l.split("|"); return { id: "r" + (i + 1), titulo: (t || "").trim() || "Atalho " + (i + 1), texto: r.join("|").trim() }; });

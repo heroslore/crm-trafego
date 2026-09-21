@@ -107,6 +107,7 @@ function render(root, ctx) {
       <button class="btn btn-pq" data-atualizar>${st.carregando ? "⏳" : "🔄"} Atualizar</button><a class="btn btn-pq" href="#/config?aba=mensagens">⚙️ Configurar</a></div></div>
     ${naoConfig ? `<div class="aviso aviso-info">Para ver as conversas aqui, cole a <b>key</b> da sua instância da api-wa.me em <a href="#/config?aba=mensagens">Configurações → Mensagens</a>. A chave fica só neste aparelho.</div>` : ""}
     ${st.erro && !naoConfig ? `<div class="aviso aviso-erro">${esc(st.erro)}</div>` : ""}
+    ${Object.keys(st.canaisIndisponiveis || {}).length ? `<div class="aviso aviso-alerta">${Object.keys(st.canaisIndisponiveis).map((c) => esc((W.PROVIDERS.find((x) => x[0] === c) || [, c])[1])).join(" e ")} não ${Object.keys(st.canaisIndisponiveis).length > 1 ? "estão ligados" : "está ligado"} nesta instância. Ligue no portal da api-wa.me ou desmarque em <a href="#/config?aba=mensagens">Configurações → Mensagens</a>.</div>` : ""}
     <div class="inbox${chat ? " com-conversa" : ""}">
       <aside class="inbox-lista">
         <div class="inbox-filtros">
