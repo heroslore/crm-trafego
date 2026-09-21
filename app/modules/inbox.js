@@ -93,7 +93,7 @@ function threadHtml(chat) {
     const dia = m.ts ? new Date(m.ts * 1000).toISOString().slice(0, 10) : "";
     let sep = "";
     if (dia && dia !== diaAtual) { diaAtual = dia; sep = `<div class="msg-dia">${dia === hoje() ? "Hoje" : dia === somaDias(hoje(), -1) ? "Ontem" : dataBR(dia)}</div>`; }
-    const url = W.urlMidia(m.id);
+    const url = m.midia_url || W.urlMidia(m.id);
     const anexo = corpoMidia(m, url);
     return `${sep}<div class="msg ${m.minha ? "minha" : "dele"}">${anexo}${m.texto ? `<span class="msg-txt">${esc(m.texto)}</span>` : (anexo ? "" : `<span class="msg-txt"><i>(sem texto)</i></span>`)}${m.anuncio ? `<span class="msg-ad">📣 veio do anúncio${m.anuncio.titulo ? ": " + esc(m.anuncio.titulo) : ""}</span>` : ""}<span class="msg-hora">${esc(horaMsg(m.ts))}${m.minha && m.status ? " ✓" : ""}</span></div>`;
   }).join("");
