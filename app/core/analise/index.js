@@ -13,6 +13,7 @@ import { confianca, MINIMOS } from "./confianca.js";
 import { cartoesEtapa, diagnosticos, saudePublico, fadiga, gargaloRelativo } from "./regras.js";
 import { pontuar } from "./score.js";
 import { plano, gargalos, pontosFortes, resumo10s } from "./recomendacoes.js";
+import { consideraVendas, normalizarModoVenda } from "../vendas-modo.js";
 
 export const CHAVES_BENCH = ["ctr", "cpc", "cpm", "frequencia", "cpl", "custo_conversa", "cpa", "roas", "conversao", "taxa_lead", "taxa_pagina", "margem", "retencao_inicial", "retencao_metade", "retencao_fim", "taxa_thruplay"];
 const NIVEIS_FILTRO = { campanha: "campaign_id", conjunto: "ad_set_id", anuncio: "ad_id", criativo: "creative_id" };
@@ -72,34 +73,10 @@ export function entidadesDoNivel(nivel, ivRef, modoVendas = "auto") {
     .map((x) => ({ id: x.id, registro: x.registro, valores: valoresAnalise(x.k, consideraVendas(modoVendas, x.k).usar) }));
 }
 
-// Como a análise trata as vendas, escolhido em Configurações → Análise.
-//
-// "parcial" é o padrão e existe porque na vida real a venda acontece no WhatsApp e nem sempre
-// dá tempo de lançar. Registro parcial tem uma consequência matemática: o faturamento lançado
-// é um PISO (o mínimo confirmado), enquanto a taxa de conversão e o CPA ficam distorcidos —
-// poucas vendas registradas empurram a taxa para baixo e o CPA para cima. Por isso, no modo
-// parcial, faturamento e ROAS entram como piso e as taxas de venda não entram na nota.
-// Sem isso, lançar a primeira venda pioraria a nota do anúncio, que é o oposto do certo.
-export const MODOS_VENDA = [
-  ["parcial", "Nem toda venda é lançada (recomendado)"],
-  ["completo", "Toda venda é lançada no CRM"],
-  ["nunca", "Não usar vendas na análise"],
-];
-export const MODO_VENDA_PADRAO = "parcial";
-export function normalizarModoVenda(modo) {
-  if (modo === "sempre") return "completo";      // nomes antigos
-  if (modo === "auto") return "parcial";
-  return ["parcial", "completo", "nunca"].includes(modo) ? modo : MODO_VENDA_PADRAO;
-}
-// usar    — faturamento, ROAS e lucro existem para este escopo
-// parcial — existem, mas como piso: taxas de venda e CPA ficam fora da nota
-export function consideraVendas(modo, k) {
-  const m = normalizarModoVenda(modo);
-  const temVenda = num(k && k.sales) > 0;
-  if (m === "nunca") return { usar: false, parcial: false };
-  if (m === "completo") return { usar: true, parcial: false };
-  return { usar: temVenda, parcial: temVenda };
-}
+// Modos de venda (parcial / completo / nunca) moram em core/vendas-modo.js, porque metrics.js
+// também depende deles. Continuam saindo daqui para não quebrar quem já importava.
+export { MODOS_VENDA, MODO_VENDA_PADRAO, normalizarModoVenda, consideraVendas } from "../vendas-modo.js";
+
 function amostrasDe(nivel, registro, todos) {
   const tipo = TIPO_ENTIDADE[nivel] || "campaign";
   const conta = todos.filter((x) => x.id !== registro.id);

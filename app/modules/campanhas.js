@@ -7,7 +7,7 @@ import { listaDiagnostico, comparativoEtapas, ordenarAnalises } from "../core/an
 import { analisarVarios } from "../core/analise/index.js";
 import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js";
 import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js";
+import { bannerDemo, btnNovo, linhaNumeros, avisoVendasNaoLancadas } from "./comum.js";
 import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js";
 import { usuario } from "../core/auth.js";
 import { podeEditar } from "../core/auth.js";
@@ -22,6 +22,7 @@ function lista(root, ctx) {
   root.innerHTML = `${bannerDemo()}
     <div class="pagina-cab"><div><h1>Campanhas</h1><p class="sub">${todas.filter((x) => x.c.status === "ativa").length} ativa(s) de ${todas.length} · números do período selecionado</p></div><div class="pagina-acoes">${podeEditar() ? `<button class="btn" data-lancar>📝 Lançar métricas do dia</button><a class="btn" href="#/config?aba=importar">⬆️ Importar CSV/XLSX</a>` : ""}${AcoesMeta.ligado() ? `<button class="btn btn-verde" data-meta-nova="">🚀 Subir campanha na Meta</button>` : ""}${btnNovo("Nova campanha", 'data-novo="1"')}</div></div>
     ${AcoesMeta.dicaLista(lin)}
+    ${avisoVendasNaoLancadas(lin, "campanha(s)")}
     <div class="filtros-linha">${chips([["ativa", "Ativas"], ["pausada", "Pausadas"], ["planejada", "Planejadas"], ["producao", "Em produção"], ["finalizada", "Finalizadas"], ["todas", "Todas"]], filtroStatus, "data-fs")}<select data-fp><option value="">Todas as plataformas</option>${OPCOES.platform.map(([v, t]) => `<option value="${v}"${filtroPlat === v ? " selected" : ""}>${t}</option>`).join("")}</select></div>
     ${cartao("", tabela("campanhas", { colunas: [
       { key: "name", label: "Campanha", render: (l) => `<a href="#/campanhas/${l.id}">${esc(l.name)}</a><br><small>${esc(rotuloOpcao("platform", l.platform))} · ${esc(rotuloOpcao("objective", l.objective))}${l.product_id ? " · " + esc((db.get("products", l.product_id) || {}).name || "") : ""}</small>` },
