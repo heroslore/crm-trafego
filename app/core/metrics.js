@@ -79,10 +79,14 @@ export function liquidoDaVenda(s) {
 
 // ---------------------------------------------------------------- agregação
 export function agregar({ metricas = [], vendas = [], leads = [], extras = [] }) {
-  const k = { spend: 0, impressions: 0, reach: 0, clicks: 0, link_clicks: 0, results: 0, freqS: 0, freqN: 0, sales: 0, quantity: 0, gross_sales: 0, discount: 0, revenue: 0, cost: 0, fees: 0, shipping: 0, canceled: 0, canceled_value: 0, leads: 0, qualified: 0, extra_costs: 0, video_3s: 0, thruplay: 0, video_p25: 0, video_p50: 0, video_p75: 0, video_p95: 0, dias: new Set() };
+  const k = { spend: 0, impressions: 0, reach: 0, clicks: 0, link_clicks: 0, results: 0, freqS: 0, freqN: 0, sales: 0, quantity: 0, gross_sales: 0, discount: 0, revenue: 0, cost: 0, fees: 0, shipping: 0, canceled: 0, canceled_value: 0, leads: 0, qualified: 0, extra_costs: 0, video_3s: 0, thruplay: 0, video_p25: 0, video_p50: 0, video_p75: 0, video_p95: 0, video_p100: 0, video_plays: 0, video_2s: 0, outbound_clicks: 0, landing_page_views: 0, conversations: 0, watchS: 0, watchN: 0, dias: new Set() };
   for (const m of metricas) {
     k.spend += num(m.spend); k.impressions += num(m.impressions); k.reach += num(m.reach); k.clicks += num(m.clicks); k.link_clicks += num(m.link_clicks); k.results += num(m.results);
     k.video_3s += num(m.video_3s); k.thruplay += num(m.thruplay); k.video_p25 += num(m.video_p25); k.video_p50 += num(m.video_p50); k.video_p75 += num(m.video_p75); k.video_p95 += num(m.video_p95);
+    k.video_p100 += num(m.video_p100); k.video_plays += num(m.video_plays); k.video_2s += num(m.video_2s);
+    k.outbound_clicks += num(m.outbound_clicks); k.landing_page_views += num(m.landing_page_views); k.conversations += num(m.conversations);
+    // Tempo médio assistido é média, não soma: pondera pelas reproduções do dia (ou impressões, na falta delas).
+    if (m.avg_watch) { const peso = num(m.video_plays) || num(m.impressions) || 1; k.watchS += num(m.avg_watch) * peso; k.watchN += peso; }
     if (m.frequency && m.impressions) { k.freqS += num(m.frequency) * num(m.impressions); k.freqN += num(m.impressions); }
     k.dias.add(m.date);
   }
@@ -124,8 +128,13 @@ export function agregar({ metricas = [], vendas = [], leads = [], extras = [] })
   k.custo_video_3s = k.video_3s > 0 ? k.spend / k.video_3s : null;
   k.retencao_50 = k.video_3s > 0 && k.video_p50 ? k.video_p50 / k.video_3s : null;
   k.retencao_95 = k.video_3s > 0 && k.video_p95 ? k.video_p95 / k.video_3s : null;
-  k.tem_video = !!(k.video_3s || k.thruplay || k.video_p25);
-  delete k.freqS; delete k.freqN;
+  k.tem_video = !!(k.video_3s || k.thruplay || k.video_p25 || k.video_plays);
+  k.avg_watch = k.watchN ? k.watchS / k.watchN : null;
+  k.retencao_100 = k.video_3s > 0 && k.video_p100 ? k.video_p100 / k.video_3s : null;
+  k.taxa_reproducao = k.impressions > 0 && k.video_plays ? k.video_plays / k.impressions : null;
+  k.custo_conversa = k.spend > 0 && k.conversations > 0 ? k.spend / k.conversations : null;
+  k.taxa_pagina = k.landing_page_views && (k.outbound_clicks || k.link_clicks) ? k.landing_page_views / (k.outbound_clicks || k.link_clicks) : null;
+  delete k.freqS; delete k.freqN; delete k.watchS; delete k.watchN;
   return k;
 }
 
@@ -345,9 +354,11 @@ export const METRICAS_ROTULOS = {
   gross_profit: "Lucro bruto", net_profit: "Lucro após anúncios", roas: "ROAS", roi: "ROI", leads: "Leads", qualified: "Leads qualificados", sales: "Vendas", canceled: "Vendas canceladas",
   conversion: "Conversão", taxa_qualificacao: "Taxa de qualificação", cpl: "CPL", cpl_qualificado: "CPL qualificado", cpa: "CPA", ticket: "Ticket médio", ticket_liquido: "Lucro por venda",
   lucro_por_lead: "Lucro por lead", ctr: "CTR", cpc: "CPC", cpm: "CPM", impressions: "Impressões", reach: "Alcance", link_clicks: "Cliques", results: "Resultados",
+  conversations: "Conversas iniciadas", custo_conversa: "Custo por conversa", outbound_clicks: "Cliques de saída", landing_page_views: "Visitas à página", taxa_pagina: "Cliques que chegaram na página",
+  video_plays: "Reproduções", avg_watch: "Tempo médio assistido", retencao_100: "Assistiram até o fim", taxa_reproducao: "Reproduções por impressão",
   video_3s: "Visualizações 3s", thruplay: "ThruPlay", custo_thruplay: "Custo por ThruPlay", hook_rate: "Retenção inicial (3s)", thruplay_rate: "Chegaram ao ThruPlay", retencao_50: "Assistiram 50%", retencao_95: "Assistiram 95%",
 };
-export const MENOR_MELHOR = new Set(["cpl", "cpl_qualificado", "cpa", "cpc", "cpm", "spend", "cost", "extra_costs", "fees", "discount", "shipping", "canceled", "custo_thruplay", "custo_video_3s"]);
+export const MENOR_MELHOR = new Set(["cpl", "cpl_qualificado", "cpa", "cpc", "cpm", "spend", "cost", "extra_costs", "fees", "discount", "shipping", "canceled", "custo_thruplay", "custo_video_3s", "custo_conversa"]);
 
 // Avalia um valor contra a meta configurada. Retorna null se não houver meta.
 export function avaliar(metrica, valor) {

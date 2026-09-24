@@ -1,6 +1,7 @@
 import { db } from "../core/db.js";
 import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js";
 import { situacaoCampanha } from "../core/rules.js";
+import { blocoAnalise } from "../core/analise/ui.js";
 import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js";
 import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js";
 import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js";
@@ -87,6 +88,7 @@ function detalhe(root, ctx, c) {
   root.innerHTML = `<div class="pagina-cab"><div><a href="#/campanhas" class="link">← Campanhas</a><h1>${esc(c.name)} ${badgeOpcao("campaign_status", c.status)}</h1><p class="sub">${esc(rotuloOpcao("platform", c.platform))} · ${esc(rotuloOpcao("objective", c.objective))}${prod ? ` · <a href="#/produtos/${prod.id}">${esc(prod.name)}</a>` : ""}${c.category ? " · " + esc(c.category) : ""} · ${c.start_date ? "início " + dataBR(c.start_date) : ""}${c.end_date ? " · término " + dataBR(c.end_date) : ""}${c.source === "meta" ? " · " + badge("dados automáticos da Meta", "acento") : ""}</p></div>
     <div class="pagina-acoes">${podeEditar() ? `<button class="btn" data-lancar>📝 Lançar métricas</button><a class="btn" href="#/leads?novo=1&campanha=${c.id}">➕ Lead</a><a class="btn btn-verde" href="#/vendas?novo=1&campanha=${c.id}">💰 Venda</a><button class="btn btn-primario" data-editar>✏️ Editar</button>` : ""}</div></div>
     ${s.sinais.length ? `<div class="lista" style="margin-bottom:14px">${s.sinais.map((sn) => `<div class="aviso ${sn.tipo === "boa" ? "aviso-ok" : sn.tipo === "ruim" ? "aviso-erro" : "aviso-alerta"}" style="margin:0">${prioridadeBadge(sn.prioridade)} ${esc(sn.texto[0].toUpperCase() + sn.texto.slice(1))}.</div>`).join("")}</div>` : ""}
+    ${blocoAnalise("campanha", c, iv)}
     <div class="grid3">
       ${cartao("Orçamento", `<div class="kpis" style="grid-template-columns:1fr 1fr">${kpi({ rotulo: "Diário", valor: brl(c.daily_budget) })}${kpi({ rotulo: "Total previsto", valor: brl(c.total_budget) })}${kpi({ rotulo: "Gasto acumulado", valor: brl(gastoTotal), sub: c.total_budget ? pct(gastoTotal / c.total_budget) + " do total" : "" })}${kpi({ rotulo: "Gasto no período", valor: brl(k.spend) })}</div>`)}
       ${cartao("Decisão da campanha", `<div class="campo"><label>Decisão</label><select data-decisao>${OPCOES.decision.map(([v, t]) => `<option value="${v}"${c.decision === v ? " selected" : ""}>${t}</option>`).join("")}</select></div><div class="campo" style="margin-top:8px"><label>Observações</label><textarea data-obs>${esc(c.notes || "")}</textarea></div><button class="btn btn-pq btn-primario" data-salvar-decisao style="margin-top:8px">Salvar</button>`)}

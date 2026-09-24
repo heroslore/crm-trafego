@@ -57,17 +57,23 @@ ACOES = {
     "pagina_destino": "landing_page_view",
 }
 
-CAMPOS_DIARIO = ("spend,reach,impressions,clicks,inline_link_clicks,frequency,cpm,ctr,actions,"
+CAMPOS_DIARIO = ("spend,reach,impressions,clicks,inline_link_clicks,outbound_clicks,frequency,cpm,ctr,actions,"
                  "video_thruplay_watched_actions,video_p25_watched_actions,video_p50_watched_actions,"
-                 "video_p75_watched_actions,video_p95_watched_actions")
+                 "video_p75_watched_actions,video_p95_watched_actions,video_p100_watched_actions,"
+                 "video_play_actions,video_continuous_2_sec_watched_actions,video_avg_time_watched_actions")
 
 # Métricas de vídeo: cada uma vem da Meta como lista de ações.
+# A cadeia completa (reprodução -> 2s -> 3s -> 25% -> ... -> 100%) é o que permite
+# dizer ONDE o vídeo perde as pessoas, em vez de só dizer que perde.
 CAMPOS_VIDEO = {
     "thruplay": "video_thruplay_watched_actions",
     "video_p25": "video_p25_watched_actions",
     "video_p50": "video_p50_watched_actions",
     "video_p75": "video_p75_watched_actions",
     "video_p95": "video_p95_watched_actions",
+    "video_p100": "video_p100_watched_actions",
+    "video_plays": "video_play_actions",
+    "video_2s": "video_continuous_2_sec_watched_actions",
 }
 CAMPOS_PUBLICO = "spend,reach,impressions,clicks,actions"
 
@@ -164,10 +170,14 @@ def somar_acoes(linha, campo):
 
 
 def metricas_video(linha):
-    """Retenção do vídeo: 3 segundos, ThruPlay e os marcos de 25% a 95%."""
+    """Retenção do vídeo: reprodução, 2s, 3s, ThruPlay, os marcos de 25% a 100% e o tempo médio."""
     saida = {chave: somar_acoes(linha, campo) for chave, campo in CAMPOS_VIDEO.items()}
     bruto = {a.get("action_type"): num(a.get("value")) for a in (linha.get("actions") or [])}
     saida["video_3s"] = int(bruto.get("video_view", 0))
+    # Tempo médio assistido já vem em segundos e é média, não soma.
+    medio = [num(a.get("value")) for a in (linha.get("video_avg_time_watched_actions") or [])]
+    if medio:
+        saida["tempo_medio"] = arred(max(medio), 2)
     return saida
 
 
@@ -259,6 +269,9 @@ def coletar_diario(nivel, desde, ate):
             "impressoes": int(num(l.get("impressions"))), "cliques": int(num(l.get("clicks"))),
             "cliques_link": int(num(l.get("inline_link_clicks"))), "frequencia": arred(l.get("frequency"), 3),
             "cpm": arred(l.get("cpm")), "ctr": arred(l.get("ctr"), 3),
+            "cliques_saida": somar_acoes(l, "outbound_clicks"),
+            "pagina_destino": acoes.get("pagina_destino", 0),
+            "conversas": acoes.get("conversas", 0) or acoes.get("conexoes", 0),
             "mensagens": mensagens_de(acoes), "acoes": acoes,
         }
         video = metricas_video(l)
