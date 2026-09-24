@@ -2,17 +2,17 @@
 // O caminho é sempre o mesmo, na ordem:
 //   DADOS BRUTOS → MÉTRICAS CALCULADAS → BENCHMARKS → REGRAS → SCORE → RECOMENDAÇÕES → (interface)
 // Nada aqui altera dados: a análise só lê.
-import { db } from "../db.js?v=f9372346";
-import { kpis, serieDiaria, porEntidade, atendimento, plataformaBase } from "../metrics.js?v=f9372346";
-import { anterior } from "../periods.js?v=f9372346";
-import { META } from "../sync.js?v=f9372346";
-import { num, hoje, somaDias, diasEntre, pct, brl, inteiro, dec } from "../format.js?v=f9372346";
-import { metricasCalculadas, contagemOuNulo, numeroOuNulo, razao } from "./metricas.js?v=f9372346";
-import { construirBenchmarks, mesclarReferencia, MENOR_MELHOR } from "./benchmarks.js?v=f9372346";
-import { confianca, MINIMOS } from "./confianca.js?v=f9372346";
-import { cartoesEtapa, diagnosticos, saudePublico, fadiga } from "./regras.js?v=f9372346";
-import { pontuar } from "./score.js?v=f9372346";
-import { plano, gargalos, pontosFortes, resumo10s } from "./recomendacoes.js?v=f9372346";
+import { db } from "../db.js?v=e40367ec";
+import { kpis, serieDiaria, porEntidade, atendimento, plataformaBase } from "../metrics.js?v=e40367ec";
+import { anterior } from "../periods.js?v=e40367ec";
+import { META } from "../sync.js?v=e40367ec";
+import { num, hoje, somaDias, diasEntre, pct, brl, inteiro, dec } from "../format.js?v=e40367ec";
+import { metricasCalculadas, contagemOuNulo, numeroOuNulo, razao } from "./metricas.js?v=e40367ec";
+import { construirBenchmarks, mesclarReferencia, MENOR_MELHOR } from "./benchmarks.js?v=e40367ec";
+import { confianca, MINIMOS } from "./confianca.js?v=e40367ec";
+import { cartoesEtapa, diagnosticos, saudePublico, fadiga } from "./regras.js?v=e40367ec";
+import { pontuar } from "./score.js?v=e40367ec";
+import { plano, gargalos, pontosFortes, resumo10s } from "./recomendacoes.js?v=e40367ec";
 
 export const CHAVES_BENCH = ["ctr", "cpc", "cpm", "frequencia", "cpl", "custo_conversa", "cpa", "roas", "conversao", "taxa_lead", "taxa_pagina", "margem", "retencao_inicial", "retencao_metade", "retencao_fim", "taxa_thruplay"];
 const NIVEIS_FILTRO = { campanha: "campaign_id", conjunto: "ad_set_id", anuncio: "ad_id", criativo: "creative_id" };
@@ -175,6 +175,20 @@ export function filhosDoEscopo(nivel, registro, iv, limite = 12) {
     const m = metricasCalculadas(brutoDe(k), videoDe(k, cr ? cr.duration_seconds : null));
     return { ...x, nome: x.reg.name, k, m, queda: m.maior_queda_funil };
   }).filter((x) => x.k.spend > 0 || x.k.impressions > 0).sort((a, b) => b.k.spend - a.k.spend).slice(0, limite);
+}
+
+// Quando o anúncio realmente rodou, olhando todo o histórico e não só o período da tela.
+// É o que permite dizer "este rodou de 01/08 a 15/08" em vez de só "sem dados".
+export function janelaDeEntrega(nivel, id) {
+  const chave = NIVEIS_FILTRO[nivel] || "campaign_id";
+  const linhas = db.where("campaign_metrics", (m) => m[chave] === id && (num(m.impressions) > 0 || num(m.spend) > 0));
+  if (!linhas.length) return null;
+  const datas = linhas.map((r) => String(r.date).slice(0, 10)).sort();
+  return {
+    inicio: datas[0], fim: datas[datas.length - 1], dias: new Set(datas).size,
+    gasto: linhas.reduce((t, r) => t + num(r.spend), 0),
+    impressoes: linhas.reduce((t, r) => t + num(r.impressions), 0),
+  };
 }
 
 // Recortes que só existem na coleta automática da Meta: posicionamento e demografia.

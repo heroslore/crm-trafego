@@ -4,11 +4,11 @@
 //   2. Depois de dar certo, o CRM se atualiza e a ação entra no histórico de decisões —
 //      é o mesmo histórico que mede o antes e o depois de cada mudança.
 //   3. Campanha nova e cópia nascem PAUSADAS. Quem liga o dinheiro é a pessoa.
-import { db } from "./db.js?v=f9372346";
-import * as M from "./meta.js?v=f9372346";
-import { modal, fecharModal, toast, badge } from "./ui.js?v=f9372346";
-import { esc, brl, agora, num } from "./format.js?v=f9372346";
-import { usuario, podeEditar } from "./auth.js?v=f9372346";
+import { db } from "./db.js?v=e40367ec";
+import * as M from "./meta.js?v=e40367ec";
+import { modal, fecharModal, toast, badge } from "./ui.js?v=e40367ec";
+import { esc, brl, agora, num } from "./format.js?v=e40367ec";
+import { usuario, podeEditar } from "./auth.js?v=e40367ec";
 
 const TABELA = { campanha: "campaigns", conjunto: "ad_sets", anuncio: "ads" };
 const NOME_TIPO = { campanha: "campanha", conjunto: "conjunto", anuncio: "anúncio" };
@@ -112,6 +112,29 @@ export async function ajustarOrcamento(tipo, reg, ctx) {
       if (ctx) ctx.rerender();
       return true;
     });
+  });
+}
+
+// Encerrar = arquivar na Meta. Para de rodar e sai das listas ativas, mas nada é apagado:
+// números, histórico e criativos continuam, e dá para desarquivar no Gerenciador.
+export async function encerrar(tipo, reg, ctx) {
+  const ok = await confirmar({
+    titulo: `Encerrar ${NOME_TIPO[tipo]} na Meta`,
+    corpo: `<p>Vai <b>arquivar</b> ${esc(reg.name)} na conta de anúncios: para de rodar, para de gastar e sai das listas de ativos.</p>
+      ${caixaConta()}
+      ${aviso("Nada é apagado. Os números, o histórico e os criativos continuam no CRM e na Meta, e dá para desarquivar pelo Gerenciador de Anúncios. Se a intenção é só parar por enquanto, use <b>Pausar</b> — é reversível com um clique aqui mesmo.")}`,
+    botao: "🏁 Encerrar e arquivar",
+    perigo: true,
+  });
+  if (!ok) return;
+  return comFalha(async () => {
+    await M.mudarStatus(reg.external_id, "ARCHIVED");
+    db.update(TABELA[tipo], reg.id, { status: "finalizada" });
+    const campId = tipo === "campanha" ? reg.id : reg.campaign_id;
+    registrar(campId, { type: "encerramento", de: "ativa", para: "finalizada", reason: `${NOME_TIPO[tipo][0].toUpperCase() + NOME_TIPO[tipo].slice(1)} "${reg.name}" encerrado (arquivado na Meta) pelo CRM.` });
+    toast("Encerrado e arquivado na Meta.");
+    if (ctx) ctx.rerender();
+    return true;
   });
 }
 
@@ -324,7 +347,8 @@ export function botoes(tipo, reg, { compacto = false } = {}) {
     ? `<button class="${cls}" ${attrs} data-meta-acao="pausar" title="Pausa de verdade, na conta de anúncios">⏸️ Pausar${compacto ? "" : " na Meta"}</button>`
     : `<button class="${cls} btn-verde" ${attrs} data-meta-acao="ativar" title="Volta a rodar na conta de anúncios">▶️ Reativar${compacto ? "" : " na Meta"}</button>`}
     <button class="${cls}" ${attrs} data-meta-acao="orcamento">💰 Orçamento</button>
-    ${tipo === "campanha" ? `<button class="${cls}" ${attrs} data-meta-acao="duplicar">📋 Duplicar</button>` : ""}`;
+    ${tipo === "campanha" ? `<button class="${cls}" ${attrs} data-meta-acao="duplicar">📋 Duplicar</button>` : ""}
+    ${reg.status !== "finalizada" ? `<button class="${cls} btn-perigo" ${attrs} data-meta-acao="encerrar" title="Arquiva na Meta: para de rodar e sai das listas ativas">🏁 Encerrar</button>` : ""}`;
 }
 
 // Só o liga/desliga, para caber numa célula de tabela.
@@ -348,13 +372,35 @@ export function ligar(root, ctx) {
       else if (b.dataset.metaAcao === "ativar") await pausarOuAtivar(tipo, reg, true, ctx);
       else if (b.dataset.metaAcao === "orcamento") await ajustarOrcamento(tipo, reg, ctx);
       else if (b.dataset.metaAcao === "duplicar") await duplicar(reg, ctx);
+      else if (b.dataset.metaAcao === "encerrar") await encerrar(tipo, reg, ctx);
     } finally { b.disabled = false; }
   }));
   root.querySelectorAll("[data-meta-nova]").forEach((b) => b.addEventListener("click", () => assistenteNova(ctx, b.dataset.metaNova ? db.get("campaigns", b.dataset.metaNova) : null)));
 }
 
-// Aviso que aparece quando a campanha veio da Meta mas o controle está desligado.
+// Por que os botões não estão aparecendo. Esconder sem explicar é o que faz a pessoa
+// procurar um recurso que existe.
+export function motivoDesligado() {
+  if (!podeEditar()) return { txt: "Seu perfil é somente leitura, então os comandos da Meta não aparecem.", link: "" };
+  if (!M.configurado()) return { txt: "Falta a chave de acesso da Meta neste aparelho.", link: "#/config?aba=meta", acao: "Configurar agora" };
+  if (M.estado.verificado === false) return { txt: `A chave não está funcionando: ${M.estado.erro || "erro ao verificar"}. Chave do Explorador da API dura cerca de 2 horas — se você não trocou por uma de longa duração, ela já expirou.`, link: "#/config?aba=meta", acao: "Trocar a chave" };
+  if (M.estado.verificado === null) return { txt: "Ainda conferindo a chave da Meta…", link: "#/config?aba=meta", acao: "Ver" };
+  if (!M.estado.permissoes.includes("ads_management")) return { txt: "A chave não tem a permissão ads_management, que é a que autoriza pausar e alterar campanhas.", link: "#/config?aba=meta", acao: "Ajustar a chave" };
+  if (!M.cfg.ligado) return { txt: "O controle das campanhas está desligado: falta marcar “Permitir que o CRM altere campanhas nesta conta”.", link: "#/config?aba=meta", acao: "Ligar agora" };
+  return null;
+}
+
+// Aviso que aparece quando o escopo veio da Meta mas o controle está desligado.
 export function dicaDesligada(reg) {
-  if (!reg || !reg.external_id || M.podeEscrever() || !podeEditar()) return "";
-  return `<p class="sub">Para pausar, mudar orçamento ou duplicar esta campanha direto daqui, ligue o controle em <a href="#/config?aba=meta">Configurações → Meta</a>.</p>`;
+  if (!reg || !reg.external_id || M.podeEscrever()) return "";
+  const m = motivoDesligado();
+  if (!m) return "";
+  return `<div class="aviso aviso-alerta" style="margin-bottom:12px"><b>Pausar, encerrar e mudar orçamento por aqui está indisponível.</b> ${esc(m.txt)}${m.link ? ` <a href="${esc(m.link)}">${esc(m.acao)}</a>.` : ""}</div>`;
+}
+// Mesma explicação no topo de uma lista, quando há escopos da Meta nela.
+export function dicaLista(registros) {
+  if (M.podeEscrever() || !(registros || []).some((r) => r && r.external_id)) return "";
+  const m = motivoDesligado();
+  if (!m) return "";
+  return `<div class="aviso aviso-alerta"><b>Os comandos da Meta (pausar, reativar, encerrar, orçamento) não estão disponíveis.</b> ${esc(m.txt)}${m.link ? ` <a href="${esc(m.link)}">${esc(m.acao)}</a>.` : ""}</div>`;
 }

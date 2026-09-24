@@ -1,10 +1,10 @@
-import { db } from "../core/db.js?v=f9372346";
-import { kpis, porEntidade } from "../core/metrics.js?v=f9372346";
-import { META } from "../core/sync.js?v=f9372346";
-import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, barrasH, abas, itemLista } from "../core/ui.js?v=f9372346";
-import { esc, brl, inteiro, pct, mult, dataBR } from "../core/format.js?v=f9372346";
-import { bannerDemo, btnNovo } from "./comum.js?v=f9372346";
-import { rotulo as rotuloOpcao } from "../core/schema.js?v=f9372346";
+import { db } from "../core/db.js?v=e40367ec";
+import { kpis, porEntidade } from "../core/metrics.js?v=e40367ec";
+import { META } from "../core/sync.js?v=e40367ec";
+import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, barrasH, abas, itemLista } from "../core/ui.js?v=e40367ec";
+import { esc, brl, inteiro, pct, mult, dataBR } from "../core/format.js?v=e40367ec";
+import { bannerDemo, btnNovo } from "./comum.js?v=e40367ec";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=e40367ec";
 
 let aba = "biblioteca";
 export default {

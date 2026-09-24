@@ -1,6 +1,6 @@
-import { cartao } from "../core/ui.js?v=f9372346";
-import { brl, pct, mult, inteiro } from "../core/format.js?v=f9372346";
-import { db } from "../core/db.js?v=f9372346";
+import { cartao } from "../core/ui.js?v=e40367ec";
+import { brl, pct, mult, inteiro } from "../core/format.js?v=e40367ec";
+import { db } from "../core/db.js?v=e40367ec";
 
 const n = (root, id) => Number(String(root.querySelector("#" + id).value).replace(",", ".")) || 0;
 export default {

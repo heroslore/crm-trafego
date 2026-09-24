@@ -1,7 +1,7 @@
 // Componentes reutilizáveis: só recebem dados e devolvem HTML (ou montam modais).
-import { db } from "./db.js?v=f9372346";
-import { TABELAS, OPCOES, rotulo } from "./schema.js?v=f9372346";
-import { esc, brl, brlCurto, inteiro, pct, mult, dec, dataBR, seta, hoje, num, uid, agora } from "./format.js?v=f9372346";
+import { db } from "./db.js?v=e40367ec";
+import { TABELAS, OPCOES, rotulo } from "./schema.js?v=e40367ec";
+import { esc, brl, brlCurto, inteiro, pct, mult, dec, dataBR, seta, hoje, num, uid, agora } from "./format.js?v=e40367ec";
 
 // ---------------------------------------------------------------- formatação por tipo de métrica
 export const FMT = { money: brl, moneyCurto: brlCurto, int: inteiro, pct: (v) => pct(v), pct2: (v) => pct(v, 2), mult, dec: (v) => dec(v, 2), text: (v) => esc(v), date: dataBR };

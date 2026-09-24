@@ -1,12 +1,16 @@
 // Filtro global de período e comparações.
-import { hoje, somaDias, diasEntre, dataBR } from "./format.js?v=f9372346";
+import { hoje, somaDias, diasEntre, dataBR } from "./format.js?v=e40367ec";
 
 export const PERIODOS = [
   ["hoje", "Hoje"], ["ontem", "Ontem"], ["7d", "Últimos 7 dias"], ["15d", "Últimos 15 dias"], ["30d", "Últimos 30 dias"],
-  ["mes", "Este mês"], ["mes_ant", "Mês anterior"], ["custom", "Personalizado"],
+  ["90d", "Últimos 90 dias"], ["6m", "Últimos 6 meses"],
+  ["mes", "Este mês"], ["mes_ant", "Mês anterior"], ["ano", "Este ano"], ["tudo", "Todo o histórico"],
+  ["custom", "Personalizado"],
 ];
 
-export function intervalo(p) {
+// primeiroDia = data do dado mais antigo do banco, usada por "Todo o histórico".
+// Vem de fora porque este arquivo não conhece o banco.
+export function intervalo(p, primeiroDia = null) {
   const h = hoje();
   let ini, fim = h;
   switch (p.tipo) {
@@ -18,6 +22,9 @@ export function intervalo(p) {
     case "90d": ini = somaDias(h, -89); break;
     case "semana": { const d = new Date(h + "T12:00:00Z"); const dow = d.getUTCDay() || 7; ini = somaDias(h, -(dow - 1)); break; }
     case "semana_ant": { const d = new Date(h + "T12:00:00Z"); const dow = d.getUTCDay() || 7; fim = somaDias(h, -dow); ini = somaDias(fim, -6); break; }
+    case "6m": ini = somaDias(h, -179); break;
+    case "ano": ini = h.slice(0, 4) + "-01-01"; break;
+    case "tudo": ini = primeiroDia || somaDias(h, -364); break;
     case "mes": ini = h.slice(0, 8) + "01"; break;
     case "mes_ant": { const m = somaDias(h.slice(0, 8) + "01", -1); ini = m.slice(0, 8) + "01"; fim = m; break; }
     case "custom": ini = p.inicio || somaDias(h, -29); fim = p.fim || h; if (ini > fim) [ini, fim] = [fim, ini]; break;

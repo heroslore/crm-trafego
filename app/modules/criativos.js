@@ -1,13 +1,14 @@
-import { db } from "../core/db.js?v=f9372346";
-import { kpis, serieDiaria, mediaCampanhas } from "../core/metrics.js?v=f9372346";
-import { classificarCriativo, CLASSES_CRIATIVO, diagnosticoVideo } from "../core/rules.js?v=f9372346";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista, abas, kpi, barrasH } from "../core/ui.js?v=f9372346";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=f9372346";
-import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem } from "../core/analise/ui.js?v=f9372346";
-import { analisarVarios } from "../core/analise/index.js?v=f9372346";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=f9372346";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=f9372346";
-import { podeEditar } from "../core/auth.js?v=f9372346";
+import { db } from "../core/db.js?v=e40367ec";
+import { kpis, serieDiaria, mediaCampanhas } from "../core/metrics.js?v=e40367ec";
+import { classificarCriativo, CLASSES_CRIATIVO, diagnosticoVideo } from "../core/rules.js?v=e40367ec";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista, abas, kpi, barrasH } from "../core/ui.js?v=e40367ec";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=e40367ec";
+import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem, listaSemEntrega } from "../core/analise/ui.js?v=e40367ec";
+import { analisarVarios, janelaDeEntrega } from "../core/analise/index.js?v=e40367ec";
+import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=e40367ec";
+import { badgeObjetivo } from "./anuncios.js?v=e40367ec";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=e40367ec";
+import { podeEditar } from "../core/auth.js?v=e40367ec";
 
 let visao = "diagnostico", filtroClasse = "", ordem = "gasto";
 function lista(root, ctx) {
@@ -35,16 +36,22 @@ function lista(root, ctx) {
 }
 // Mesma leitura do motor aplicada a todos os criativos do filtro, de uma vez só.
 function diagnosticoHtml(lin, ctx) {
-  const analises = analisarVarios({ nivel: "criativo", registros: lin, iv: ctx.iv });
+  const comEntrega = lin.filter((c) => c.k.spend > 0 || c.k.impressions > 0);
+  const fora = lin.filter((c) => !(c.k.spend > 0 || c.k.impressions > 0)).map((c) => ({
+    registro: c, janela: janelaDeEntrega("criativo", c.id), href: `#/criativos/${c.id}`, imagem: c.thumbnail || "",
+  }));
+  const analises = analisarVarios({ nivel: "criativo", registros: comEntrega, iv: ctx.iv });
   const link = (an) => ({
     href: `#/criativos/${an.registro.id}`,
     imagem: an.registro.thumbnail || "",
     subtitulo: [rotuloOpcao("creative_type", an.registro.type), an.contexto.campanha ? esc(an.contexto.campanha.name) : ""].filter(Boolean).join(" · "),
+    etiquetas: badgeObjetivo(an.contexto.campanha),
   });
   const comparativo = comparativoEtapas(analises, link);
   return `${comparativo ? cartao("Quem ganha em cada etapa", comparativo) : ""}
-    <div class="filtros-linha">${chipsOrdem(ordem)}</div>
-    ${listaDiagnostico(ordenarAnalises(analises, ordem), link, { vazioTxt: "Nenhum criativo com entrega no período selecionado." })}`;
+    ${analises.length ? `<div class="filtros-linha">${chipsOrdem(ordem)}</div>` : ""}
+    ${listaDiagnostico(ordenarAnalises(analises, ordem), link, { vazioTxt: "Nenhum criativo teve entrega no período selecionado. Troque o período no topo — “Todo o histórico” mostra tudo desde o começo da conta." })}
+    ${listaSemEntrega(fora, "Criativos sem entrega neste período")}`;
 }
 
 function detalhe(root, ctx, c) {

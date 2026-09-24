@@ -2,10 +2,10 @@
 // É aqui que o sistema "pensa como gestor de tráfego": nenhuma métrica é julgada sozinha,
 // sempre no contexto da etapa anterior e da seguinte. Regras determinísticas, sem IA:
 // mesmos números entram, mesmo diagnóstico sai.
-import { pct, brl, dec, inteiro } from "../format.js?v=f9372346";
-import { numeroOuNulo, temValor, razao } from "./metricas.js?v=f9372346";
-import { classificar } from "./benchmarks.js?v=f9372346";
-import { confiancaDe } from "./confianca.js?v=f9372346";
+import { pct, brl, dec, inteiro } from "../format.js?v=e40367ec";
+import { numeroOuNulo, temValor, razao } from "./metricas.js?v=e40367ec";
+import { classificar } from "./benchmarks.js?v=e40367ec";
+import { confiancaDe } from "./confianca.js?v=e40367ec";
 
 export const NIVEIS = { bom: ["🟢", "BOM", "verde"], medio: ["🟡", "MÉDIO", "amarelo"], ruim: ["🔴", "RUIM", "vermelho"], sem_dados: ["⚪", "DADOS INSUFICIENTES", "cinza"] };
 

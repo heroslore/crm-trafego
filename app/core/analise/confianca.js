@@ -1,7 +1,7 @@
 // Camada de amostra: diz se já existe dado suficiente para afirmar qualquer coisa.
 // Existe para impedir o erro mais caro da análise de tráfego: matar uma campanha
 // com 200 impressões porque "o CTR está ruim".
-import { numeroOuNulo } from "./metricas.js?v=f9372346";
+import { numeroOuNulo } from "./metricas.js?v=e40367ec";
 
 export const MINIMOS = {
   impressoes: 1000,   // abaixo disso, CTR e CPM oscilam demais para significar algo

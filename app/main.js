@@ -1,39 +1,39 @@
 // Casca do aplicativo: menu, topo, período global, roteador, busca, notificações, perfil.
-import { db, garantirBase, inserirDemonstracao } from "./core/db.js?v=f9372346";
-import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js?v=f9372346";
-import { esc, hoje, somaDias, semAcento } from "./core/format.js?v=f9372346";
-import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js?v=f9372346";
-import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem } from "./core/sync.js?v=f9372346";
-import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js?v=f9372346";
-import { alertas } from "./core/rules.js?v=f9372346";
-import * as W from "./core/wame.js?v=f9372346";
-import * as MetaApi from "./core/meta.js?v=f9372346";
-import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js?v=f9372346";
-import { rotulo as rotuloOpcao } from "./core/schema.js?v=f9372346";
+import { db, garantirBase, inserirDemonstracao } from "./core/db.js?v=e40367ec";
+import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js?v=e40367ec";
+import { esc, hoje, somaDias, semAcento } from "./core/format.js?v=e40367ec";
+import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js?v=e40367ec";
+import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem } from "./core/sync.js?v=e40367ec";
+import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js?v=e40367ec";
+import { alertas } from "./core/rules.js?v=e40367ec";
+import * as W from "./core/wame.js?v=e40367ec";
+import * as MetaApi from "./core/meta.js?v=e40367ec";
+import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js?v=e40367ec";
+import { rotulo as rotuloOpcao } from "./core/schema.js?v=e40367ec";
 
-import dashboard from "./modules/dashboard.js?v=f9372346";
-import hoje_ from "./modules/hoje.js?v=f9372346";
-import inbox from "./modules/inbox.js?v=f9372346";
-import decisoes from "./modules/decisoes.js?v=f9372346";
-import campanhas from "./modules/campanhas.js?v=f9372346";
-import anuncios from "./modules/anuncios.js?v=f9372346";
-import criativos from "./modules/criativos.js?v=f9372346";
-import produtos from "./modules/produtos.js?v=f9372346";
-import publicos from "./modules/publicos.js?v=f9372346";
-import leads from "./modules/leads.js?v=f9372346";
-import vendas from "./modules/vendas.js?v=f9372346";
-import clientes from "./modules/clientes.js?v=f9372346";
-import financeiro from "./modules/financeiro.js?v=f9372346";
-import testes from "./modules/testes.js?v=f9372346";
-import planejamento from "./modules/planejamento.js?v=f9372346";
-import tarefas from "./modules/tarefas.js?v=f9372346";
-import calendario from "./modules/calendario.js?v=f9372346";
-import briefings from "./modules/briefings.js?v=f9372346";
-import ideias from "./modules/ideias.js?v=f9372346";
-import relatorios from "./modules/relatorios.js?v=f9372346";
-import calculadoras from "./modules/calculadoras.js?v=f9372346";
-import concorrentes from "./modules/concorrentes.js?v=f9372346";
-import config from "./modules/config.js?v=f9372346";
+import dashboard from "./modules/dashboard.js?v=e40367ec";
+import hoje_ from "./modules/hoje.js?v=e40367ec";
+import inbox from "./modules/inbox.js?v=e40367ec";
+import decisoes from "./modules/decisoes.js?v=e40367ec";
+import campanhas from "./modules/campanhas.js?v=e40367ec";
+import anuncios from "./modules/anuncios.js?v=e40367ec";
+import criativos from "./modules/criativos.js?v=e40367ec";
+import produtos from "./modules/produtos.js?v=e40367ec";
+import publicos from "./modules/publicos.js?v=e40367ec";
+import leads from "./modules/leads.js?v=e40367ec";
+import vendas from "./modules/vendas.js?v=e40367ec";
+import clientes from "./modules/clientes.js?v=e40367ec";
+import financeiro from "./modules/financeiro.js?v=e40367ec";
+import testes from "./modules/testes.js?v=e40367ec";
+import planejamento from "./modules/planejamento.js?v=e40367ec";
+import tarefas from "./modules/tarefas.js?v=e40367ec";
+import calendario from "./modules/calendario.js?v=e40367ec";
+import briefings from "./modules/briefings.js?v=e40367ec";
+import ideias from "./modules/ideias.js?v=e40367ec";
+import relatorios from "./modules/relatorios.js?v=e40367ec";
+import calculadoras from "./modules/calculadoras.js?v=e40367ec";
+import concorrentes from "./modules/concorrentes.js?v=e40367ec";
+import config from "./modules/config.js?v=e40367ec";
 
 export const MODULOS = [dashboard, hoje_, inbox, decisoes, campanhas, anuncios, criativos, produtos, publicos, leads, vendas, clientes, financeiro, testes, planejamento, tarefas, calendario, briefings, ideias, relatorios, calculadoras, concorrentes, config];
 const SECOES = [
@@ -49,7 +49,18 @@ export const estado = { periodo: { tipo: "30d", inicio: "", fim: "" }, rota: { m
 try { const p = JSON.parse(localStorage.getItem("crm-trafego-periodo") || "null"); if (p && p.tipo) estado.periodo = p; } catch {}
 
 const $ = (id) => document.getElementById(id);
-const ctx = () => ({ iv: intervalo(estado.periodo), periodo: estado.periodo, rota: estado.rota, navegar, rerender: render, usuario: usuario() });
+// Data do registro mais antigo, para o período "Todo o histórico". Fica em cache porque
+// varre todas as métricas; qualquer mudança no banco limpa o cache.
+let primeiroDiaCache = null;
+function primeiroDiaComDados() {
+  if (primeiroDiaCache !== null) return primeiroDiaCache || null;
+  let min = "";
+  for (const m of db.all("campaign_metrics")) if (m.date && (!min || m.date < min)) min = m.date.slice(0, 10);
+  for (const v of db.all("sales")) if (v.date && (!min || v.date < min)) min = v.date.slice(0, 10);
+  primeiroDiaCache = min;
+  return min || null;
+}
+const ctx = () => ({ iv: intervalo(estado.periodo, primeiroDiaComDados()), periodo: estado.periodo, rota: estado.rota, navegar, rerender: render, usuario: usuario() });
 
 // ---------------------------------------------------------------- roteador
 function lerHash() {
@@ -105,7 +116,7 @@ function gravarPeriodo() { try { localStorage.setItem("crm-trafego-periodo", JSO
 // ---------------------------------------------------------------- notificações
 let cacheAlertas = [];
 function atualizarNotificacoes() {
-  try { cacheAlertas = alertas(intervalo(estado.periodo)); } catch (e) { console.error(e); cacheAlertas = []; }
+  try { cacheAlertas = alertas(intervalo(estado.periodo, primeiroDiaComDados())); } catch (e) { console.error(e); cacheAlertas = []; }
   const n = cacheAlertas.filter((a) => a.prioridade === "urgente" || a.prioridade === "alta").length;
   const c = $("notifCont"); c.textContent = n; c.style.display = n ? "" : "none";
   $("painelNotif").innerHTML = `<div class="cab"><span>Alertas automáticos (${cacheAlertas.length})</span><a href="#/decisoes" class="link">Central de decisões</a></div>` + (cacheAlertas.length ? cacheAlertas.slice(0, 40).map((a) => `<div class="notif"><div class="txt"><a href="${esc(a.link || "#/decisoes")}" style="color:inherit">${prioridadeBadge(a.prioridade)} ${esc(a.texto)}</a><small>${esc(a.categoria)}</small></div><button title="Descartar" data-descartar="${esc(a.key)}">✕</button></div>`).join("") : `<div class="vazio">Nenhum alerta agora.</div>`);
@@ -143,6 +154,9 @@ document.addEventListener("click", (ev) => {
   if (t.closest("#btnTema")) { const atual = document.documentElement.getAttribute("data-theme") === "light" ? "" : "light"; if (atual) document.documentElement.setAttribute("data-theme", atual); else document.documentElement.removeAttribute("data-theme"); try { localStorage.setItem("crm-trafego-tema", atual); } catch {} return; }
   if (!t.closest(".busca")) $("buscaRes").classList.remove("aberta");
   const chipP = t.closest("[data-periodo]"); if (chipP) { estado.periodo = { ...estado.periodo, tipo: chipP.dataset.periodo }; gravarPeriodo(); montarPeriodo(); render(); return; }
+  // "Analisar o período em que rodou": joga o filtro global para a janela de entrega daquele anúncio.
+  const janela = t.closest("[data-ir-periodo]");
+  if (janela) { estado.periodo = { tipo: "custom", inicio: janela.dataset.inicio, fim: janela.dataset.fim }; gravarPeriodo(); montarPeriodo(); render(); window.scrollTo({ top: 0 }); return; }
 });
 document.addEventListener("change", (ev) => {
   const t = ev.target;
@@ -168,7 +182,7 @@ async function iniciar() {
   carregarUsuario(); nuvemLer(); iniciarAutomacoes(); W.carregarCfg(); MetaApi.carregarCfg();
   montarMenu(); montarPeriodo(); render(); atualizarNotificacoes();
   let timerMudou = null;
-  db.onChange(({ tabela }) => { if (tabela !== "alerts" && tabela !== "settings") agendarEnvio(); clearTimeout(timerMudou); timerMudou = setTimeout(() => { montarMenu(); atualizarNotificacoes(); }, 300); });
+  db.onChange(({ tabela }) => { if (tabela === "campaign_metrics" || tabela === "sales" || tabela === "*") primeiroDiaCache = null; if (tabela !== "alerts" && tabela !== "settings") agendarEnvio(); clearTimeout(timerMudou); timerMudou = setTimeout(() => { montarMenu(); atualizarNotificacoes(); }, 300); });
   onNuvem(() => { const el = document.querySelector("[data-nuvem-status]"); if (el) el.textContent = ""; });
   if (W.configurado()) { W.onMensagens(() => { montarMenu(); }); W.verificarConexao().catch(() => {}); W.iniciarPolling(); }
   // Confere a chave da Meta em segundo plano: os botões de pausar/subir campanha só

@@ -377,3 +377,12 @@ a.msg-midia { color:inherit; text-decoration:underline; }
 .an-diag-linha p { overflow-wrap:anywhere; } .an-diag-acao p { font-weight:600; }
 .an-diag-pe { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:.78rem; }
 @media (max-width:520px){ .an-diags { grid-template-columns:1fr; } .an-passo i { display:none; } }
+/* anúncios sem entrega no período escolhido */
+.an-fora { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:8px 0; border-bottom:1px solid var(--borda); }
+.an-fora:last-child { border-bottom:0; }
+.an-fora img { width:38px; height:38px; object-fit:cover; border-radius:8px; background:var(--card2); }
+.an-fora-ico { width:38px; height:38px; display:inline-flex; align-items:center; justify-content:center; background:var(--card2); border-radius:8px; }
+.an-fora-txt { min-width:0; } .an-fora-txt b { overflow-wrap:anywhere; }
+@media (max-width:560px){ .an-fora { grid-template-columns:auto 1fr; } .an-fora button { grid-column:2; justify-self:start; } }
+.an-diag-tags { display:flex; gap:4px; flex-wrap:wrap; margin-top:4px; }
+.an-diag-acoes { display:flex; gap:6px; flex-wrap:wrap; border-top:1px dashed var(--borda); padding-top:8px; }

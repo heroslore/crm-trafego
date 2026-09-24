@@ -1,10 +1,10 @@
 // Interface da Análise Inteligente. Só desenha: todo o julgamento já veio pronto do motor.
 // A ordem das seções é a do briefing: primeiro o que decide, depois o que explica, por último o detalhe.
-import { cartao, badge, vazio, funil as funilUi, barrasH, tabela, prioridadeBadge } from "../ui.js?v=f9372346";
-import { esc, brl, pct, dec, inteiro, dataCurta } from "../format.js?v=f9372346";
-import { valorTexto, NIVEIS } from "./regras.js?v=f9372346";
-import { MENOR_MELHOR as MENOR_EM_LISTA } from "./benchmarks.js?v=f9372346";
-import { analisar } from "./index.js?v=f9372346";
+import { cartao, badge, vazio, funil as funilUi, barrasH, tabela, prioridadeBadge } from "../ui.js?v=e40367ec";
+import { esc, brl, pct, dec, inteiro, dataCurta, dataBR } from "../format.js?v=e40367ec";
+import { valorTexto, NIVEIS } from "./regras.js?v=e40367ec";
+import { MENOR_MELHOR as MENOR_EM_LISTA } from "./benchmarks.js?v=e40367ec";
+import { analisar } from "./index.js?v=e40367ec";
 
 // Ponto de entrada usado pelas telas. Se algo falhar no motor, a tela continua de pé:
 // a análise é um complemento, não pode derrubar a página da campanha.
@@ -187,7 +187,7 @@ function etapasMini(a) {
   }).join("")}</div>`;
 }
 
-export function cartaoDiagnostico(a, { href, imagem = "", subtitulo = "" } = {}) {
+export function cartaoDiagnostico(a, { href, imagem = "", subtitulo = "", etiquetas = "", acoes = "" } = {}) {
   const s = a.score, g = a.gargalos[0], r = a.resumo;
   const numeros = [
     ["Gasto", brl(a.k.spend)],
@@ -203,6 +203,7 @@ export function cartaoDiagnostico(a, { href, imagem = "", subtitulo = "" } = {})
       <div class="an-diag-tit">
         <a href="${esc(href)}"><b>${esc(a.registro.name || "(sem nome)")}</b></a>
         ${subtitulo ? `<div class="sub">${subtitulo}</div>` : ""}
+        ${etiquetas ? `<div class="an-diag-tags">${etiquetas}</div>` : ""}
       </div>
       <div class="an-diag-nota an-score-${s.cor}">
         <span>${s.score != null ? s.score : "—"}</span>
@@ -214,6 +215,7 @@ export function cartaoDiagnostico(a, { href, imagem = "", subtitulo = "" } = {})
     <div class="an-diag-linha"><span>Gargalo</span><p>${g ? esc(g.titulo + ": " + g.texto) : esc(r.diagnostico)}</p></div>
     <div class="an-diag-linha an-diag-acao"><span>Fazer</span><p>${esc(r.proxima_acao)}</p></div>
     <div class="an-diag-pe">${confPill(a.conf.nivel)}${a.usarVendas === false ? `<span class="an-conf" title="Nenhuma venda lançada aqui: faturamento, CPA e ROAS estão fora da nota">sem vendas lançadas</span>` : a.vendasParciais ? `<span class="an-conf" title="Faturamento e ROAS aqui são o mínimo confirmado; taxa de venda e CPA não entram na nota">vendas parciais</span>` : ""}<a class="link" href="${esc(href)}">ver análise completa →</a></div>
+    ${acoes ? `<div class="an-diag-acoes">${acoes}</div>` : ""}
   </div>`;
 }
 
@@ -250,6 +252,29 @@ export function comparativoEtapas(analises, montarLink) {
   if (!linhas) return "";
   return `<div class="tabela-wrap"><table class="tabela"><thead><tr><th>Etapa</th><th>Melhor</th><th>Pior</th></tr></thead><tbody>${linhas}</tbody></table></div>
     <p class="sub">Comparação dentro do período e do filtro atuais. Etapa sem dado suficiente em pelo menos dois anúncios não aparece.</p>`;
+}
+
+// Anúncios que não rodaram no período escolhido não merecem um cartão inteiro dizendo
+// "0 impressões". Ficam numa lista curta, mostrando QUANDO rodaram e com um botão que
+// joga o período da tela para aquela janela.
+export function listaSemEntrega(itens, titulo = "Sem entrega no período") {
+  if (!itens.length) return "";
+  const comHistorico = itens.filter((x) => x.janela).sort((a, b) => b.janela.fim.localeCompare(a.janela.fim));
+  const nunca = itens.filter((x) => !x.janela);
+  const linha = (x) => `<div class="an-fora">
+      ${x.imagem ? `<img src="${esc(x.imagem)}" alt="" loading="lazy" onerror="this.remove()">` : `<span class="an-fora-ico">🎬</span>`}
+      <div class="an-fora-txt">
+        <a href="${esc(x.href)}"><b>${esc(x.registro.name || "(sem nome)")}</b></a>
+        ${x.janela
+          ? `<div class="sub">rodou de ${dataBR(x.janela.inicio)} a ${dataBR(x.janela.fim)} · ${inteiro(x.janela.dias)} dia(s) · ${brl(x.janela.gasto)} · ${inteiro(x.janela.impressoes)} impressões</div>`
+          : `<div class="sub">nunca teve entrega registrada</div>`}
+      </div>
+      ${x.janela ? `<button class="btn btn-pq" data-ir-periodo data-inicio="${esc(x.janela.inicio)}" data-fim="${esc(x.janela.fim)}">📅 Analisar esse período</button>` : ""}
+    </div>`;
+  return cartao(`${esc(titulo)} <small>${itens.length}</small>`,
+    `<p class="sub" style="margin-bottom:10px">Estes não tiveram entrega no período selecionado, então não há o que analisar aqui — não é que tenham ido mal. Use o botão para levar a tela até a janela em que cada um rodou, ou troque o período no topo para <b>Todo o histórico</b>.</p>
+     ${comHistorico.map(linha).join("")}
+     ${nunca.length ? `<details style="margin-top:8px"><summary class="sub">${nunca.length} sem nenhuma entrega registrada</summary>${nunca.map(linha).join("")}</details>` : ""}`);
 }
 
 // ---------------------------------------------------------------- níveis abaixo e recortes
