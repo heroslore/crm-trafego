@@ -2,8 +2,8 @@ import { db } from "../core/db.js";
 import { kpis, serieDiaria } from "../core/metrics.js";
 import { cartao, tabela, badge, badgeOpcao, chips, abas, abrirFormulario, vazio, graficoLinhas, itemLista } from "../core/ui.js";
 import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js";
-import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem } from "../core/analise/ui.js";
-import { analisarVarios } from "../core/analise/index.js";
+import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem, listaSemEntrega } from "../core/analise/ui.js";
+import { analisarVarios, janelaDeEntrega } from "../core/analise/index.js";
 import * as AcoesMeta from "../core/acoes-meta.js";
 import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js";
 import { rotulo as rotuloOpcao } from "../core/schema.js";
@@ -19,6 +19,7 @@ function lista(root, ctx) {
     ${chips([["ativa", "Ativos"], ["pausada", "Pausados"], ["todas", "Todos"]], filtro, "data-f")}<div style="height:10px"></div>
     ${visao === "diagnostico" ? diagnosticoHtml(lin, ctx) : cartao("", tabela("anuncios", { colunas: [
       { key: "name", label: "Anúncio", render: (a) => `${a.cr && a.cr.thumbnail ? `<img class="mini" src="${esc(a.cr.thumbnail)}" alt="">` : ""}<a href="#/anuncios/${a.id}">${esc(a.name)}</a><br><small>${a.camp ? esc(a.camp.name) : "—"}${a.cr ? " · " + esc(rotuloOpcao("creative_type", a.cr.type)) : ""}</small>` },
+      { key: "objetivo", label: "Objetivo", valor: (a) => a.camp ? rotuloOpcao("objective", a.camp.objective) : "", render: (a) => badgeObjetivo(a.camp) || "<small>—</small>" },
       { key: "status", label: "Status", render: (a) => badgeOpcao("campaign_status", a.status) + (a.k.spend >= 50 && !a.k.sales && !a.k.leads_base ? " " + badge("pausar?", "vermelho") : "") },
       { key: "spend", label: "Gasto", tipo: "num", valor: (a) => a.k.spend, fmt: brl }, { key: "impressions", label: "Impressões", tipo: "num", valor: (a) => a.k.impressions, fmt: inteiro }, { key: "ctr", label: "CTR", tipo: "num", valor: (a) => a.k.ctr, fmt: (v) => pct(v) }, { key: "cpc", label: "CPC", tipo: "num", valor: (a) => a.k.cpc, fmt: brl },
       { key: "leads", label: "Leads", tipo: "num", valor: (a) => a.k.leads_base, fmt: inteiro }, { key: "cpl", label: "CPL", tipo: "num", valor: (a) => a.k.cpl, fmt: brl }, { key: "sales", label: "Vendas", tipo: "num", valor: (a) => a.k.sales, fmt: inteiro }, { key: "cpa", label: "CPA", tipo: "num", valor: (a) => a.k.cpa, fmt: brl }, { key: "revenue", label: "Faturamento", tipo: "num", valor: (a) => a.k.revenue, fmt: brl }, { key: "roas", label: "ROAS", tipo: "num", valor: (a) => a.k.roas, fmt: mult },
@@ -32,27 +33,47 @@ function lista(root, ctx) {
 }
 // Analisa todos os anúncios do filtro de uma vez (a base de comparação é montada uma só vez)
 // e mostra, por anúncio, a nota, a trilha do funil, o gargalo e a próxima ação.
+const CORES_OBJETIVO = { vendas: "verde", leads: "ciano", whatsapp: "ciano", remarketing: "roxo", trafego: "azul", engajamento: "amarelo", reconhecimento: "laranja" };
+export function badgeObjetivo(camp) {
+  if (!camp || !camp.objective) return "";
+  return badge(rotuloOpcao("objective", camp.objective), CORES_OBJETIVO[camp.objective] || "cinza");
+}
+
 function diagnosticoHtml(lin, ctx) {
-  const analises = analisarVarios({ nivel: "anuncio", registros: lin, iv: ctx.iv });
+  // Quem não teve entrega no período não entra na análise: viraria um cartão inteiro
+  // dizendo "0 impressões". Vai para a lista de fora, com a janela em que rodou.
+  const comEntrega = lin.filter((a) => a.k.spend > 0 || a.k.impressions > 0);
+  const fora = lin.filter((a) => !(a.k.spend > 0 || a.k.impressions > 0)).map((a) => ({
+    registro: a, janela: janelaDeEntrega("anuncio", a.id), href: `#/anuncios/${a.id}`,
+    imagem: a.cr && a.cr.thumbnail ? a.cr.thumbnail : "",
+  }));
+  const analises = analisarVarios({ nivel: "anuncio", registros: comEntrega, iv: ctx.iv });
   const link = (an) => {
     const cr = an.contexto.criativo, camp = an.contexto.campanha;
     return {
       href: `#/anuncios/${an.registro.id}`,
       imagem: cr && cr.thumbnail ? cr.thumbnail : "",
       subtitulo: [camp ? esc(camp.name) : "", cr ? esc(rotuloOpcao("creative_type", cr.type)) : ""].filter(Boolean).join(" · "),
+      // O objetivo diz contra qual régua o anúncio está sendo julgado: sem ele, comparar
+      // um de reconhecimento com um de mensagens não faz sentido.
+      etiquetas: badgeObjetivo(camp) + badgeOpcao("campaign_status", an.registro.status),
+      acoes: AcoesMeta.botaoStatus("anuncio", an.registro),
     };
   };
   const comparativo = comparativoEtapas(analises, link);
-  return `${comparativo ? cartao("Quem ganha em cada etapa", comparativo) : ""}
-    <div class="filtros-linha">${chipsOrdem(ordem)}</div>
-    ${listaDiagnostico(ordenarAnalises(analises, ordem), link, { vazioTxt: "Nenhum anúncio com entrega no período. Troque o período no topo ou o filtro de status." })}`;
+  return `${AcoesMeta.dicaLista(lin)}
+    ${comparativo ? cartao("Quem ganha em cada etapa", comparativo) : ""}
+    ${analises.length ? `<div class="filtros-linha">${chipsOrdem(ordem)}</div>` : ""}
+    ${listaDiagnostico(ordenarAnalises(analises, ordem), link, { vazioTxt: "Nenhum anúncio teve entrega no período selecionado. Troque o período no topo — “Todo o histórico” mostra tudo desde o começo da conta." })}
+    ${listaSemEntrega(fora, "Anúncios sem entrega neste período")}`;
 }
 
 function detalhe(root, ctx, a) {
   const iv = ctx.iv, k = kpis(iv, { ad_id: a.id }), cr = db.get("creatives", a.creative_id), camp = db.get("campaigns", a.campaign_id), set = db.get("ad_sets", a.ad_set_id);
   const serie = serieDiaria(iv, { ad_id: a.id });
   const leads = db.where("leads", (l) => l.ad_id === a.id), vendas = db.where("sales", (s) => s.ad_id === a.id);
-  root.innerHTML = `<div class="pagina-cab"><div><a href="#/anuncios" class="link">← Anúncios</a><h1>${esc(a.name)} ${badgeOpcao("campaign_status", a.status)}</h1><p class="sub">${camp ? `campanha <a href="#/campanhas/${camp.id}">${esc(camp.name)}</a>` : ""}${set ? ` · conjunto ${esc(set.name)}` : ""}${cr ? ` · criativo <a href="#/criativos/${cr.id}">${esc(cr.name)}</a>` : ""}</p></div><div class="pagina-acoes">${AcoesMeta.botaoStatus("anuncio", a)}${podeEditar() ? `<button class="btn btn-primario" data-editar>✏️ Editar</button>` : ""}</div></div>
+  root.innerHTML = `<div class="pagina-cab"><div><a href="#/anuncios" class="link">← Anúncios</a><h1>${esc(a.name)} ${badgeOpcao("campaign_status", a.status)}</h1><p class="sub">${badgeObjetivo(camp)} ${camp ? `campanha <a href="#/campanhas/${camp.id}">${esc(camp.name)}</a>` : ""}${set ? ` · conjunto ${esc(set.name)}` : ""}${cr ? ` · criativo <a href="#/criativos/${cr.id}">${esc(cr.name)}</a>` : ""}</p></div><div class="pagina-acoes">${AcoesMeta.botaoStatus("anuncio", a)}${podeEditar() ? `<button class="btn btn-primario" data-editar>✏️ Editar</button>` : ""}</div></div>
+    ${AcoesMeta.dicaDesligada(a)}
     ${blocoAnalise("anuncio", a, iv)}
     <div class="grid2">${cartao("Criativo", cr ? `<div style="display:flex;gap:12px;align-items:flex-start">${cr.thumbnail ? `<img src="${esc(cr.thumbnail)}" style="width:120px;height:120px;object-fit:cover;border-radius:10px">` : ""}<div><b>${esc(cr.name)}</b> ${badge(rotuloOpcao("creative_type", cr.type), "roxo")}<p class="sub">${esc(cr.copy || "")}</p>${cr.cta ? `<small>CTA: ${esc(cr.cta)}</small>` : ""}${cr.link ? `<br><a href="${esc(cr.link)}" target="_blank" rel="noopener">abrir</a>` : ""}</div></div>` : vazio("Sem criativo ligado."))}
     ${cartao("Atribuição", `<div class="kpis" style="grid-template-columns:1fr 1fr">${[["Leads (CRM)", inteiro(leads.length)], ["Vendas (CRM)", inteiro(vendas.length)], ["Faturamento", brl(vendas.reduce((s, v) => s + Number(v.value || 0), 0))], ["Resultados na plataforma", inteiro(k.results)]].map(([r, v]) => `<div class="kpi"><div class="kpi-rotulo">${r}</div><div class="kpi-valor">${v}</div></div>`).join("")}</div>`)}</div>

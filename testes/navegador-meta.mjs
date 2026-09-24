@@ -124,6 +124,32 @@ await p.locator("#modal").screenshot({ path: `${SAIDA}/meta-duplicou.png` });
 await p.locator("#modal [data-fechar-modal]").first().click();
 await p.waitForTimeout(400);
 
+console.log("\n[5b] Encerrar (arquivar na Meta)");
+await p.goto(BASE + "#/campanhas/camp-erro", { waitUntil: "networkidle" });
+await p.waitForTimeout(1300);
+await p.locator('[data-meta-acao="encerrar"]').first().click();
+await p.waitForTimeout(400);
+const txtEnc = await p.locator("#modal").innerText();
+ok(/Nada é apagado/.test(txtEnc), "confirmação deixa claro que não apaga nada");
+ok(/use <b>Pausar<\/b>|use Pausar/i.test(txtEnc), "oferece pausar como alternativa reversível");
+await p.locator("#modal [data-fechar-modal]").first().click();
+await p.waitForTimeout(300);
+// agora de verdade, numa campanha que a Meta aceita
+await p.goto(BASE + "#/campanhas/camp-meta", { waitUntil: "networkidle" });
+await p.waitForTimeout(1300);
+await p.locator('[data-meta-acao="encerrar"]').first().click();
+await p.waitForTimeout(400);
+await p.locator("#modal [data-ok]").click();
+await p.waitForTimeout(900);
+cs = await chamadas();
+ok(cs.some((c) => c.dados.status === "ARCHIVED"), "enviou status=ARCHIVED");
+const fim = await p.evaluate(() => {
+  const d = JSON.parse(localStorage.getItem("crm-trafego-db"));
+  return { status: d.tabelas.campaigns.find((c) => c.id === "camp-meta").status, dec: d.tabelas.campaign_decisions.filter((x) => x.campaign_id === "camp-meta").map((x) => x.type) };
+});
+ok(fim.status === "finalizada", "CRM marcou como finalizada");
+ok(fim.dec.includes("encerramento"), "registrou o encerramento no histórico");
+
 console.log("\n[6] Subir campanha do zero (impulsionar publicação)");
 await p.goto(BASE + "#/campanhas", { waitUntil: "networkidle" });
 await p.waitForTimeout(1200);
@@ -155,6 +181,14 @@ ok(!!criada && criada.status === "pausada" && criada.source === "meta", "campanh
 await p.locator("#modal").screenshot({ path: `${SAIDA}/meta-criou.png` });
 await p.locator("#modal [data-fechar-modal]").first().click();
 
+await p.evaluate(() => {
+  const d = JSON.parse(localStorage.getItem("crm-trafego-db"));
+  d.tabelas.campaigns.find((c) => c.id === "camp-meta").status = "ativa";
+  localStorage.setItem("crm-trafego-db", JSON.stringify(d));
+});
+await p.reload({ waitUntil: "networkidle" });
+await p.waitForTimeout(1200);
+
 console.log("\n[7] Erro da Meta é mostrado sem quebrar nada");
 esperandoErro = true;
 await p.goto(BASE + "#/campanhas/camp-erro", { waitUntil: "networkidle" });
@@ -180,7 +214,8 @@ await p.reload({ waitUntil: "networkidle" });
 await p.goto(BASE + "#/campanhas/camp-meta", { waitUntil: "networkidle" });
 await p.waitForTimeout(1300);
 ok(await p.locator('[data-meta-acao]').count() === 0, "nenhum botão de comando na tela");
-ok(/ligue o controle/i.test(await p.locator("main").innerText()), "explica como religar");
+const explicacao = await p.locator("main").innerText();
+ok(/está desligado/i.test(explicacao) && /Ligar agora/i.test(explicacao), "explica o motivo exato e oferece o caminho para religar");
 
 console.log("\n[9] Celular");
 await p.evaluate(() => { const c = JSON.parse(localStorage.getItem("crm-trafego-meta-chave")); c.ligado = true; localStorage.setItem("crm-trafego-meta-chave", JSON.stringify(c)); });
