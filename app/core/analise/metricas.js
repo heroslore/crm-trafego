@@ -168,12 +168,13 @@ export function montarFunil(b = {}, v = {}) {
   const rotCliques = temValor(b.outbound_clicks) ? "Cliques de saída" : temValor(b.link_clicks) ? "Cliques no link" : "Cliques";
   const contatos = numeroOuNulo(b.leads) ?? numeroOuNulo(b.conversations) ?? numeroOuNulo(b.results);
   const rotContatos = temValor(b.leads) ? "Leads no CRM" : temValor(b.conversations) ? "Conversas iniciadas" : "Resultados da plataforma";
+  // ATENÇÃO: assistir vídeo e clicar são eixos PARALELOS, não etapas em sequência.
+  // Ninguém precisa chegar ao ThruPlay para clicar — dá para clicar no segundo 2. Misturar os
+  // dois num funil só inventa quedas que não existem ("94% se perdem entre ThruPlay e clique").
+  // Por isso a retenção do vídeo vive em etapasVideo(), e aqui fica só o caminho até a venda.
   const bruta = [
     { chave: "impressao", rotulo: "Impressões", n: contagemOuNulo(b.impressions) },
     { chave: "alcance", rotulo: "Pessoas alcançadas", n: contagemOuNulo(b.reach) },
-    { chave: "atencao", rotulo: "Passaram de 3 segundos", n: contagemOuNulo(v.v3s) },
-    { chave: "retencao", rotulo: "Chegaram à metade do vídeo", n: contagemOuNulo(v.p50) },
-    { chave: "interesse", rotulo: "ThruPlay", n: contagemOuNulo(v.thruplay) },
     { chave: "clique", rotulo: rotCliques, n: cliques },
     { chave: "pagina", rotulo: "Visitas à página", n: contagemOuNulo(b.landing_page_views) },
     { chave: "contato", rotulo: rotContatos, n: contatos },
@@ -195,9 +196,12 @@ export function montarFunil(b = {}, v = {}) {
   return etapas;
 }
 
-// A maior queda do funil, ignorando o primeiro degrau (impressão → alcance é entrega, não desempenho).
+// Maior queda em número absoluto. Serve para anotar o desenho do funil, NUNCA para dizer
+// onde está o gargalo: a passagem de quem viu para quem clicou sempre perde ~99% em qualquer
+// anúncio do mundo, então ela venceria essa conta sempre. Quem aponta o gargalo é a comparação
+// com a base de referência, em regras.js.
 export function maiorQuedaFunil(etapas) {
-  const cand = etapas.filter((e) => e.disponivel && e.taxa != null && !["alcance"].includes(e.chave));
+  const cand = etapas.filter((e) => e.disponivel && e.taxa != null && !["alcance", "clique"].includes(e.chave));
   if (!cand.length) return null;
   let pior = cand[0];
   for (const e of cand) if (e.taxa < pior.taxa) pior = e;

@@ -5,6 +5,8 @@
 // O nível usado aparece no texto, para o usuário saber contra o que está sendo comparado.
 import { numeroOuNulo, temValor } from "./metricas.js";
 
+// O quanto é preciso estar fora do pacote da conta para a leitura virar "ruim".
+export const FOLGA_RUIM = 1.25;
 export const MENOR_MELHOR = new Set(["cpc", "cpm", "cpl", "cpa", "custo_conversa", "custo_thruplay", "custo_3s", "frequencia"]);
 
 // Referência padrão: ponto de partida quando a conta ainda não tem histórico.
@@ -49,10 +51,15 @@ export function construirBenchmark(chave, amostras = {}, padrao = REFERENCIA_PAD
     // Distribuição só serve de régua quando ela separa alguém de alguém. Se todo mundo tem o
     // mesmo valor (ou todo mundo tem zero), "acima da mediana" não quer dizer nada — e zero
     // acabaria classificado como bom. Nesse caso cai para o próximo nível.
-    if (d && d.n >= minimo && d.p75 > d.p25 && d.mediana > 0) {
+    if (d && d.n >= minimo && d.mediana > 0 && d.p75 > d.p25) {
       return {
         chave, fonte, rotuloFonte: FONTES[fonte], n: d.n, menor_melhor: menor,
-        alvo: d.mediana, bom: menor ? d.p25 : d.p75, ruim: menor ? d.p75 : d.p25, distribuicao: d,
+        alvo: d.mediana, bom: menor ? d.p25 : d.p75,
+        // "Ruim" precisa de folga em relação ao quartil de baixo. Sem ela, ficar um fio
+        // acima do pior quartil da conta viraria RUIM: numa conta onde a frequência dos
+        // anúncios vai de 1,2 a 1,35, uma frequência de 1,38 seria carimbada de ruim — e
+        // 1,38 não é problema nenhum. Fora do pacote por pouco é MÉDIO; ruim é ficar longe.
+        ruim: menor ? d.p75 * FOLGA_RUIM : d.p25 / FOLGA_RUIM, distribuicao: d,
         texto: `mediana de ${d.n} ${fonte === "conta" ? "campanhas da conta" : "campanhas parecidas"}`,
       };
     }
