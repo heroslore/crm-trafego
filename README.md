@@ -14,6 +14,7 @@ relatórios, concorrentes e configurações. Funciona em computador e celular, i
 | **Hoje** | responde rápido: gastei, vendi, lucrei, leads, vendas, melhor/pior campanha, produto mais vendido, campanha gastando sem vender, lead parado, tarefa urgente |
 | **Dashboard** | investimento, faturamento, lucro bruto e após anúncios, ROAS, ROI, leads, **leads qualificados**, vendas, conversão, CPL, **CPL qualificado**, CPA, ticket, CTR, CPC, CPM, com variação vs período anterior e avaliação pelas metas; **o que aconteceu depois que o lead chegou**; **atendimento** (tempo médio, faixas de 5 min / 15 min / 1 h, nunca atendidos, fila de espera); **ritmo do orçamento** do mês com projeção; gráficos por dia; metas; valor por etapa; parados; agenda |
 | **Central de Decisões** | "O que precisa da minha atenção hoje?" por prioridade (urgente/alta/média/baixa); oportunidades de campanha; alertas automáticos; Analista de Tráfego IA (texto explicativo, nunca decide sozinho) |
+| **Controle das campanhas** | pausar, reativar e mudar orçamento de campanha, conjunto e anúncio direto do CRM; **duplicar** uma campanha que já funciona; **subir campanha nova** impulsionando uma publicação ou com imagem e texto novos. Tudo com confirmação, tudo registrado no histórico de decisões |
 | **Análise Inteligente** | dentro da campanha, do anúncio e do criativo: score 0–100, resumo em 10 segundos, diagnóstico por etapa (atenção, retenção, clique, conversão, público, custo, faturamento, saturação), funil completo com a maior queda, curva de retenção do vídeo, fadiga do criativo, saúde do público e plano de ação dividido em **agora / próximo teste / não alterar**. Toda métrica aparece com a fórmula usada e com a base contra a qual foi comparada |
 | **Campanhas** | plataforma, objetivo, produto, datas, status, orçamentos, gasto, faturamento, leads, vendas, CPL, CPL qualificado, CPA, CTR, CPC, CPM, ROAS, ROI, ticket e decisão; **histórico de decisões** com o efeito de cada mudança (7 dias antes × 7 dias depois); lançamento manual de métricas; conjuntos e anúncios |
 | **Anúncios / Criativos** | biblioteca com tipo, copy, CTA, responsável, link/arquivo, ranking visual e classificação automática (campeão, bom, em teste, saturando, baixo, pausar). **Retenção de vídeo** (3 s, ThruPlay, 25/50/75/95%, custo por ThruPlay) e diagnóstico que separa "gancho fraco" de "prende mas não converte" |
@@ -31,6 +32,33 @@ relatórios, concorrentes e configurações. Funciona em computador e celular, i
 | **Relatórios** | semanal e mensal automáticos (TOP 5, piores, crescimento, comparação com o período anterior), comparador de períodos, rankings, analista |
 | **Calculadoras** | ROAS, ROI, CPA máximo, orçamento necessário, leads necessários, ponto de equilíbrio |
 | **Configurações** | empresas/lojas, usuários e perfis (admin, gestor, marketing, criador, vendedor, visualizador), metas, regras de alerta, **referências e mínimos da Análise Inteligente**, automações, importação CSV/XLSX do Gerenciador de Anúncios, integrações, nuvem e backup |
+
+## Controlar campanhas pelo CRM
+
+O navegador fala direto com a API da Meta (ela responde com CORS liberado), então não há
+servidor no meio. Com a chave certa, dá para **pausar, reativar, mudar orçamento, duplicar e
+subir campanha** sem abrir o Gerenciador de Anúncios.
+
+**O que é preciso.** Uma chave de acesso com a permissão `ads_management` (a coleta diária
+usa só `ads_read`, que lê mas não mexe). Gere em developers.facebook.com → sua aplicação →
+Ferramentas → Explorador da API, marcando `ads_management`, `ads_read`, `pages_show_list` e
+`pages_read_engagement`; depois troque por uma chave de longa duração. Cole em
+**Configurações → Meta (campanhas)**, informe a conta (`act_…`) e ligue o interruptor.
+
+**Onde a chave fica.** Só naquele aparelho, no armazenamento do navegador — nunca no banco,
+no backup ou na nuvem. Quem tem a chave gasta o dinheiro da conta de anúncios, então ela não
+é compartilhada: cada pessoa que precisar controlar campanhas cola a dela no próprio
+aparelho. No celular de quem não tem chave, os botões simplesmente não aparecem.
+
+**As travas.**
+
+- Nenhuma ação acontece sem confirmação na tela, com o efeito escrito por extenso.
+- Campanha nova e cópia **nascem pausadas**, a não ser que você marque o contrário.
+- O interruptor em Configurações desliga tudo de uma vez e volta o CRM a só ler.
+- O CRM **não apaga** campanha: encerrar é decisão para o Gerenciador de Anúncios.
+- Toda ação entra no histórico de decisões da campanha — o mesmo que mede o antes e o depois.
+
+**Se a Meta recusar**, a mensagem dela aparece em português na tela e nada muda no CRM.
 
 ## Como a Análise Inteligente lê os números
 
@@ -116,7 +144,11 @@ coletor/coletar.py    Meta Ads -> dados/meta.json
 python3 -m http.server 8000          # abre http://localhost:8000
 python3 coletor/coletar.py --verificar
 ./testes/rodar.sh                    # sintaxe dos módulos + motor de análise + coletor
+./testes/rodar-navegador.sh          # pausar/duplicar/subir campanha contra uma Meta simulada
 ```
+
+O segundo script sobe um servidor que imita o Graph API (`testes/mock-meta.py`), então dá
+para testar os comandos de campanha sem tocar na conta de anúncios de verdade.
 
 Sem dependências para instalar. O leitor de XLSX é carregado sob demanda de um CDN.
 

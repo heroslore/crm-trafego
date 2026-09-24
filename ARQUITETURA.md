@@ -20,6 +20,8 @@ sem servidor próprio. Funciona em computador e celular, instalável como app.
 │    importer.js CSV / XLSX (Gerenciador de Anúncios)        │
 │    auth.js     usuários, perfis e permissões               │
 │    analise/    motor da Análise Inteligente (7 arquivos)   │
+│    meta.js     comandos na conta de anúncios da Meta       │
+│    acoes-meta.js  confirmação, registro e telas dos comandos│
 └───────────────┬─────────────────────────┬──────────────────┘
                 │ leitura                 │ leitura/gravação
      dados/meta.json (coleta diária)   repositório privado (crm.json)
@@ -37,6 +39,8 @@ sem servidor próprio. Funciona em computador e celular, instalável como app.
 | `core/rules.js` | Classificação automática (produto, criativo), alertas, oportunidades, central de decisões, textos do analista | Só sugere; nunca altera dados sozinho |
 | `core/analise/` | Motor da Análise Inteligente: métricas com fórmula, benchmarks adaptativos, confiança estatística, regras de diagnóstico, score e recomendações | Camadas puras (sem banco) para poder ser testado fora do navegador |
 | `core/ui.js` | Cartão KPI, tabela ordenável, kanban, formulário gerado pelo schema, modal, gráficos SVG, barra de progresso, badges, toast | Componentes puros: recebem dados, devolvem HTML/handlers |
+| `core/meta.js` | Escrita na API da Meta: pausar, reativar, orçamento, duplicar, criar campanha/conjunto/criativo/anúncio, enviar imagem | A chave mora só no aparelho; o endereço da API só muda em teste |
+| `core/acoes-meta.js` | Confirmação de cada comando, atualização do CRM depois do sucesso, registro no histórico de decisões e o assistente de campanha nova | Nenhum comando sai sem a pessoa confirmar |
 | `core/wame.js` | Cliente da API da api-wa.me: conversas, envio, polling, criação automática de lead e atribuição da conversa à campanha pelo contexto do anúncio | Chamado direto do navegador (a API responde com CORS aberto); a chave nunca entra no banco |
 | `modules/*.js` | Cada tela exporta `{ id, titulo, icone, render(ctx) }` | Sem lógica de cálculo; usa metrics/rules/ui |
 
@@ -132,3 +136,31 @@ Três decisões que valem para o motor inteiro:
 Testes em `testes/analise.test.mjs` (`node --test`) cobrem os cenários que o motor precisa
 acertar: retenção boa com CTR baixo, CTR bom com conversão baixa, fadiga, amostra pequena,
 CPM alto com ROAS excelente, e a regra de que métrica ausente nunca vira zero.
+
+
+## Comandos na conta de anúncios
+
+O CRM escreve na Meta direto do navegador. O caminho é curto de propósito:
+
+```
+ tela (campanha/anúncio) → acoes-meta.js (confirma) → meta.js (fala com a Meta)
+        ↓ deu certo
+ db.update(...) + campaign_decisions (histórico que mede antes × depois)
+```
+
+Três travas presas no código, não só na interface:
+
+1. `podeEscrever()` exige as três coisas juntas — chave no aparelho, permissão
+   `ads_management` confirmada pela própria Meta e o interruptor ligado em Configurações.
+   Sem isso os botões nem são desenhados.
+2. Campanha nova e cópia nascem com `status: PAUSED`. Subir ativa é uma caixa que a pessoa
+   marca, nunca o padrão.
+3. Não existe função de apagar. O CRM pausa, ajusta e cria; encerrar é decisão para o
+   Gerenciador de Anúncios.
+
+A chave de acesso fica em `localStorage`, numa chave própria (`crm-trafego-meta-chave`), e
+nunca entra em `db.exportar()` nem na sincronização em nuvem.
+
+`testes/mock-meta.py` imita o Graph API e `testes/navegador-meta.mjs` roda o fluxo inteiro
+contra ele — pausar, reativar, orçamento, duplicar, criar, erro da Meta e o caso do controle
+desligado — sem encostar na conta real.

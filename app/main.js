@@ -7,6 +7,7 @@ import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarE
 import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js";
 import { alertas } from "./core/rules.js";
 import * as W from "./core/wame.js";
+import * as MetaApi from "./core/meta.js";
 import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js";
 import { rotulo as rotuloOpcao } from "./core/schema.js";
 
@@ -164,17 +165,20 @@ document.addEventListener("drop", (ev) => { const col = ev.target.closest && ev.
 async function iniciar() {
   db.carregar(); garantirBase();
   if (!db.settings().demo_inserido && !db.settings().demo_removido && !db.count("products") && !db.count("leads") && !db.count("sales")) inserirDemonstracao();
-  carregarUsuario(); nuvemLer(); iniciarAutomacoes(); W.carregarCfg();
+  carregarUsuario(); nuvemLer(); iniciarAutomacoes(); W.carregarCfg(); MetaApi.carregarCfg();
   montarMenu(); montarPeriodo(); render(); atualizarNotificacoes();
   let timerMudou = null;
   db.onChange(({ tabela }) => { if (tabela !== "alerts" && tabela !== "settings") agendarEnvio(); clearTimeout(timerMudou); timerMudou = setTimeout(() => { montarMenu(); atualizarNotificacoes(); }, 300); });
   onNuvem(() => { const el = document.querySelector("[data-nuvem-status]"); if (el) el.textContent = ""; });
   if (W.configurado()) { W.onMensagens(() => { montarMenu(); }); W.verificarConexao().catch(() => {}); W.iniciarPolling(); }
+  // Confere a chave da Meta em segundo plano: os botões de pausar/subir campanha só
+  // aparecem depois que a permissão de gestão for confirmada.
+  if (MetaApi.configurado()) MetaApi.verificar().then(() => render()).catch(() => {});
   const r = await carregarMeta();
   if (r.ok && r.novo) { toast("Dados da Meta atualizados."); verificarSemResposta(); render(); atualizarNotificacoes(); }
   if (nuvemLigada()) { await sincronizar("abrir"); iniciarPoll(); render(); }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { carregarMeta().then((x) => { if (x.novo) render(); }); if (nuvemLigada()) sincronizar("voltar"); } });
   window.addEventListener("online", () => { if (nuvemLigada()) sincronizar("online"); });
-  window.CRM = { db, estado, render, wame: W };
+  window.CRM = { db, estado, render, wame: W, meta: MetaApi };
 }
 iniciar();
