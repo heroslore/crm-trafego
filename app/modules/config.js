@@ -1,11 +1,13 @@
-import { db, inserirDemonstracao } from "../core/db.js?v=72aad7ae";
-import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, abas, toast, modal, fecharModal, kpi } from "../core/ui.js?v=72aad7ae";
-import { esc, dataBR, horaCurta, brl, inteiro } from "../core/format.js?v=72aad7ae";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=72aad7ae";
-import { PERMISSOES, ehAdmin, podeEditar, usuario } from "../core/auth.js?v=72aad7ae";
-import { nuvem, nuvemLigada, conectar, desconectar, sincronizar, carregarMeta, META } from "../core/sync.js?v=72aad7ae";
-import { lerCSV, lerXLSX, mapearColunas, importar, CAMPOS_IMPORT } from "../core/importer.js?v=72aad7ae";
-import * as W from "../core/wame.js?v=72aad7ae";
+import { db, inserirDemonstracao } from "../core/db.js?v=0f43faaa";
+import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, abas, toast, modal, fecharModal, kpi } from "../core/ui.js?v=0f43faaa";
+import { esc, dataBR, horaCurta, brl, inteiro } from "../core/format.js?v=0f43faaa";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=0f43faaa";
+import { PERMISSOES, ehAdmin, podeEditar, usuario } from "../core/auth.js?v=0f43faaa";
+import { nuvem, nuvemLigada, conectar, desconectar, sincronizar, carregarMeta, META } from "../core/sync.js?v=0f43faaa";
+import { lerCSV, lerXLSX, mapearColunas, importar, CAMPOS_IMPORT } from "../core/importer.js?v=0f43faaa";
+import * as W from "../core/wame.js?v=0f43faaa";
+import { REFERENCIA_PADRAO, mesclarReferencia, MENOR_MELHOR } from "../core/analise/benchmarks.js?v=0f43faaa";
+import { MINIMOS } from "../core/analise/confianca.js?v=0f43faaa";
 
 let aba = "empresa", importState = null;
 const METAS = [["faturamento_mes", "Meta de faturamento mensal (R$)"], ["faturamento_semana", "Meta de faturamento semanal (R$)"], ["vendas_mes", "Meta de vendas no mês"], ["leads_mes", "Meta de leads no mês"], ["roas_min", "ROAS mínimo"], ["cpa_max", "CPA máximo (R$)"], ["cpl_max", "CPL máximo (R$)"], ["ticket_medio", "Ticket médio desejado (R$)"], ["investimento_max_mes", "Investimento máximo mensal (R$)"], ["ctr_min", "CTR mínimo (%)"], ["sla_minutos", "Tempo máximo para o primeiro atendimento (minutos)"], ["taxa_contato_min", "Taxa mínima de leads atendidos (%)"], ["ltv_meta", "LTV desejado por cliente (R$)"]];
@@ -25,6 +27,35 @@ function abaMetas() {
   return cartao("Metas", `<p class="sub" style="margin-bottom:10px">As metas definem os indicadores Excelente / Bom / Atenção / Ruim, as barras de progresso e os alertas.</p><div class="form-grade">${METAS.map(([k, l]) => `<div class="campo"><label>${l}</label><input type="number" step="any" inputmode="decimal" data-meta="${k}" value="${esc(db.goal(k, 0) || "")}"></div>`).join("")}</div><h3>Regras dos alertas</h3><div class="form-grade">${[["gasto_sem_venda", "Alertar campanha que gastou mais que (R$) sem lead/venda", 100], ["cpa_alta_pct", "Alertar quando o CPA subir mais que (%)", 30], ["limite_freq", "Frequência que indica saturação", 3], ["dias_produto_parado", "Dias sem venda para produto parado", 15]].map(([k, l, d]) => `<div class="campo"><label>${l}</label><input type="number" step="any" data-cfg="${k}" value="${esc(cfg[k] != null ? cfg[k] : d)}"></div>`).join("")}</div><h3>Taxas por forma de pagamento</h3><p class="sub">Usadas para calcular o lucro real quando a venda não tem a taxa preenchida à mão.</p>
     <div class="form-grade">${PAGAMENTOS.map(([k, l]) => `<div class="campo"><label>${l} (%)</label><input type="number" step="0.01" data-taxa="${k}" value="${esc((cfg.taxas || {})[k] != null ? (cfg.taxas || {})[k] : "")}"></div>`).join("")}</div>
     ${podeEditar() ? `<button class="btn btn-primario" data-salvar-metas style="margin-top:12px">💾 Salvar metas, regras e taxas</button>` : ""}`);
+}
+const ROTULOS_REF = {
+  ctr: "CTR (proporção, 0,012 = 1,2%)", cpc: "CPC (R$)", cpm: "CPM (R$)", frequencia: "Frequência",
+  retencao_inicial: "Passaram de 3 segundos (proporção)", retencao_metade: "Chegaram à metade (proporção)",
+  retencao_fim: "Assistiram até o fim (proporção)", taxa_thruplay: "Chegaram ao ThruPlay (proporção)",
+  taxa_pagina: "Cliques que chegaram na página", taxa_lead: "Cliques que viraram contato",
+  conversao: "Lead que virou venda", cpl: "CPL (R$)", custo_conversa: "Custo por conversa (R$)",
+  cpa: "CPA (R$)", roas: "ROAS", margem: "Margem sobre o faturamento",
+};
+const ROTULOS_MIN = {
+  impressoes: "Impressões mínimas para concluir", alcance: "Alcance mínimo", cliques: "Cliques mínimos",
+  gasto: "Investimento mínimo (R$)", dias: "Dias com entrega", video: "Visualizações de vídeo mínimas",
+  leads: "Leads mínimos", vendas: "Vendas mínimas",
+};
+function abaAnalise() {
+  const cfg = db.settings();
+  const ref = mesclarReferencia(cfg.referencias);
+  const mins = { ...MINIMOS, ...(cfg.minimos_analise || {}) };
+  const linhas = Object.keys(REFERENCIA_PADRAO).map((k) => `<tr><td>${esc(ROTULOS_REF[k] || k)}<br><small>${MENOR_MELHOR.has(k) ? "quanto menor, melhor" : "quanto maior, melhor"}</small></td>
+    <td><input type="number" step="any" data-ref-bom="${k}" value="${esc(ref[k].bom)}"></td>
+    <td><input type="number" step="any" data-ref-ruim="${k}" value="${esc(ref[k].ruim)}"></td></tr>`).join("");
+  return cartao("Análise inteligente", `<p class="sub" style="margin-bottom:10px">A Análise Inteligente compara cada métrica com a melhor base disponível, nesta ordem: <b>1)</b> histórico da sua conta, <b>2)</b> campanhas parecidas, <b>3)</b> a referência abaixo. Ou seja: estes números só são usados enquanto a conta não tiver histórico suficiente — e você pode mudá-los quando quiser.</p>
+    <h3>Referência padrão</h3>
+    <div class="tabela-wrap"><table class="tabela"><thead><tr><th>Métrica</th><th>Considerar bom a partir de</th><th>Considerar ruim a partir de</th></tr></thead><tbody>${linhas}</tbody></table></div>
+    <h3>Quando o sistema pode concluir</h3>
+    <p class="sub">Abaixo destes mínimos a análise mostra ⚪ “dados insuficientes” em vez de inventar um diagnóstico. Subir demais esses números deixa o sistema mudo; baixar demais faz ele concluir sobre ruído.</p>
+    <div class="form-grade">${Object.keys(ROTULOS_MIN).map((k) => `<div class="campo"><label>${esc(ROTULOS_MIN[k])}</label><input type="number" step="any" data-min="${k}" value="${esc(mins[k])}"></div>`).join("")}
+      <div class="campo"><label>Campanhas necessárias para usar o histórico como base</label><input type="number" step="1" data-cfg2="minimo_benchmark" value="${esc(cfg.minimo_benchmark != null ? cfg.minimo_benchmark : 4)}"></div></div>
+    ${podeEditar() ? `<button class="btn btn-primario" data-salvar-analise style="margin-top:12px">💾 Salvar referências</button> <button class="btn" data-restaurar-analise style="margin-top:12px">↩️ Voltar ao padrão</button>` : ""}`);
 }
 function abaAutomacoes() {
   const lista = db.all("automations");
@@ -101,8 +132,8 @@ export default {
   id: "config", titulo: "Configurações", icone: "⚙️",
   render(root, ctx) {
     if (ctx.rota.aba) aba = ctx.rota.aba;
-    const corpo = { empresa: abaEmpresa, usuarios: abaUsuarios, mensagens: abaMensagens, metas: abaMetas, automacoes: abaAutomacoes, importar: abaImportar, integracoes: abaIntegracoes, nuvem: abaNuvem, dados: abaDados }[aba] || abaEmpresa;
-    root.innerHTML = `<div class="pagina-cab"><div><h1>Configurações</h1><p class="sub">Empresas, usuários e permissões, mensagens (WhatsApp/Instagram/Messenger), metas, automações, importação, integrações, nuvem e backup</p></div></div>${abas([["empresa", "Empresas"], ["usuarios", "Usuários"], ["mensagens", "Mensagens"], ["metas", "Metas e alertas"], ["automacoes", "Automações"], ["importar", "Importar dados"], ["integracoes", "Integrações"], ["nuvem", "Nuvem"], ["dados", "Dados e backup"]], aba)}${corpo(ctx)}`;
+    const corpo = { empresa: abaEmpresa, usuarios: abaUsuarios, mensagens: abaMensagens, metas: abaMetas, analise: abaAnalise, automacoes: abaAutomacoes, importar: abaImportar, integracoes: abaIntegracoes, nuvem: abaNuvem, dados: abaDados }[aba] || abaEmpresa;
+    root.innerHTML = `<div class="pagina-cab"><div><h1>Configurações</h1><p class="sub">Empresas, usuários e permissões, mensagens (WhatsApp/Instagram/Messenger), metas, referências da análise, automações, importação, integrações, nuvem e backup</p></div></div>${abas([["empresa", "Empresas"], ["usuarios", "Usuários"], ["mensagens", "Mensagens"], ["metas", "Metas e alertas"], ["analise", "Análise"], ["automacoes", "Automações"], ["importar", "Importar dados"], ["integracoes", "Integrações"], ["nuvem", "Nuvem"], ["dados", "Dados e backup"]], aba)}${corpo(ctx)}`;
     root.querySelectorAll("[data-aba]").forEach((b) => b.addEventListener("click", () => { aba = b.dataset.aba; ctx.navegar(`#/config?aba=${aba}`); }));
     const on = (sel, ev, fn) => root.querySelectorAll(sel).forEach((el) => el.addEventListener(ev, (e) => fn(el, e)));
     on("[data-wm-salvar]", "click", async () => {
@@ -151,6 +182,19 @@ export default {
     on("[data-editar-emp]", "click", (el) => abrirFormulario("companies", el.dataset.editarEmp, { onSave: ctx.rerender, onDelete: ctx.rerender }));
     on("[data-novo-user]", "click", () => abrirFormulario("users", null, { onSave: ctx.rerender }));
     on("[data-editar-user]", "click", (el) => abrirFormulario("users", el.dataset.editarUser, { onSave: ctx.rerender, onDelete: ctx.rerender, permitirApagar: el.dataset.editarUser !== (usuario() || {}).id }));
+    on("[data-salvar-analise]", "click", () => {
+      const ref = {};
+      root.querySelectorAll("[data-ref-bom]").forEach((i) => { const k = i.dataset.refBom; ref[k] = { ...(ref[k] || {}), bom: Number(i.value) }; });
+      root.querySelectorAll("[data-ref-ruim]").forEach((i) => { const k = i.dataset.refRuim; ref[k] = { ...(ref[k] || {}), ruim: Number(i.value) }; });
+      const mins = {};
+      root.querySelectorAll("[data-min]").forEach((i) => { if (i.value !== "") mins[i.dataset.min] = Number(i.value); });
+      const extra = {};
+      root.querySelectorAll("[data-cfg2]").forEach((i) => { extra[i.dataset.cfg2] = Number(i.value) || 0; });
+      db.setSettings({ referencias: ref, minimos_analise: mins, ...extra });
+      toast("Referências salvas. A análise já usa os novos valores.");
+      ctx.rerender();
+    });
+    on("[data-restaurar-analise]", "click", () => { db.setSettings({ referencias: null, minimos_analise: null }); toast("Referência padrão restaurada."); ctx.rerender(); });
     on("[data-salvar-metas]", "click", () => { root.querySelectorAll("[data-meta]").forEach((i) => db.setGoal(i.dataset.meta, METAS.find((m) => m[0] === i.dataset.meta)[1], Number(i.value) || 0)); const cfg = {}; root.querySelectorAll("[data-cfg]").forEach((i) => cfg[i.dataset.cfg] = Number(i.value) || 0);
       const taxas = {}; root.querySelectorAll("[data-taxa]").forEach((i) => taxas[i.dataset.taxa] = Number(i.value) || 0);
       db.setSettings({ ...cfg, taxas }); toast("Metas, regras e taxas salvas."); ctx.rerender(); });

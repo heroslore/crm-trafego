@@ -1,8 +1,8 @@
-import { db } from "../core/db.js?v=72aad7ae";
-import { cartao, badge, abrirFormulario, kanban, chips } from "../core/ui.js?v=72aad7ae";
-import { esc, dataBR } from "../core/format.js?v=72aad7ae";
-import { bannerDemo, btnNovo } from "./comum.js?v=72aad7ae";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=72aad7ae";
+import { db } from "../core/db.js?v=0f43faaa";
+import { cartao, badge, abrirFormulario, kanban, chips } from "../core/ui.js?v=0f43faaa";
+import { esc, dataBR } from "../core/format.js?v=0f43faaa";
+import { bannerDemo, btnNovo } from "./comum.js?v=0f43faaa";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=0f43faaa";
 
 let fTipo = "";
 document.addEventListener("kanban:mover", (ev) => { if (ev.detail.kanban !== "ideias") return; db.update("ideas", ev.detail.id, { status: ev.detail.para }); if (window.CRM) window.CRM.render(); });

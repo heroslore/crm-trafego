@@ -1,6 +1,6 @@
 // Integrações: dados da Meta (dados/meta.json) e nuvem no GitHub (crm.json em repositório privado).
-import { db } from "./db.js?v=72aad7ae";
-import { agora, horaCurta, b64utf8, utf8b64, semAcento } from "./format.js?v=72aad7ae";
+import { db } from "./db.js?v=0f43faaa";
+import { agora, horaCurta, b64utf8, utf8b64, semAcento } from "./format.js?v=0f43faaa";
 
 export let META = null; // arquivo bruto, usado pelos recortes de público
 
@@ -62,13 +62,17 @@ export function aplicarMeta(d) {
   for (const l of d.diario_anuncio || []) {
     const ext = `meta:${l.data}:${l.anuncio_id}`;
     const v = l.video || {};
-    up("campaign_metrics", metricas, ext, { date: l.data, campaign_id: idCamp[l.campanha_id] || "", ad_set_id: idSet[l.conjunto_id] || "", ad_id: idAd[l.anuncio_id] || "", creative_id: idCr[l.anuncio_id] || "", spend: l.gasto, impressions: l.impressoes, reach: l.alcance, clicks: l.cliques, link_clicks: l.cliques_link, results: l.mensagens, frequency: l.frequencia, video_3s: v.video_3s || 0, thruplay: v.thruplay || 0, video_p25: v.video_p25 || 0, video_p50: v.video_p50 || 0, video_p75: v.video_p75 || 0, video_p95: v.video_p95 || 0, source: "meta" }, ["spend", "impressions", "reach", "clicks", "link_clicks", "results", "frequency", "video_3s", "thruplay", "video_p25", "video_p50", "video_p75", "video_p95", "campaign_id", "ad_set_id", "ad_id", "creative_id"]);
+    // Métrica que a Meta não informou entra vazia, não zerada: a análise precisa distinguir
+    // "ninguém assistiu" de "a plataforma não mandou esse número".
+    const q = (x) => (x == null || x === 0 ? null : x);
+    up("campaign_metrics", metricas, ext, { date: l.data, campaign_id: idCamp[l.campanha_id] || "", ad_set_id: idSet[l.conjunto_id] || "", ad_id: idAd[l.anuncio_id] || "", creative_id: idCr[l.anuncio_id] || "", spend: l.gasto, impressions: l.impressoes, reach: l.alcance, clicks: l.cliques, link_clicks: l.cliques_link, outbound_clicks: q(l.cliques_saida), landing_page_views: q(l.pagina_destino), conversations: q(l.conversas), results: l.mensagens, frequency: l.frequencia, video_3s: q(v.video_3s), thruplay: q(v.thruplay), video_p25: q(v.video_p25), video_p50: q(v.video_p50), video_p75: q(v.video_p75), video_p95: q(v.video_p95), video_p100: q(v.video_p100), video_plays: q(v.video_plays), video_2s: q(v.video_2s), avg_watch: q(v.tempo_medio), source: "meta" }, ["spend", "impressions", "reach", "clicks", "link_clicks", "outbound_clicks", "landing_page_views", "conversations", "results", "frequency", "video_3s", "thruplay", "video_p25", "video_p50", "video_p75", "video_p95", "video_p100", "video_plays", "video_2s", "avg_watch", "campaign_id", "ad_set_id", "ad_id", "creative_id"]);
   }
   // dias em que a campanha teve entrega sem linha de anúncio (raro): usa a linha de campanha
   const diasComAnuncio = new Set((d.diario_anuncio || []).map((l) => `${l.data}:${l.campanha_id}`));
   for (const l of d.diario_campanha || []) {
     if (diasComAnuncio.has(`${l.data}:${l.campanha_id}`)) continue;
-    up("campaign_metrics", metricas, `meta:${l.data}:c:${l.campanha_id}`, { date: l.data, campaign_id: idCamp[l.campanha_id] || "", spend: l.gasto, impressions: l.impressoes, reach: l.alcance, clicks: l.cliques, link_clicks: l.cliques_link, results: l.mensagens, frequency: l.frequencia, source: "meta" }, ["spend", "impressions", "reach", "clicks", "link_clicks", "results", "frequency"]);
+    const q = (x) => (x == null || x === 0 ? null : x);
+    up("campaign_metrics", metricas, `meta:${l.data}:c:${l.campanha_id}`, { date: l.data, campaign_id: idCamp[l.campanha_id] || "", spend: l.gasto, impressions: l.impressoes, reach: l.alcance, clicks: l.cliques, link_clicks: l.cliques_link, outbound_clicks: q(l.cliques_saida), landing_page_views: q(l.pagina_destino), conversations: q(l.conversas), results: l.mensagens, frequency: l.frequencia, source: "meta" }, ["spend", "impressions", "reach", "clicks", "link_clicks", "outbound_clicks", "landing_page_views", "conversations", "results", "frequency"]);
   }
 }
 

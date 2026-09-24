@@ -1,9 +1,9 @@
-import { db } from "../core/db.js?v=72aad7ae";
-import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, itemLista } from "../core/ui.js?v=72aad7ae";
-import { esc, brl, inteiro, pct, mult, dataBR } from "../core/format.js?v=72aad7ae";
-import { bannerDemo, btnNovo } from "./comum.js?v=72aad7ae";
-import { rotulo as rotuloOpcao } from "../core/schema.js?v=72aad7ae";
-import { podeEditar } from "../core/auth.js?v=72aad7ae";
+import { db } from "../core/db.js?v=0f43faaa";
+import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, itemLista } from "../core/ui.js?v=0f43faaa";
+import { esc, brl, inteiro, pct, mult, dataBR } from "../core/format.js?v=0f43faaa";
+import { bannerDemo, btnNovo } from "./comum.js?v=0f43faaa";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=0f43faaa";
+import { podeEditar } from "../core/auth.js?v=0f43faaa";
 
 function comparaLinha(t, rot, a, b, fmt, menorMelhor = false) { const va = t[a], vb = t[b]; if (va == null && vb == null) return ""; const ganha = va != null && vb != null ? (menorMelhor ? (va < vb ? "a" : va > vb ? "b" : "") : (va > vb ? "a" : va < vb ? "b" : "")) : ""; return `<tr><td>${rot}</td><td class="num ${ganha === "a" ? "delta up" : ""}">${fmt(va)}</td><td class="num ${ganha === "b" ? "delta up" : ""}">${fmt(vb)}</td></tr>`; }
 export default {

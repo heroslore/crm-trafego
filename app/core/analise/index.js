@@ -1,0 +1,234 @@
+// Orquestrador da Análise Inteligente. Único arquivo desta pasta que conhece o banco.
+// O caminho é sempre o mesmo, na ordem:
+//   DADOS BRUTOS → MÉTRICAS CALCULADAS → BENCHMARKS → REGRAS → SCORE → RECOMENDAÇÕES → (interface)
+// Nada aqui altera dados: a análise só lê.
+import { db } from "../db.js?v=0f43faaa";
+import { kpis, serieDiaria, porEntidade, atendimento, plataformaBase } from "../metrics.js?v=0f43faaa";
+import { anterior } from "../periods.js?v=0f43faaa";
+import { META } from "../sync.js?v=0f43faaa";
+import { num, hoje, somaDias, diasEntre, pct, brl, inteiro, dec } from "../format.js?v=0f43faaa";
+import { metricasCalculadas, contagemOuNulo, numeroOuNulo, razao } from "./metricas.js?v=0f43faaa";
+import { construirBenchmarks, mesclarReferencia, MENOR_MELHOR } from "./benchmarks.js?v=0f43faaa";
+import { confianca, MINIMOS } from "./confianca.js?v=0f43faaa";
+import { cartoesEtapa, diagnosticos, saudePublico, fadiga } from "./regras.js?v=0f43faaa";
+import { pontuar } from "./score.js?v=0f43faaa";
+import { plano, gargalos, pontosFortes, resumo10s } from "./recomendacoes.js?v=0f43faaa";
+
+export const CHAVES_BENCH = ["ctr", "cpc", "cpm", "frequencia", "cpl", "custo_conversa", "cpa", "roas", "conversao", "taxa_lead", "taxa_pagina", "margem", "retencao_inicial", "retencao_metade", "retencao_fim", "taxa_thruplay"];
+const NIVEIS_FILTRO = { campanha: "campaign_id", conjunto: "ad_set_id", anuncio: "ad_id", criativo: "creative_id" };
+const TIPO_ENTIDADE = { campanha: "campaign", conjunto: "ad_set", anuncio: "ad", criativo: "creative" };
+
+// Converte o agregado do CRM no bruto que o motor entende.
+// Regra: contador de plataforma em zero é "não informado" (null); leads e vendas do CRM em zero
+// são zero de verdade, mas o zero nunca entra como denominador.
+export function brutoDe(k) {
+  return {
+    spend: numeroOuNulo(k.spend), impressions: contagemOuNulo(k.impressions), reach: contagemOuNulo(k.reach),
+    frequency: numeroOuNulo(k.frequency), clicks: contagemOuNulo(k.clicks), link_clicks: contagemOuNulo(k.link_clicks),
+    outbound_clicks: contagemOuNulo(k.outbound_clicks), landing_page_views: contagemOuNulo(k.landing_page_views),
+    conversations: contagemOuNulo(k.conversations), results: contagemOuNulo(k.results),
+    leads: k.leads > 0 ? k.leads : null, qualified: k.qualified > 0 ? k.qualified : null,
+    sales: num(k.sales), revenue: k.sales > 0 ? k.revenue : null,
+    gross_profit: k.sales > 0 ? k.gross_profit : null, net_profit: numeroOuNulo(k.net_profit),
+  };
+}
+export function videoDe(k, duracao = null) {
+  return {
+    plays: contagemOuNulo(k.video_plays), v2s: contagemOuNulo(k.video_2s), v3s: contagemOuNulo(k.video_3s),
+    p25: contagemOuNulo(k.video_p25), p50: contagemOuNulo(k.video_p50), p75: contagemOuNulo(k.video_p75),
+    p95: contagemOuNulo(k.video_p95), p100: contagemOuNulo(k.video_p100),
+    thruplay: contagemOuNulo(k.thruplay), avg_watch: numeroOuNulo(k.avg_watch), duracao: numeroOuNulo(duracao),
+  };
+}
+// Valores achatados (chave → número) de um escopo, para montar distribuições de benchmark.
+function valoresAnalise(k) {
+  const m = metricasCalculadas(brutoDe(k), videoDe(k));
+  const out = {};
+  for (const mt of m.lista) out[mt.chave] = mt.valor;
+  for (const mt of m.video.lista) out[mt.chave] = mt.valor;
+  return out;
+}
+
+// ---------------------------------------------------------------- base de comparação
+// Nível 1: histórico da própria conta. Nível 2: escopos parecidos. Nível 3: referência editável.
+function amostras(nivel, registro, ivRef) {
+  const tipo = TIPO_ENTIDADE[nivel] || "campaign";
+  const todos = porEntidade(ivRef, tipo, true).filter((x) => x.k.spend > 0 && x.k.impressions > 200);
+  const conta = todos.filter((x) => x.id !== registro.id);
+  let similares = [];
+  if (tipo === "campaign") {
+    similares = conta.filter((x) => x.registro && x.registro.objective === registro.objective && plataformaBase(x.registro.platform) === plataformaBase(registro.platform));
+  } else if (tipo === "creative") {
+    similares = conta.filter((x) => x.registro && x.registro.type === registro.type);
+  } else {
+    const camp = registro.campaign_id;
+    similares = conta.filter((x) => x.registro && x.registro.campaign_id === camp);
+  }
+  return { conta: conta.map((x) => valoresAnalise(x.k)), similares: similares.map((x) => valoresAnalise(x.k)) };
+}
+
+// ---------------------------------------------------------------- tendência dentro do período
+// Divide os dias com entrega em dois blocos e compara. Sem dias suficientes, não compara.
+export function blocosTendencia(serie) {
+  const dias = serie.filter((d) => (d.impressions || 0) > 0 || (d.spend || 0) > 0);
+  if (dias.length < 4) return null;
+  const n = dias.length >= 8 ? 3 : Math.floor(dias.length / 2);
+  const juntar = (arr) => {
+    const t = { impressions: 0, spend: 0, cliques: 0, reach: 0, freqS: 0, freqN: 0, conv: 0, dias: arr.length };
+    for (const d of arr) {
+      t.impressions += num(d.impressions); t.spend += num(d.spend); t.cliques += num(d.outbound_clicks) || num(d.link_clicks) || num(d.clicks);
+      t.reach += num(d.reach); if (d.frequency && d.impressions) { t.freqS += num(d.frequency) * num(d.impressions); t.freqN += num(d.impressions); }
+      t.conv += num(d.sales) || num(d.leads_base);
+    }
+    return {
+      impressions: t.impressions, spend: t.spend, dias: t.dias,
+      ctr: razao(t.cliques, t.impressions), cpc: razao(t.spend, t.cliques),
+      cpm: t.impressions ? (t.spend / t.impressions) * 1000 : null,
+      frequency: t.freqN ? t.freqS / t.freqN : razao(t.impressions, t.reach),
+      conv_dia: razao(t.conv, t.dias),
+    };
+  };
+  return { inicio: juntar(dias.slice(0, n)), fim: juntar(dias.slice(-n)), n, total: dias.length };
+}
+
+// ---------------------------------------------------------------- níveis abaixo do escopo
+// A mesma leitura aplicada aos filhos: é o que mostra se o problema é da campanha inteira
+// ou de um conjunto/anúncio específico puxando a média para baixo.
+export function filhosDoEscopo(nivel, registro, iv, limite = 12) {
+  let itens = [];
+  if (nivel === "campanha") {
+    itens = [
+      ...db.where("ad_sets", (x) => x.campaign_id === registro.id).map((x) => ({ tipo: "Conjunto", reg: x, filtro: { ad_set_id: x.id }, href: "" })),
+      ...db.where("ads", (x) => x.campaign_id === registro.id).map((x) => ({ tipo: "Anúncio", reg: x, filtro: { ad_id: x.id }, href: `#/anuncios/${x.id}` })),
+    ];
+  } else if (nivel === "conjunto") {
+    itens = db.where("ads", (x) => x.ad_set_id === registro.id).map((x) => ({ tipo: "Anúncio", reg: x, filtro: { ad_id: x.id }, href: `#/anuncios/${x.id}` }));
+  } else if (nivel === "anuncio" && registro.creative_id) {
+    const cr = db.get("creatives", registro.creative_id);
+    if (cr) itens = [{ tipo: "Criativo", reg: cr, filtro: { creative_id: cr.id }, href: `#/criativos/${cr.id}` }];
+  }
+  return itens.map((x) => {
+    const k = kpis(iv, x.filtro);
+    const cr = x.reg.creative_id ? db.get("creatives", x.reg.creative_id) : null;
+    const m = metricasCalculadas(brutoDe(k), videoDe(k, cr ? cr.duration_seconds : null));
+    return { ...x, nome: x.reg.name, k, m, queda: m.maior_queda_funil };
+  }).filter((x) => x.k.spend > 0 || x.k.impressions > 0).sort((a, b) => b.k.spend - a.k.spend).slice(0, limite);
+}
+
+// Recortes que só existem na coleta automática da Meta: posicionamento e demografia.
+// Quando o arquivo não foi carregado, a seção simplesmente não aparece — nada é inventado.
+export function recortesDaCampanha(externalId) {
+  if (!externalId || !META || !META.publico) return null;
+  const P = META.publico;
+  const juntar = (arr, nomeDe) => {
+    const m = {};
+    for (const x of arr || []) {
+      if (x.campanha_id !== externalId) continue;
+      const nome = nomeDe(x);
+      const g = m[nome] = m[nome] || { nome, gasto: 0, mensagens: 0, impressoes: 0, cliques: 0 };
+      g.gasto += num(x.gasto); g.mensagens += num(x.mensagens); g.impressoes += num(x.impressoes); g.cliques += num(x.cliques);
+    }
+    return Object.values(m).map((g) => ({ ...g, custo_msg: g.mensagens > 0 ? g.gasto / g.mensagens : null, ctr: g.impressoes > 0 ? g.cliques / g.impressoes : null }))
+      .filter((g) => g.gasto > 0).sort((a, b) => b.gasto - a.gasto);
+  };
+  const POS = { facebook_reels: "Reels FB", facebook_stories: "Stories FB", feed: "Feed", instagram_stories: "Stories IG", instagram_reels: "Reels IG", instagram_explore: "Explorar IG", instagram_profile_feed: "Perfil IG", facebook_profile_feed: "Perfil FB", instagram_search: "Busca IG", marketplace: "Marketplace", video_feeds: "Feeds de vídeo", right_hand_column: "Coluna direita", facebook_notification: "Notificações", instream_video: "Vídeo in-stream", search: "Busca" };
+  const GEN = { male: "Homens", female: "Mulheres", unknown: "Não informado" };
+  const posicionamento = juntar(P.posicionamento, (x) => (x.plataforma === "instagram" ? "IG · " : x.plataforma === "facebook" ? "FB · " : "") + (POS[x.posicao] || x.posicao));
+  const demografia = juntar(P.idade_genero, (x) => `${x.idade === "Unknown" ? "idade não informada" : x.idade} · ${GEN[x.genero] || x.genero}`);
+  if (posicionamento.length < 2 && demografia.length < 2) return null;
+  return { periodo: P.periodo || {}, posicionamento, demografia };
+}
+
+// ---------------------------------------------------------------- contexto do escopo
+function contextoDoEscopo(nivel, registro) {
+  let campanha = null, criativo = null, publicoReg = null;
+  if (nivel === "campanha") campanha = registro;
+  else if (nivel === "conjunto") campanha = db.get("campaigns", registro.campaign_id);
+  else if (nivel === "anuncio") { campanha = db.get("campaigns", registro.campaign_id); criativo = db.get("creatives", registro.creative_id); }
+  else if (nivel === "criativo") { campanha = registro.campaign_id ? db.get("campaigns", registro.campaign_id) : null; criativo = registro; }
+  if (nivel === "conjunto" && registro.audience_id) publicoReg = db.get("audiences", registro.audience_id);
+  if (!publicoReg && campanha) {
+    if (campanha.audience_id) publicoReg = db.get("audiences", campanha.audience_id);
+    else {
+      const sets = db.where("ad_sets", (s) => s.campaign_id === campanha.id && s.audience_id);
+      if (sets.length === 1) publicoReg = db.get("audiences", sets[0].audience_id);
+    }
+  }
+  return { campanha, criativo, publicoReg };
+}
+// Metas da própria campanha vêm antes de qualquer referência. Na falta delas, as metas gerais.
+function metasDoEscopo(campanha) {
+  const g = (k, p = 0) => db.goal(k, p);
+  const v = (x) => (x != null && x !== "" && isFinite(Number(x)) && Number(x) > 0 ? Number(x) : null);
+  const c = campanha || {};
+  return {
+    cpa: v(c.target_cpa) ?? v(g("cpa_max")), cpl: v(c.target_cpl) ?? v(g("cpl_max")),
+    custo_conversa: v(c.target_conversation_cost), roas: v(c.target_roas) ?? v(g("roas_min")),
+    ctr: v(c.target_ctr) != null ? Number(c.target_ctr) / 100 : (v(g("ctr_min")) != null ? g("ctr_min") / 100 : null),
+    vendas: v(c.target_sales),
+  };
+}
+
+// ---------------------------------------------------------------- análise completa
+export function analisar({ nivel = "campanha", registro, iv, minimos = null }) {
+  const chave = NIVEIS_FILTRO[nivel] || "campaign_id";
+  const filtro = { [chave]: registro.id };
+  const { campanha, criativo, publicoReg } = contextoDoEscopo(nivel, registro);
+  const k = kpis(iv, filtro);
+  const kAnt = kpis(anterior(iv), filtro);
+  const serie = serieDiaria(iv, filtro);
+  const bruto = brutoDe(k);
+  const video = videoDe(k, criativo ? criativo.duration_seconds : null);
+  const m = metricasCalculadas(bruto, video);
+
+  const cfg = db.settings();
+  const referencia = mesclarReferencia(cfg.referencias);
+  const mins = { ...MINIMOS, ...(cfg.minimos_analise || {}), ...(minimos || {}) };
+  const h = hoje();
+  const ivRef = { inicio: somaDias(h, -89), fim: h, dias: 90 };
+  const bmk = construirBenchmarks(CHAVES_BENCH, amostras(nivel, registro, ivRef), referencia, num(cfg.minimo_benchmark) || 4);
+
+  const diasComDados = serie.filter((d) => (d.impressions || 0) > 0 || (d.spend || 0) > 0).length;
+  const conf = confianca({
+    impressoes: k.impressions, alcance: k.reach, cliques: k.outbound_clicks || k.link_clicks || k.clicks,
+    gasto: k.spend, dias: diasComDados, video: k.video_3s || k.video_plays, leads: k.leads || k.results, vendas: k.sales,
+  }, mins);
+
+  const blocos = blocosTendencia(serie);
+  const fad = blocos ? fadiga(blocos.inicio, blocos.fim) : fadiga(null, null);
+  const publico = saudePublico(m, bmk, conf, { alcance: k.reach, tamanho_publico: publicoReg ? publicoReg.size : null, ctr_caindo: fad.piorando ? fad.piorando.includes("ctr") : false });
+
+  // Textos de apoio que só o CRM conhece: atendimento e motivo de perda.
+  const at = atendimento(iv, filtro);
+  const sla_texto = at.medidos ? `Tempo médio até o primeiro contato: ${dec(at.tempoMedio, 0)} min${at.naoAtendidos ? `; ${inteiro(at.naoAtendidos)} lead(s) sem nenhum contato` : ""}` : (at.total ? `${inteiro(at.total)} lead(s) no período, ${inteiro(at.naoAtendidos)} sem nenhum contato` : "");
+  const perdidos = at.leads.filter((l) => l.stage === "perdido" && l.loss_reason);
+  const contagemPerda = {};
+  for (const l of perdidos) contagemPerda[l.loss_reason] = (contagemPerda[l.loss_reason] || 0) + 1;
+  const topPerda = Object.keys(contagemPerda).sort((a, b) => contagemPerda[b] - contagemPerda[a])[0];
+  const perda_texto = topPerda ? `Motivo de perda mais frequente: ${topPerda.replace(/_/g, " ")} (${contagemPerda[topPerda]} lead(s))` : "";
+
+  const ctx = {
+    nivel, objetivo: (campanha && campanha.objective) || "vendas", bruto, metas: metasDoEscopo(campanha),
+    alcance: k.reach, tamanho_publico: publicoReg ? publicoReg.size : null,
+    lucro_liquido: k.sales > 0 || k.spend > 0 ? k.net_profit : null,
+    publico, fadiga: fad, sla_texto, perda_texto, atendimento: at,
+    dias_rodando: campanha && campanha.start_date ? diasEntre(campanha.start_date, h) : null,
+    dias_com_dados: diasComDados,
+  };
+  const cartoes = cartoesEtapa(m, bmk, conf, ctx);
+  const achados = diagnosticos(m, bmk, conf, cartoes, ctx);
+  const score = pontuar(cartoes, ctx.objetivo, conf, cfg.analise || {});
+  const funil = { etapas: m.funil, maior: m.maior_queda_funil };
+  const garg = gargalos(cartoes, achados, funil);
+  const fortes = pontosFortes(cartoes, achados, m);
+  const pl = plano(achados, cartoes, conf);
+  const resumo = resumo10s({ escopo: registro, score, cartoes, achados, gargalos: garg, fortes, conf, m });
+
+  return {
+    filhos: filhosDoEscopo(nivel, registro, iv),
+    recortes: nivel === "campanha" ? recortesDaCampanha(registro.external_id) : null,
+    nivel, registro, iv, filtro, k, kAnt, serie, bruto, video, m, bmk, conf, referencia,
+    cartoes, achados, score, funil, gargalos: garg, fortes, plano: pl, resumo, ctx,
+    contexto: { campanha, criativo, publico: publicoReg }, tendencia: blocos, fadiga: fad,
+  };
+}

@@ -1,6 +1,6 @@
 // Importação de CSV/XLSX (principalmente exportações do Gerenciador de Anúncios da Meta).
-import { db } from "./db.js?v=72aad7ae";
-import { semAcento, hoje } from "./format.js?v=72aad7ae";
+import { db } from "./db.js?v=0f43faaa";
+import { semAcento, hoje } from "./format.js?v=0f43faaa";
 
 export const CAMPOS_IMPORT = [
   ["campaign", "Campanha", ["nome da campanha", "campanha", "campaign name", "campaign"]],
@@ -18,7 +18,22 @@ export const CAMPOS_IMPORT = [
   ["results", "Resultados", ["resultados", "results", "conversas por mensagem iniciadas", "leads", "mensagens"]],
   ["cost_per_result", "Custo por resultado", ["custo por resultado", "cost per result", "custo por lead"]],
   ["frequency", "Frequência", ["frequencia", "frequency"]],
+  ["outbound_clicks", "Cliques de saída", ["cliques de saida", "cliques no link de saida", "outbound clicks"]],
+  ["landing_page_views", "Visitas à página", ["visualizacoes da pagina de destino", "visitas a pagina", "landing page views"]],
+  ["conversations", "Conversas iniciadas", ["conversas por mensagem iniciadas", "conversas iniciadas", "messaging conversations started"]],
+  ["video_plays", "Reproduções do vídeo", ["reproducoes de video", "reproducoes do video", "video plays"]],
+  ["video_3s", "Visualizações de 3s", ["reproducoes de video de 3 segundos", "visualizacoes de 3 segundos", "3-second video plays"]],
+  ["thruplay", "ThruPlay", ["thruplays", "thruplay", "reproducoes ate o fim"]],
+  ["video_p25", "Assistiram 25%", ["reproducoes de video ate 25%", "video plays at 25%"]],
+  ["video_p50", "Assistiram 50%", ["reproducoes de video ate 50%", "video plays at 50%"]],
+  ["video_p75", "Assistiram 75%", ["reproducoes de video ate 75%", "video plays at 75%"]],
+  ["video_p95", "Assistiram 95%", ["reproducoes de video ate 95%", "video plays at 95%"]],
+  ["video_p100", "Assistiram até o fim", ["reproducoes de video ate 100%", "video plays at 100%"]],
+  ["avg_watch", "Tempo médio assistido", ["tempo medio de reproducao do video", "tempo medio assistido", "video average play time"]],
 ];
+// Colunas numéricas opcionais: só entram no banco quando existem na planilha.
+// Coluna ausente vira campo vazio, nunca zero (senão a análise conclui sobre dado que não existe).
+export const OPCIONAIS_METRICA = ["outbound_clicks", "landing_page_views", "conversations", "video_plays", "video_3s", "thruplay", "video_p25", "video_p50", "video_p75", "video_p95", "video_p100", "avg_watch"];
 
 export function lerCSV(texto) {
   texto = texto.replace(/^﻿/, "");
@@ -79,6 +94,7 @@ export function importar(linhas, mapa, { platform = "meta", product_id = "", dat
     const data = dataFixa || dataISO(mapa.date ? l[mapa.date] : "");
     const ext = `import:${data}:${c.id}:${s ? s.id : ""}:${a ? a.id : ""}`;
     const dados = { date: data, campaign_id: c.id, ad_set_id: s ? s.id : "", ad_id: a ? a.id : "", creative_id: a ? a.creative_id : "", spend: numeroBR(mapa.spend ? l[mapa.spend] : 0), impressions: numeroBR(mapa.impressions ? l[mapa.impressions] : 0), reach: numeroBR(mapa.reach ? l[mapa.reach] : 0), clicks: numeroBR(mapa.clicks ? l[mapa.clicks] : 0), link_clicks: numeroBR(mapa.link_clicks ? l[mapa.link_clicks] : 0), results: numeroBR(mapa.results ? l[mapa.results] : 0), frequency: mapa.frequency ? numeroBR(l[mapa.frequency]) : null, source: "import", external_id: ext };
+    for (const chave of OPCIONAIS_METRICA) if (mapa[chave] && l[mapa[chave]] !== "" && l[mapa[chave]] != null) dados[chave] = numeroBR(l[mapa[chave]]);
     if (!dados.link_clicks && mapa.ctr && dados.impressions) dados.link_clicks = Math.round(dados.impressions * numeroBR(l[mapa.ctr]) / 100);
     const ex = metricas.get(ext);
     if (ex) { db.update("campaign_metrics", ex.id, dados); atualizadas++; } else { metricas.set(ext, db.insert("campaign_metrics", dados)); novas++; }

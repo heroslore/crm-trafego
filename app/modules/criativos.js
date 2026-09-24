@@ -1,11 +1,12 @@
-import { db } from "../core/db.js?v=72aad7ae";
-import { kpis, serieDiaria, mediaCampanhas } from "../core/metrics.js?v=72aad7ae";
-import { classificarCriativo, CLASSES_CRIATIVO, diagnosticoVideo } from "../core/rules.js?v=72aad7ae";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista, abas, kpi, barrasH } from "../core/ui.js?v=72aad7ae";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=72aad7ae";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=72aad7ae";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=72aad7ae";
-import { podeEditar } from "../core/auth.js?v=72aad7ae";
+import { db } from "../core/db.js?v=0f43faaa";
+import { kpis, serieDiaria, mediaCampanhas } from "../core/metrics.js?v=0f43faaa";
+import { classificarCriativo, CLASSES_CRIATIVO, diagnosticoVideo } from "../core/rules.js?v=0f43faaa";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista, abas, kpi, barrasH } from "../core/ui.js?v=0f43faaa";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=0f43faaa";
+import { blocoAnalise } from "../core/analise/ui.js?v=0f43faaa";
+import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=0f43faaa";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=0f43faaa";
+import { podeEditar } from "../core/auth.js?v=0f43faaa";
 
 let visao = "ranking", filtroClasse = "";
 function lista(root, ctx) {
@@ -39,6 +40,7 @@ function detalhe(root, ctx, c) {
   root.innerHTML = `<div class="pagina-cab"><div><a href="#/criativos" class="link">← Criativos</a><h1>${esc(c.name)} ${badge(cl.rotulo, cl.cor)}</h1><p class="sub">${esc(rotuloOpcao("creative_type", c.type))}${c.product_id ? ` · produto <a href="#/produtos/${c.product_id}">${esc((db.get("products", c.product_id) || {}).name || "")}</a>` : ""}${c.campaign_id ? ` · campanha <a href="#/campanhas/${c.campaign_id}">${esc((db.get("campaigns", c.campaign_id) || {}).name || "")}</a>` : ""}${c.owner_user_id ? " · por " + esc((db.get("users", c.owner_user_id) || {}).name || "") : ""}</p></div><div class="pagina-acoes">${podeEditar() ? `<a class="btn" href="#/testes?novo=1&a=${c.id}">🧪 Teste A/B</a><button class="btn btn-primario" data-editar>✏️ Editar</button>` : ""}</div></div>
     <div class="grid2">${cartao("Peça", `<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">${c.thumbnail ? `<img src="${esc(c.thumbnail)}" style="width:160px;max-width:40%;border-radius:12px">` : ""}<div style="flex:1;min-width:200px"><p><b>Copy:</b> ${esc(c.copy || "—")}</p><p><b>CTA:</b> ${esc(c.cta || "—")}</p><p><b>Criado:</b> ${dataBR(c.created_at_date)} · <b>Publicado:</b> ${dataBR(c.published_at)}</p>${c.link ? `<p><a href="${esc(c.link)}" target="_blank" rel="noopener">Abrir link / arquivo</a></p>` : ""}${c.notes ? `<p class="sub">${esc(c.notes)}</p>` : ""}</div></div>`)}
     ${cartao("Onde é usado", ads.length ? `<div class="lista">${ads.map((a) => itemLista({ titulo: esc(a.name), sub: esc((db.get("campaigns", a.campaign_id) || {}).name || ""), badges: badgeOpcao("campaign_status", a.status), href: `#/anuncios/${a.id}` })).join("")}</div>` : vazio("Nenhum anúncio usa este criativo.") + (testes.length ? `<h3>Testes A/B</h3><div class="lista">${testes.map((t) => itemLista({ titulo: esc(t.name), sub: rotuloOpcao("ab_result", t.result), href: "#/testes" })).join("")}</div>` : ""))}</div>
+    ${blocoAnalise("criativo", c, iv)}
     ${diag ? `<div class="aviso aviso-alerta"><b>${esc(diag.titulo[0].toUpperCase() + diag.titulo.slice(1))}:</b> ${esc(diag.texto)} <i>${esc(diag.acao)}.</i></div>` : ""}
     ${k.tem_video ? cartao("Retenção do vídeo", `<div class="kpis" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr))">
         ${kpi({ rotulo: "Viram 3 segundos", valor: inteiro(k.video_3s), sub: k.hook_rate != null ? pct(k.hook_rate) + " de quem viu" : "" })}
