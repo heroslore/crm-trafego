@@ -1,7 +1,7 @@
 // Camada de amostra: diz se já existe dado suficiente para afirmar qualquer coisa.
 // Existe para impedir o erro mais caro da análise de tráfego: matar uma campanha
 // com 200 impressões porque "o CTR está ruim".
-import { numeroOuNulo } from "./metricas.js?v=43d2fd7f";
+import { numeroOuNulo } from "./metricas.js?v=b1025fca";
 
 export const MINIMOS = {
   impressoes: 1000,   // abaixo disso, CTR e CPM oscilam demais para significar algo
@@ -47,7 +47,7 @@ export function confianca(amostra = {}, minimos = MINIMOS) {
   const aprendizado = dias < mi.dias || gasto < mi.gasto;
   const faltando = criterios.filter((c) => !c.ok).map((c) => c.rotulo.toLowerCase());
   const texto = nivel === "insuficiente"
-    ? `Amostra pequena para concluir: ${faltando.join(", ")} ainda abaixo do mínimo. Os números aparecem, mas não sustentam diagnóstico.`
+    ? `Os números estão todos aqui e podem ser lidos — o que ainda não dá é concluir a partir deles: ${faltando.join(", ")} abaixo do mínimo. Com um pouco mais de entrega, as mesmas taxas viram diagnóstico.`
     : nivel === "baixa"
       ? `A amostra já mostra tendência, mas ainda oscila. Trate como sinal, não como conclusão${faltando.length ? ` (${faltando.join(", ")} abaixo do mínimo)` : ""}.`
       : nivel === "media" ? "Amostra suficiente para as leituras de entrega e clique. Conversão e venda pedem mais volume para virarem conclusão."

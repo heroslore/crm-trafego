@@ -1,10 +1,10 @@
 // Interface da Análise Inteligente. Só desenha: todo o julgamento já veio pronto do motor.
 // A ordem das seções é a do briefing: primeiro o que decide, depois o que explica, por último o detalhe.
-import { cartao, badge, vazio, funil as funilUi, barrasH, tabela, prioridadeBadge } from "../ui.js?v=43d2fd7f";
-import { esc, brl, pct, dec, inteiro, dataCurta, dataBR } from "../format.js?v=43d2fd7f";
-import { valorTexto, NIVEIS } from "./regras.js?v=43d2fd7f";
-import { MENOR_MELHOR as MENOR_EM_LISTA } from "./benchmarks.js?v=43d2fd7f";
-import { analisar } from "./index.js?v=43d2fd7f";
+import { cartao, badge, vazio, funil as funilUi, barrasH, tabela, prioridadeBadge } from "../ui.js?v=b1025fca";
+import { esc, brl, pct, dec, inteiro, dataCurta, dataBR } from "../format.js?v=b1025fca";
+import { valorTexto, NIVEIS, MOTIVOS_SEM_DADOS } from "./regras.js?v=b1025fca";
+import { MENOR_MELHOR as MENOR_EM_LISTA } from "./benchmarks.js?v=b1025fca";
+import { analisar } from "./index.js?v=b1025fca";
 
 // Ponto de entrada usado pelas telas. Se algo falhar no motor, a tela continua de pé:
 // a análise é um complemento, não pode derrubar a página da campanha.
@@ -63,7 +63,7 @@ function resumoHtml(a) {
 function etapaHtml(c) {
   const mets = (c.metricas || []).filter((m) => m && m.valor != null).slice(0, 4);
   return `<div class="an-etapa an-borda-${(NIVEIS[c.nivel] || NIVEIS.sem_dados)[2]}">
-    <div class="an-etapa-cab"><b>${esc(c.titulo)}</b>${pill(c.nivel)}</div>
+    <div class="an-etapa-cab"><b>${esc(c.titulo)}</b>${pill(c.nivel, c.nivel === "sem_dados" && c.motivo ? MOTIVOS_SEM_DADOS[c.motivo] : null)}</div>
     <div class="an-etapa-valor">${esc(c.valorTxt || "—")}</div>
     <p class="an-etapa-txt">${esc(c.explicacao)}</p>
     ${mets.length ? `<ul class="an-mini">${mets.map((m) => `<li><span>${esc(m.rotulo)}</span><b>${esc(valorTexto(m))}</b><small title="${esc(m.formula || "")}">${esc(m.formula || "")}</small></li>`).join("")}</ul>` : ""}
@@ -187,15 +187,23 @@ export function ordenarAnalises(lista, ordem = "gasto") {
 function etapasMini(a) {
   return `<div class="an-trilha">${a.cartoes.map((c) => {
     const n = NIVEIS[c.nivel] || NIVEIS.sem_dados;
-    return `<span class="an-passo an-passo-${n[2]}" title="${esc(c.titulo)}: ${esc(n[1])} — ${esc(c.explicacao)}">${n[0]}<i>${esc(c.titulo)}</i></span>`;
+    const rot = c.nivel === "sem_dados" && c.motivo ? MOTIVOS_SEM_DADOS[c.motivo] : n[1];
+    // O número aparece mesmo sem conclusão: esconder o que já foi medido faz parecer
+    // que o sistema não tem o dado, quando ele tem e só não pode julgar ainda.
+    const v = c.valorTxt && c.valorTxt !== "—" ? ` <b>${esc(c.valorTxt)}</b>` : "";
+    return `<span class="an-passo an-passo-${n[2]}" title="${esc(c.titulo)}: ${esc(rot)} — ${esc(c.explicacao)}">${n[0]}<i>${esc(c.titulo)}</i>${v}</span>`;
   }).join("")}</div>`;
 }
 
 export function cartaoDiagnostico(a, { href, imagem = "", subtitulo = "", etiquetas = "", acoes = "" } = {}) {
   const s = a.score, g = a.gargalos[0], r = a.resumo;
+  const V = a.m.video;
   const numeros = [
     ["Gasto", brl(a.k.spend)],
+    ["Impressões", inteiro(a.k.impressions)],
     ["CTR", a.m.ctr.valor != null ? pct(a.m.ctr.valor) : "—"],
+    ...(V.tem_video ? [["Passaram 3s", V.retencao_inicial.valor != null ? pct(V.retencao_inicial.valor) : "—"],
+                       ["Metade do vídeo", V.retencao_metade.valor != null ? pct(V.retencao_metade.valor) : "—"]] : []),
     ["Leads", inteiro(a.k.leads_base)],
     ["CPL", a.m.cpl.valor != null ? brl(a.m.cpl.valor) : "—"],
     ["Vendas", inteiro(a.k.sales)],
@@ -218,7 +226,7 @@ export function cartaoDiagnostico(a, { href, imagem = "", subtitulo = "", etique
     <div class="an-diag-nums">${numeros.map(([r2, v]) => `<span><i>${esc(r2)}</i>${esc(v)}</span>`).join("")}</div>
     <div class="an-diag-linha"><span>Gargalo</span><p>${g ? esc(g.titulo + ": " + g.texto) : esc(r.diagnostico)}</p></div>
     <div class="an-diag-linha an-diag-acao"><span>Fazer</span><p>${esc(r.proxima_acao)}</p></div>
-    <div class="an-diag-pe">${confPill(a.conf.nivel)}${a.usarVendas === false ? `<span class="an-conf" title="Nenhuma venda lançada aqui: faturamento, CPA e ROAS estão fora da nota">sem vendas lançadas</span>` : a.vendasParciais ? `<span class="an-conf" title="Faturamento e ROAS aqui são o mínimo confirmado; taxa de venda e CPA não entram na nota">vendas parciais</span>` : ""}<a class="link" href="${esc(href)}">ver análise completa →</a></div>
+    <div class="an-diag-pe">${confPill(a.conf.nivel)}${a.conf.nivel === "insuficiente" ? "" : ""}${a.usarVendas === false ? `<span class="an-conf" title="Nenhuma venda lançada aqui: faturamento, CPA e ROAS estão fora da nota">sem vendas lançadas</span>` : a.vendasParciais ? `<span class="an-conf" title="Faturamento e ROAS aqui são o mínimo confirmado; taxa de venda e CPA não entram na nota">vendas parciais</span>` : ""}<a class="link" href="${esc(href)}">ver análise completa →</a></div>
     ${acoes ? `<div class="an-diag-acoes">${acoes}</div>` : ""}
   </div>`;
 }

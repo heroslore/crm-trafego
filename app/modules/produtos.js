@@ -1,11 +1,11 @@
-import { db } from "../core/db.js?v=43d2fd7f";
-import { kpis, resumoProduto, serieDiaria, porEntidade } from "../core/metrics.js?v=43d2fd7f";
-import { classificarProduto, CLASSES_PRODUTO } from "../core/rules.js?v=43d2fd7f";
-import { cartao, tabela, badge, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, progresso } from "../core/ui.js?v=43d2fd7f";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje } from "../core/format.js?v=43d2fd7f";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=43d2fd7f";
-import { rotulo as rotuloOpcao } from "../core/schema.js?v=43d2fd7f";
-import { podeEditar } from "../core/auth.js?v=43d2fd7f";
+import { db } from "../core/db.js?v=b1025fca";
+import { kpis, resumoProduto, serieDiaria, porEntidade } from "../core/metrics.js?v=b1025fca";
+import { classificarProduto, CLASSES_PRODUTO } from "../core/rules.js?v=b1025fca";
+import { cartao, tabela, badge, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, progresso } from "../core/ui.js?v=b1025fca";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje } from "../core/format.js?v=b1025fca";
+import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=b1025fca";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=b1025fca";
+import { podeEditar } from "../core/auth.js?v=b1025fca";
 
 let filtro = "todos";
 const FILTROS = [["todos", "Todos"], ["vendendo", "Vendendo muito"], ["precisa_campanha", "Precisa de campanha"], ["parado", "Parados"], ["estoque_alto", "Estoque alto"], ["estoque_critico", "Acabando"], ["inativos", "Inativos"]];
