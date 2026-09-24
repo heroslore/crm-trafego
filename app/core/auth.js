@@ -1,5 +1,5 @@
 // Usuários, perfis e permissões (proteção de interface; o app é estático).
-import { db } from "./db.js?v=890e3831";
+import { db } from "./db.js?v=e38ac044";
 
 const CHAVE = "crm-trafego-usuario";
 export const PERMISSOES = {

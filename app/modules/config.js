@@ -1,15 +1,15 @@
-import { db, inserirDemonstracao } from "../core/db.js?v=890e3831";
-import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, abas, toast, modal, fecharModal, kpi } from "../core/ui.js?v=890e3831";
-import { esc, dataBR, horaCurta, brl, inteiro } from "../core/format.js?v=890e3831";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=890e3831";
-import { PERMISSOES, ehAdmin, podeEditar, usuario } from "../core/auth.js?v=890e3831";
-import { nuvem, nuvemLigada, conectar, desconectar, sincronizar, carregarMeta, META } from "../core/sync.js?v=890e3831";
-import { lerCSV, lerXLSX, mapearColunas, importar, CAMPOS_IMPORT } from "../core/importer.js?v=890e3831";
-import * as W from "../core/wame.js?v=890e3831";
-import { REFERENCIA_PADRAO, mesclarReferencia, MENOR_MELHOR } from "../core/analise/benchmarks.js?v=890e3831";
-import { MINIMOS } from "../core/analise/confianca.js?v=890e3831";
-import * as MetaApi from "../core/meta.js?v=890e3831";
-import { MODOS_VENDA, MODO_VENDA_PADRAO, normalizarModoVenda } from "../core/analise/index.js?v=890e3831";
+import { db, inserirDemonstracao } from "../core/db.js?v=e38ac044";
+import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, abas, toast, modal, fecharModal, kpi } from "../core/ui.js?v=e38ac044";
+import { esc, dataBR, horaCurta, brl, inteiro } from "../core/format.js?v=e38ac044";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=e38ac044";
+import { PERMISSOES, ehAdmin, podeEditar, usuario } from "../core/auth.js?v=e38ac044";
+import { nuvem, nuvemLigada, conectar, desconectar, sincronizar, carregarMeta, META } from "../core/sync.js?v=e38ac044";
+import { lerCSV, lerXLSX, mapearColunas, importar, CAMPOS_IMPORT } from "../core/importer.js?v=e38ac044";
+import * as W from "../core/wame.js?v=e38ac044";
+import { REFERENCIA_PADRAO, mesclarReferencia, MENOR_MELHOR } from "../core/analise/benchmarks.js?v=e38ac044";
+import { MINIMOS } from "../core/analise/confianca.js?v=e38ac044";
+import * as MetaApi from "../core/meta.js?v=e38ac044";
+import { MODOS_VENDA, MODO_VENDA_PADRAO, normalizarModoVenda } from "../core/analise/index.js?v=e38ac044";
 
 let aba = "empresa", importState = null;
 const METAS = [["faturamento_mes", "Meta de faturamento mensal (R$)"], ["faturamento_semana", "Meta de faturamento semanal (R$)"], ["vendas_mes", "Meta de vendas no mês"], ["leads_mes", "Meta de leads no mês"], ["roas_min", "ROAS mínimo"], ["cpa_max", "CPA máximo (R$)"], ["cpl_max", "CPL máximo (R$)"], ["ticket_medio", "Ticket médio desejado (R$)"], ["investimento_mes", "Investimento planejado do mês (R$)"], ["investimento_semana", "Investimento planejado da semana (R$)"], ["investimento_max_mes", "Investimento máximo mensal (R$)"], ["ctr_min", "CTR mínimo (%)"], ["sla_minutos", "Tempo máximo para o primeiro atendimento (minutos)"], ["taxa_contato_min", "Taxa mínima de leads atendidos (%)"], ["ltv_meta", "LTV desejado por cliente (R$)"]];
@@ -69,6 +69,12 @@ function abaMeta() {
   const c = MetaApi.cfg, e = MetaApi.estado;
   const temGestao = e.permissoes.includes("ads_management");
   const contaNome = e.conta ? `${e.conta.name || ""} · ${e.conta.currency || ""}${e.conta.account_status != 1 ? " · ⚠️ conta com restrição" : ""}` : "";
+  const val = MetaApi.validadeDaChave();
+  const tipoChave = e.chave && e.chave.tipo === "SYSTEM_USER" ? "usuário do sistema" : e.chave && e.chave.tipo ? e.chave.tipo.toLowerCase().replace(/_/g, " ") : "";
+  const validadeHtml = !val ? ""
+    : val.nunca
+      ? `<div class="aviso aviso-ok" style="margin-top:8px">🔒 Esta chave <b>não expira</b>${tipoChave ? ` (${esc(tipoChave)})` : ""}. É o tipo certo para o dia a dia.</div>`
+      : `<div class="aviso ${val.curta ? "aviso-alerta" : "aviso-info"}" style="margin-top:8px">⏳ Esta chave <b>${esc(val.texto)}</b> (em ${esc(horaCurta(val.quando.toISOString()))})${tipoChave ? ` · tipo: ${esc(tipoChave)}` : ""}.${val.curta ? " Quando ela morrer, os botões de pausar somem sem aviso. Troque por uma chave de usuário do sistema, que não expira — o passo a passo está logo abaixo." : ""}</div>`;
   const estadoHtml = e.verificado === null
     ? (MetaApi.configurado() ? `<div class="aviso aviso-info">Chave guardada neste aparelho. Clique em "Testar chave" para conferir o acesso.</div>` : `<div class="aviso aviso-info">Ainda sem chave neste aparelho. Sem ela o CRM continua lendo os dados da coleta diária, mas não consegue mexer nas campanhas.</div>`)
     : e.verificado
@@ -76,6 +82,7 @@ function abaMeta() {
       : `<div class="aviso aviso-erro">Não consegui usar essa chave: ${esc(e.erro || "erro desconhecido")}</div>`;
   return cartao("Meta — controlar campanhas pelo CRM", `
     ${estadoHtml}
+    ${validadeHtml}
     <p class="sub" style="margin:10px 0">Com a chave certa, o CRM pausa, reativa, muda orçamento, duplica e sobe campanha direto na sua conta de anúncios. Sem servidor no meio: o navegador fala direto com a Meta.</p>
     <div class="form-grade">
       <div class="campo largo"><label>Chave de acesso (token) com <code>ads_management</code></label><input type="password" id="mtToken" value="${esc(c.token ? "••••••••••••" : "")}" placeholder="EAAG…" autocapitalize="off" autocomplete="off"><small>Gere em developers.facebook.com → sua aplicação → Ferramentas → Explorador da API, marcando <code>ads_management</code>, <code>ads_read</code>, <code>pages_show_list</code> e <code>pages_read_engagement</code>. Depois troque por uma chave de longa duração.</small></div>
@@ -88,11 +95,12 @@ function abaMeta() {
     <div id="mtResultado"></div>
     ${podeEditar() ? `<div class="linha-btns" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primario" data-mt-salvar>💾 Salvar e testar</button><button class="btn" data-mt-testar>🔌 Testar chave</button><button class="btn" data-mt-escrita title="Reenvia para uma campanha o status que ela já tem: prova que o comando funciona sem alterar nada">🧪 Testar comando (não altera nada)</button>${MetaApi.configurado() ? `<button class="btn btn-perigo" data-mt-esquecer>🗑️ Esquecer a chave deste aparelho</button>` : ""}</div>` : ""}
     <details style="margin-top:14px"><summary class="sub">Como conseguir uma chave que não expira (recomendado)</summary>
-      <p class="sub" style="margin-top:8px">A chave do Explorador da API dura cerca de <b>2 horas</b>, e a estendida dura 60 dias. Quem controla campanhas todo dia acaba tendo que refazer. A chave de <b>usuário do sistema</b> não expira:</p>
+      <p class="sub" style="margin-top:8px">A chave do Explorador da API dura cerca de <b>2 horas</b>, e a estendida dura 60 dias. Quem controla campanhas todo dia acaba tendo que refazer. A chave de <b>usuário do sistema</b> não expira.</p>
+      <p class="sub"><b>Atalho:</b> se a coleta automática já funciona, o usuário do sistema <b>já existe</b> — é ele que baixa os dados. Nesse caso basta abrir esse mesmo usuário, <b>Gerar novo token</b> marcando também <code>ads_management</code>, e conferir que a conta de anúncios está nos ativos dele com <b>Controle total</b> (só “ver desempenho” não deixa pausar). Se for criar do zero:</p>
       <ol class="sub" style="padding-left:18px;line-height:1.7">
         <li>Abra <a href="https://business.facebook.com/settings/system-users" target="_blank" rel="noopener">business.facebook.com → Configurações do negócio → Usuários → Usuários do sistema</a>.</li>
         <li><b>Adicionar</b> → nome qualquer (ex.: “CRM Tráfego”) → função <b>Administrador</b>.</li>
-        <li>Em <b>Adicionar ativos</b>, escolha <b>Contas de anúncios</b>, marque a sua e dê <b>Controle total</b>. Faça o mesmo em <b>Páginas</b> se for subir campanha nova por aqui.</li>
+        <li>Em <b>Adicionar ativos</b>, escolha <b>Contas de anúncios</b>, marque a sua e dê <b>Controle total</b> — “ver desempenho” lê mas não deixa pausar. Faça o mesmo em <b>Páginas</b> se for subir campanha nova por aqui.</li>
         <li><b>Gerar novo token</b> → escolha a sua aplicação → marque <code>ads_management</code>, <code>ads_read</code>, <code>pages_show_list</code> e <code>pages_read_engagement</code> → Gerar.</li>
         <li>Copie e cole no campo acima. Essa chave vale até você revogá-la.</li>
       </ol>

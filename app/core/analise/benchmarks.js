@@ -3,7 +3,7 @@
 // vem de uma base explícita, em três níveis de prioridade (item 23):
 //   1. histórico da própria conta   2. campanhas parecidas   3. referência padrão editável
 // O nível usado aparece no texto, para o usuário saber contra o que está sendo comparado.
-import { numeroOuNulo, temValor } from "./metricas.js?v=890e3831";
+import { numeroOuNulo, temValor } from "./metricas.js?v=e38ac044";
 
 // O quanto é preciso estar fora do pacote da conta para a leitura virar "ruim".
 export const FOLGA_RUIM = 1.25;

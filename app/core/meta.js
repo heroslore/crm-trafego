@@ -5,8 +5,8 @@
 // A chave de acesso NÃO fica no banco, no backup nem na nuvem: mora só neste
 // aparelho (localStorage), porque quem tem essa chave gasta o dinheiro da conta.
 // Todo comando é confirmado antes e vira registro no histórico de decisões.
-import { db } from "./db.js?v=890e3831";
-import { num } from "./format.js?v=890e3831";
+import { db } from "./db.js?v=e38ac044";
+import { num } from "./format.js?v=e38ac044";
 
 // Atenção: "crm-trafego-meta" já é usada pelo sync.js para guardar o meta.json da coleta.
 // Esta configuração mora numa chave própria.
@@ -17,7 +17,7 @@ export const VERSAO_API = "v23.0";
 const BASE = (typeof window !== "undefined" && window.CRM_META_BASE) || "https://graph.facebook.com";
 
 export const cfg = { token: "", conta: "", versao: VERSAO_API, ligado: false };
-export const estado = { verificado: null, erro: "", perfil: null, conta: null, permissoes: [], moeda: "BRL", minimoDiario: 0 };
+export const estado = { verificado: null, erro: "", perfil: null, conta: null, permissoes: [], moeda: "BRL", minimoDiario: 0, chave: null };
 
 export function carregarCfg() {
   try {
@@ -105,12 +105,35 @@ export const get = (caminho, campos, dados) => chamar(caminho, { metodo: "GET", 
 export const post = (caminho, dados) => chamar(caminho, { metodo: "POST", dados });
 
 // ---------------------------------------------------------------- verificação
+// O que a própria Meta diz sobre a chave: tipo, validade e escopos. É isso que permite
+// avisar ANTES de a chave morrer, em vez de os botões sumirem sem explicação.
+export async function inspecionarChave() {
+  try {
+    const r = await get("debug_token", null, { input_token: cfg.token });
+    const d = (r && r.data) || {};
+    const expira = Number(d.expires_at) || 0;
+    estado.chave = {
+      tipo: d.type || "", app: d.application || "", valida: d.is_valid !== false,
+      escopos: d.scopes || [], expira_em: expira ? expira * 1000 : 0,
+      nunca_expira: expira === 0,
+      horas_restantes: expira ? Math.max(0, (expira * 1000 - Date.now()) / 3600000) : null,
+    };
+  } catch { estado.chave = null; }
+  return estado.chave;
+}
+
 export async function verificar() {
   estado.erro = "";
   try {
     const eu = await get("me", "id,name");
     const perms = await get("me/permissions");
     estado.permissoes = (perms.data || []).filter((p) => p.status === "granted").map((p) => p.permission);
+    await inspecionarChave();
+    // Chave de usuário do sistema devolve os escopos pelo debug_token, e nem sempre por
+    // /me/permissions. Sem isto, uma chave boa apareceria como se não tivesse permissão.
+    if (estado.chave && estado.chave.escopos.length) {
+      for (const e of estado.chave.escopos) if (!estado.permissoes.includes(e)) estado.permissoes.push(e);
+    }
     const conta = await get(cfg.conta, "name,currency,account_status,min_daily_budget,amount_spent,business_name,timezone_name");
     estado.perfil = eu; estado.conta = conta;
     estado.moeda = conta.currency || "BRL";
@@ -119,8 +142,19 @@ export async function verificar() {
     return { eu, conta, permissoes: estado.permissoes };
   } catch (e) {
     estado.verificado = false; estado.erro = e.message;
+    estado.chave = null;
     throw e;
   }
+}
+// Quanto tempo a chave ainda tem. null = não dá para saber; 0 = não expira.
+export function validadeDaChave() {
+  const c = estado.chave;
+  if (!c) return null;
+  if (c.nunca_expira) return { nunca: true, texto: "não expira" };
+  const h = c.horas_restantes;
+  if (h == null) return null;
+  const texto = h < 1 ? `expira em menos de 1 hora` : h < 48 ? `expira em cerca de ${Math.round(h)} hora(s)` : `expira em cerca de ${Math.round(h / 24)} dia(s)`;
+  return { nunca: false, horas: h, curta: h < 24 * 7, texto, quando: new Date(c.expira_em) };
 }
 export const contaAtiva = () => estado.conta && Number(estado.conta.account_status) === 1;
 

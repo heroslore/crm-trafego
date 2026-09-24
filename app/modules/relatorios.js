@@ -1,10 +1,10 @@
-import { db } from "../core/db.js?v=890e3831";
-import { kpis, comparar, porEntidade, serieDiaria, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=890e3831";
-import { relatorio, analise } from "../core/rules.js?v=890e3831";
-import { intervalo, anterior, rotulo as rotuloPeriodo } from "../core/periods.js?v=890e3831";
-import { cartao, tabela, vazio, kpi, abas, chips, graficoLinhas, itemLista, delta, fmtMetrica } from "../core/ui.js?v=890e3831";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, somaDias, seta, variacao } from "../core/format.js?v=890e3831";
-import { bannerDemo } from "./comum.js?v=890e3831";
+import { db } from "../core/db.js?v=e38ac044";
+import { kpis, comparar, porEntidade, serieDiaria, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=e38ac044";
+import { relatorio, analise } from "../core/rules.js?v=e38ac044";
+import { intervalo, anterior, rotulo as rotuloPeriodo } from "../core/periods.js?v=e38ac044";
+import { cartao, tabela, vazio, kpi, abas, chips, graficoLinhas, itemLista, delta, fmtMetrica } from "../core/ui.js?v=e38ac044";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, somaDias, seta, variacao } from "../core/format.js?v=e38ac044";
+import { bannerDemo } from "./comum.js?v=e38ac044";
 
 let aba = "semanal", rankTipo = "campaign", rankOrdem = "revenue", cmpModo = "7d", cmpA = { inicio: somaDias(hoje(), -13), fim: somaDias(hoje(), -7) }, cmpB = { inicio: somaDias(hoje(), -6), fim: hoje() };
 const CHAVES = ["spend", "revenue", "gross_profit", "net_profit", "roas", "roi", "leads", "sales", "conversion", "cpa", "cpl", "ticket", "ctr"];
