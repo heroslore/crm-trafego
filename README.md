@@ -17,7 +17,7 @@ relatórios, concorrentes e configurações. Funciona em computador e celular, i
 | **Controle das campanhas** | pausar, reativar e mudar orçamento de campanha, conjunto e anúncio direto do CRM; **duplicar** uma campanha que já funciona; **subir campanha nova** impulsionando uma publicação ou com imagem e texto novos. Tudo com confirmação, tudo registrado no histórico de decisões |
 | **Análise Inteligente** | dentro da campanha, do anúncio e do criativo: score 0–100, resumo em 10 segundos, diagnóstico por etapa (atenção, retenção, clique, conversão, público, custo, faturamento, saturação), funil completo com a maior queda, curva de retenção do vídeo, fadiga do criativo, saúde do público e plano de ação dividido em **agora / próximo teste / não alterar**. Toda métrica aparece com a fórmula usada e com a base contra a qual foi comparada |
 | **Campanhas** | plataforma, objetivo, produto, datas, status, orçamentos, gasto, faturamento, leads, vendas, CPL, CPL qualificado, CPA, CTR, CPC, CPM, ROAS, ROI, ticket e decisão; **histórico de decisões** com o efeito de cada mudança (7 dias antes × 7 dias depois); lançamento manual de métricas; conjuntos e anúncios |
-| **Anúncios / Criativos** | biblioteca com tipo, copy, CTA, responsável, link/arquivo, ranking visual e classificação automática (campeão, bom, em teste, saturando, baixo, pausar). **Retenção de vídeo** (3 s, ThruPlay, 25/50/75/95%, custo por ThruPlay) e diagnóstico que separa "gancho fraco" de "prende mas não converte" |
+| **Anúncios / Criativos** | aba **Diagnóstico**: cada anúncio com nota 0–100, a trilha das oito etapas do funil, o gargalo e a próxima ação, mais a tabela "quem ganha em cada etapa" comparando os anúncios entre si. Além disso biblioteca com tipo, copy, CTA, responsável, link/arquivo, ranking visual e classificação automática (campeão, bom, em teste, saturando, baixo, pausar), **retenção de vídeo** (3 s, ThruPlay, 25/50/75/95%, custo por ThruPlay) e o diagnóstico que separa "gancho fraco" de "prende mas não converte" |
 | **Produtos** | estoque, custo, preço, margem, vendas 7/30 dias, faturamento, lucro, campanhas relacionadas; classificação automática (campeão, potencial, normal, baixa saída, parado, estoque crítico) e filtros "vendendo muito", "precisa de campanha", "parado", "estoque alto", "acabando" |
 | **Públicos** | biblioteca e ranking dos públicos; recortes da Meta (idade, gênero, posicionamento, aparelho, região, hora) |
 | **Leads** | Kanban com 9 etapas, ficha com histórico, follow-up, etiquetas, WhatsApp e motivo de perda. **Tempo de atendimento** (chegada, primeiro contato, primeira resposta) carimbado sozinho, **qualificação** (temperatura, qualificado, intenção e prazo de compra) e **atribuição completa** (conjunto, UTMs, identificador do clique, primeiro e último toque) |
@@ -75,7 +75,8 @@ Três regras sustentam isso:
 2. **Sem amostra, sem veredito.** Abaixo do mínimo de impressões, cliques, dias e resultados,
    a etapa aparece como ⚪ *dados insuficientes* em vez de receber uma nota. Campanha nova não
    é condenada por causa de número pequeno.
-3. **Ausência não é zero.** Métrica que a plataforma não informou aparece como
+3. **Comparação entre iguais.** Na tabela "quem ganha em cada etapa", só entram anúncios medindo a mesma coisa — CPL com CPL, nunca CPL contra CPA. E uma base de comparação onde todo mundo tem o mesmo número (ou todo mundo tem zero) não vira régua: cai para a referência padrão.
+4. **Ausência não é zero.** Métrica que a plataforma não informou aparece como
    "indisponível". Zero é resultado; vazio é falta de informação — e os dois levam a decisões
    diferentes.
 

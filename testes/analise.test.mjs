@@ -5,7 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { metricasCalculadas, contagemOuNulo } from "../app/core/analise/metricas.js";
-import { construirBenchmarks, REFERENCIA_PADRAO } from "../app/core/analise/benchmarks.js";
+import { construirBenchmarks, REFERENCIA_PADRAO, classificar } from "../app/core/analise/benchmarks.js";
 import { confianca } from "../app/core/analise/confianca.js";
 import { cartoesEtapa, diagnosticos, saudePublico, fadiga } from "../app/core/analise/regras.js";
 import { pontuar } from "../app/core/analise/score.js";
@@ -158,6 +158,23 @@ test("benchmark do histórico da conta tem prioridade sobre a referência padrã
   const r = motor({ bruto: { spend: 300, impressions: 40000, reach: 15000, frequency: 2, clicks: 900, link_clicks: 600, leads: 15, sales: 2, revenue: 900, gross_profit: 400, net_profit: 100 }, conta });
   assert.equal(r.bmk.ctr.fonte, "conta");
   assert.equal(nivelDe(r, "clique"), "ruim");
+});
+
+test("base de comparação sem variação não vira régua, e zero nunca é bom", () => {
+  // conta onde ninguém converte: a mediana é zero e não separa ninguém
+  const conta = [{ conversao: 0 }, { conversao: 0 }, { conversao: 0 }, { conversao: 0 }, { conversao: 0 }];
+  const bmk = construirBenchmarks(["conversao"], { conta }, REFERENCIA_PADRAO);
+  assert.equal(bmk.conversao.fonte, "padrao", "distribuição toda zerada não pode virar base");
+  const r = motor({
+    bruto: { spend: 400, impressions: 40000, reach: 15000, frequency: 2, clicks: 900, link_clicks: 600, leads: 44, sales: 0 },
+    conta,
+  });
+  const conv = r.cartoes.find((c) => c.chave === "conversao");
+  assert.notEqual(conv.nivel, "bom", "conversão de 0% não pode ser lida como boa");
+  // e mesmo com uma base degenerada montada à mão, o piso segura
+  const degenerada = { chave: "conversao", menor_melhor: false, bom: 0, ruim: 0, alvo: 0, texto: "teste" };
+  assert.equal(classificar(0, degenerada).nivel, "ruim");
+  assert.equal(classificar(0.3, degenerada).nivel, "bom");
 });
 
 test("campanha sem vídeo não recebe nota de atenção inventada", () => {

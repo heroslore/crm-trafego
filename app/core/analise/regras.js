@@ -103,13 +103,13 @@ export function cartoesEtapa(m, bmk, conf, ctx = {}) {
 
   // ATENÇÃO — os 3 primeiros segundos. Sem vídeo, não é medível: não inventamos nota.
   if (!V.tem_video) {
-    add({ chave: "atencao", titulo: "Atenção", nivel: "sem_dados", valor: null, valorTxt: "—", metricas: [], explicacao: "Este criativo não tem métricas de vídeo (é imagem, carrossel, ou a plataforma não informou). A atenção nos primeiros segundos não existe aqui; o sinal mais próximo é o CTR." });
+    add({ chave: "atencao", titulo: "Atenção", nivel: "sem_dados", chaveValor: "retencao_inicial", valor: null, valorTxt: "—", metricas: [], explicacao: "Este criativo não tem métricas de vídeo (é imagem, carrossel, ou a plataforma não informou). A atenção nos primeiros segundos não existe aqui; o sinal mais próximo é o CTR." });
   } else if (!s.video) {
-    add({ chave: "atencao", titulo: "Atenção", nivel: "sem_dados", valor: V.retencao_inicial.valor, valorTxt: valorTexto(V.retencao_inicial), metricas: [V.taxa_reproducao, V.retencao_inicial], explicacao: `Só ${inteiro(conf.amostra.video)} visualização(ões) de 3 segundos no período. Abaixo de ${inteiro(300)}, essa taxa oscila demais para dizer se o gancho funciona.` });
+    add({ chave: "atencao", titulo: "Atenção", nivel: "sem_dados", chaveValor: "retencao_inicial", valor: V.retencao_inicial.valor, valorTxt: valorTexto(V.retencao_inicial), metricas: [V.taxa_reproducao, V.retencao_inicial], explicacao: `Só ${inteiro(conf.amostra.video)} visualização(ões) de 3 segundos no período. Abaixo de ${inteiro(300)}, essa taxa oscila demais para dizer se o gancho funciona.` });
   } else {
     const c = classificar(V.retencao_inicial.valor, bmk.retencao_inicial);
     add({
-      chave: "atencao", titulo: "Atenção", nivel: c.nivel, valor: V.retencao_inicial.valor, valorTxt: valorTexto(V.retencao_inicial),
+      chave: "atencao", titulo: "Atenção", nivel: c.nivel, chaveValor: "retencao_inicial", rotuloValor: "passaram de 3s", valor: V.retencao_inicial.valor, valorTxt: valorTexto(V.retencao_inicial),
       metricas: [V.taxa_reproducao, V.retencao_inicial, V.retencao_inicial_plays], fonte: c.rotuloFonte,
       explicacao: `${pct(V.retencao_inicial.valor)} de quem viu o anúncio passou dos 3 segundos (assistiram 3s ÷ impressões), ${c.texto}. ${c.nivel === "bom" ? "O começo do vídeo está segurando quem passa." : c.nivel === "medio" ? "O começo segura parte das pessoas, mas há espaço para um gancho mais forte." : "A maioria vai embora antes dos 3 segundos: o problema está no começo do vídeo, não na oferta."}`,
     });
@@ -117,12 +117,12 @@ export function cartoesEtapa(m, bmk, conf, ctx = {}) {
 
   // RETENÇÃO — o que acontece depois que a pessoa ficou.
   if (!V.tem_video || !s.video) {
-    add({ chave: "retencao", titulo: "Retenção", nivel: "sem_dados", valorTxt: "—", metricas: [], explicacao: V.tem_video ? "Volume de visualizações ainda baixo para ler a curva de retenção." : "Sem métricas de vídeo, não há curva de retenção para ler. Vale conferir se o criativo é vídeo e se a coleta trouxe esses números." });
+    add({ chave: "retencao", titulo: "Retenção", nivel: "sem_dados", chaveValor: "retencao_metade", valorTxt: "—", metricas: [], explicacao: V.tem_video ? "Volume de visualizações ainda baixo para ler a curva de retenção." : "Sem métricas de vídeo, não há curva de retenção para ler. Vale conferir se o criativo é vídeo e se a coleta trouxe esses números." });
   } else {
     const c = classificar(V.retencao_metade.valor, bmk.retencao_metade);
     const q = m.maior_queda_video;
     add({
-      chave: "retencao", titulo: "Retenção", nivel: c.nivel, valor: V.retencao_metade.valor, valorTxt: valorTexto(V.retencao_metade),
+      chave: "retencao", titulo: "Retenção", nivel: c.nivel, chaveValor: "retencao_metade", rotuloValor: "chegaram à metade", valor: V.retencao_metade.valor, valorTxt: valorTexto(V.retencao_metade),
       metricas: [V.retencao_metade, V.retencao_fim, V.taxa_thruplay, V.tempo_medio, V.parte_assistida], fonte: c.rotuloFonte,
       explicacao: `${V.retencao_metade.valor != null ? `${pct(V.retencao_metade.valor)} de quem passou dos 3 segundos chegou à metade (assistiram 50% ÷ assistiram 3s)` : "Retenção na metade indisponível"}${q ? `. A maior queda está em "${q.rotulo}": ${pct(q.perda)} das pessoas somem nesse trecho (${q.formula})` : ""}. ${c.nivel === "bom" ? "O conteúdo sustenta a atenção até o meio." : c.nivel === "medio" ? "Prende parte das pessoas; encurtar ou adiantar a informação principal tende a ajudar." : "As pessoas entram e abandonam cedo: o vídeo provavelmente demora para entregar o que prometeu."}`,
     });
@@ -133,7 +133,7 @@ export function cartoesEtapa(m, bmk, conf, ctx = {}) {
     const cCtr = classificar(m.ctr.valor, bmk.ctr), cCpc = classificar(m.cpc.valor, bmk.cpc);
     const nivel = !s.clique ? "sem_dados" : piorNivel([cCtr.nivel, cCpc.nivel]);
     add({
-      chave: "clique", titulo: "Clique", nivel, valor: m.ctr.valor, valorTxt: valorTexto(m.ctr),
+      chave: "clique", titulo: "Clique", nivel, chaveValor: "ctr", rotuloValor: "CTR", valor: m.ctr.valor, valorTxt: valorTexto(m.ctr),
       metricas: [m.ctr, m.cpc, m.ctr_todos, m.taxa_pagina], fonte: cCtr.rotuloFonte,
       explicacao: !s.clique
         ? `Apenas ${inteiro(conf.amostra.cliques)} clique(s) no período: pouco para julgar CTR ou CPC.`
@@ -146,7 +146,7 @@ export function cartoesEtapa(m, bmk, conf, ctx = {}) {
     const cLead = classificar(m.taxa_lead.valor, bmk.taxa_lead), cConv = classificar(m.conversao.valor, bmk.conversao);
     const nivel = !s.conversao ? "sem_dados" : piorNivel([cLead.nivel, cConv.nivel]);
     add({
-      chave: "conversao", titulo: "Conversão", nivel, valor: m.conversao.valor, valorTxt: valorTexto(m.conversao),
+      chave: "conversao", titulo: "Conversão", nivel, chaveValor: "conversao", rotuloValor: "lead vira venda", valor: m.conversao.valor, valorTxt: valorTexto(m.conversao),
       metricas: [m.taxa_pagina, m.taxa_lead, m.conversao, m.cpl, m.custo_conversa, m.cpa], fonte: cConv.rotuloFonte,
       explicacao: !s.conversao
         ? `Com ${inteiro(conf.amostra.leads)} lead(s) e ${inteiro(conf.amostra.vendas)} venda(s) no período, as taxas de conversão ainda não são conclusivas.`
@@ -157,7 +157,7 @@ export function cartoesEtapa(m, bmk, conf, ctx = {}) {
   // PÚBLICO
   {
     const sp = ctx.publico || saudePublico(m, bmk, conf, ctx);
-    add({ chave: "publico", titulo: "Público", nivel: sp.nivel, valorTxt: m.frequencia.valor != null ? `freq. ${dec(m.frequencia.valor, 2)}` : "—", metricas: [m.frequencia, m.cpm], explicacao: `${sp.titulo}: ${sp.texto}`, estado: sp.estado });
+    add({ chave: "publico", titulo: "Público", nivel: sp.nivel, chaveValor: "frequencia", rotuloValor: "frequência", valorTxt: m.frequencia.valor != null ? `freq. ${dec(m.frequencia.valor, 2)}` : "—", metricas: [m.frequencia, m.cpm], explicacao: `${sp.titulo}: ${sp.texto}`, estado: sp.estado });
   }
 
   // CUSTO — a métrica de custo que importa depende do objetivo da campanha.
@@ -172,6 +172,7 @@ export function cartoesEtapa(m, bmk, conf, ctx = {}) {
     const semAmostraCusto = !s.entrega || (["cpc", "cpm"].includes(escolhida.chave) && !s.clique) || (["cpa", "cpl", "custo_conversa"].includes(escolhida.chave) && !s.conversao);
     add({
       chave: "custo", titulo: "Custo", nivel: c.nivel === "sem_dados" || semAmostraCusto ? "sem_dados" : acimaDaMeta ? "ruim" : c.nivel,
+      chaveValor: escolhida.chave, rotuloValor: escolhida.rotulo.replace(/ \(.*\)$/, ""),
       valor: escolhida.valor, valorTxt: valorTexto(escolhida), metricas: [m.cpm, m.cpc, m.cpl, m.custo_conversa, m.cpa], fonte: c.rotuloFonte,
       explicacao: escolhida.valor == null
         ? `Ainda não há ${escolhida.rotulo.toLowerCase()} no período: sem resultado registrado, o custo por resultado não existe (e não é zero).`
@@ -187,7 +188,7 @@ export function cartoesEtapa(m, bmk, conf, ctx = {}) {
     const lucro = numeroOuNulo(ctx.lucro_liquido);
     const nivel = m.roas.valor == null ? "sem_dados" : !s.venda ? "sem_dados" : c.nivel;
     add({
-      chave: "faturamento", titulo: "Faturamento", nivel, valor: m.roas.valor, valorTxt: valorTexto(m.roas),
+      chave: "faturamento", titulo: "Faturamento", nivel, chaveValor: "roas", rotuloValor: "ROAS", valor: m.roas.valor, valorTxt: valorTexto(m.roas),
       metricas: [m.roas, m.ticket, m.margem, m.lucro_por_lead], fonte: c.rotuloFonte,
       explicacao: m.roas.valor == null
         ? "Nenhuma venda atribuída a este escopo no período. Sem venda, ROAS e CPA não existem — pode ser ausência de resultado ou venda ainda não lançada no CRM."
@@ -203,7 +204,7 @@ export function cartoesEtapa(m, bmk, conf, ctx = {}) {
       : f.nivel === "sem_dados" ? (cFreq.nivel === "sem_dados" ? "sem_dados" : cFreq.nivel)
         : piorNivel([f.nivel, cFreq.nivel]);
     add({
-      chave: "saturacao", titulo: "Saturação", nivel, valor: m.frequencia.valor, valorTxt: m.frequencia.valor != null ? dec(m.frequencia.valor, 2) : "—",
+      chave: "saturacao", titulo: "Saturação", nivel, chaveValor: "frequencia", rotuloValor: "frequência", valor: m.frequencia.valor, valorTxt: m.frequencia.valor != null ? dec(m.frequencia.valor, 2) : "—",
       metricas: [m.frequencia, m.cpm, m.ctr], explicacao: `${m.frequencia.valor != null ? `Frequência ${dec(m.frequencia.valor, 2)} (${m.frequencia.formula}). ` : ""}${f.texto}`,
       sinais: f.sinais || [],
     });

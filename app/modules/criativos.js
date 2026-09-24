@@ -3,12 +3,13 @@ import { kpis, serieDiaria, mediaCampanhas } from "../core/metrics.js";
 import { classificarCriativo, CLASSES_CRIATIVO, diagnosticoVideo } from "../core/rules.js";
 import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista, abas, kpi, barrasH } from "../core/ui.js";
 import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js";
-import { blocoAnalise } from "../core/analise/ui.js";
+import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem } from "../core/analise/ui.js";
+import { analisarVarios } from "../core/analise/index.js";
 import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js";
 import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js";
 import { podeEditar } from "../core/auth.js";
 
-let visao = "ranking", filtroClasse = "";
+let visao = "diagnostico", filtroClasse = "", ordem = "gasto";
 function lista(root, ctx) {
   const iv = ctx.iv, media = mediaCampanhas(iv);
   const todos = db.all("creatives").map((c) => ({ ...c, cl: classificarCriativo(c, iv, media) })).map((c) => ({ ...c, k: c.cl.k }));
@@ -17,9 +18,9 @@ function lista(root, ctx) {
   const contagem = Object.keys(CLASSES_CRIATIVO).map((k) => [k, `${CLASSES_CRIATIVO[k][0]} (${todos.filter((c) => c.cl.classe === k).length})`]);
   const card = (c, i) => `<div class="criativo-card"><a href="#/criativos/${c.id}">${c.thumbnail ? `<img src="${esc(c.thumbnail)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=semimg>🖼️</div>'">` : `<div class="semimg">${{ video: "🎬", reels: "🎞️", story: "📱", carrossel: "🧩" }[c.type] || "🖼️"}</div>`}</a><div class="cc">${i != null ? `<span class="ranking-pos ${i < 3 ? "p" + (i + 1) : ""}">${i + 1}</span>` : ""}<b><a href="#/criativos/${c.id}">${esc(c.name)}</a></b>${badge(c.cl.rotulo, c.cl.cor)} ${badge(rotuloOpcao("creative_type", c.type), "roxo")}<div class="sub" style="margin-top:6px">${inteiro(c.k.sales)} venda(s) · ${inteiro(c.k.leads_base)} lead(s)<br>gasto ${brl(c.k.spend)} · CTR ${pct(c.k.ctr)} · CPA ${brl(c.k.cpa)} · ROAS ${mult(c.k.roas)}</div></div></div>`;
   root.innerHTML = `${bannerDemo()}<div class="pagina-cab"><div><h1>Criativos</h1><p class="sub">${todos.length} criativo(s) · classificados automaticamente pelo desempenho no período</p></div><div class="pagina-acoes"><a class="btn" href="#/briefings?novo=1">🎬 Solicitar criativo</a>${btnNovo("Novo criativo", 'data-novo="1"')}</div></div>
-    ${abas([["ranking", "Ranking visual"], ["tabela", "Tabela"]], visao)}
+    ${abas([["diagnostico", "🧠 Diagnóstico"], ["ranking", "Ranking visual"], ["tabela", "Tabela"]], visao)}
     ${chips([["", "Todos"], ...contagem], filtroClasse, "data-fc")}<div style="height:10px"></div>
-    ${visao === "ranking" ? (ordenados.length ? `<div class="grade-cards">${ordenados.map((c, i) => card(c, i)).join("")}</div>` : vazio("Nenhum criativo.")) : cartao("", tabela("criativos", { colunas: [
+    ${visao === "diagnostico" ? diagnosticoHtml(lin, ctx) : visao === "ranking" ? (ordenados.length ? `<div class="grade-cards">${ordenados.map((c, i) => card(c, i)).join("")}</div>` : vazio("Nenhum criativo.")) : cartao("", tabela("criativos", { colunas: [
       { key: "name", label: "Criativo", render: (c) => `${c.thumbnail ? `<img class="mini" src="${esc(c.thumbnail)}" alt="">` : ""}<a href="#/criativos/${c.id}">${esc(c.name)}</a><br><small>${esc(rotuloOpcao("creative_type", c.type))}${c.product_id ? " · " + esc((db.get("products", c.product_id) || {}).name || "") : ""}${c.campaign_id ? " · " + esc((db.get("campaigns", c.campaign_id) || {}).name || "") : ""}</small>` },
       { key: "classe", label: "Classificação", valor: (c) => c.cl.rotulo, render: (c) => badge(c.cl.rotulo, c.cl.cor) },
       { key: "impressions", label: "Impressões", tipo: "num", valor: (c) => c.k.impressions, fmt: inteiro }, { key: "reach", label: "Alcance", tipo: "num", valor: (c) => c.k.reach, fmt: inteiro }, { key: "clicks", label: "Cliques", tipo: "num", valor: (c) => c.k.link_clicks || c.k.clicks, fmt: inteiro }, { key: "ctr", label: "CTR", tipo: "num", valor: (c) => c.k.ctr, fmt: (v) => pct(v) }, { key: "cpc", label: "CPC", tipo: "num", valor: (c) => c.k.cpc, fmt: brl },
@@ -29,8 +30,23 @@ function lista(root, ctx) {
     ], linhas: lin, ordem: "sales" }))}`;
   root.querySelectorAll("[data-aba]").forEach((b) => b.addEventListener("click", () => { visao = b.dataset.aba; ctx.rerender(); }));
   root.querySelectorAll("[data-fc]").forEach((b) => b.addEventListener("click", () => { filtroClasse = b.dataset.fc; ctx.rerender(); }));
+  root.querySelectorAll("[data-ord]").forEach((b) => b.addEventListener("click", () => { ordem = b.dataset.ord; ctx.rerender(); }));
   const n = root.querySelector("[data-novo]"); if (n) n.addEventListener("click", () => abrirFormulario("creatives", null, { ocultar: ["external_id"], onSave: (c) => ctx.navegar(`#/criativos/${c.id}`) }));
 }
+// Mesma leitura do motor aplicada a todos os criativos do filtro, de uma vez só.
+function diagnosticoHtml(lin, ctx) {
+  const analises = analisarVarios({ nivel: "criativo", registros: lin, iv: ctx.iv });
+  const link = (an) => ({
+    href: `#/criativos/${an.registro.id}`,
+    imagem: an.registro.thumbnail || "",
+    subtitulo: [rotuloOpcao("creative_type", an.registro.type), an.contexto.campanha ? esc(an.contexto.campanha.name) : ""].filter(Boolean).join(" · "),
+  });
+  const comparativo = comparativoEtapas(analises, link);
+  return `${comparativo ? cartao("Quem ganha em cada etapa", comparativo) : ""}
+    <div class="filtros-linha">${chipsOrdem(ordem)}</div>
+    ${listaDiagnostico(ordenarAnalises(analises, ordem), link, { vazioTxt: "Nenhum criativo com entrega no período selecionado." })}`;
+}
+
 function detalhe(root, ctx, c) {
   const iv = ctx.iv, cl = classificarCriativo(c, iv, mediaCampanhas(iv)), k = cl.k;
   const serie = serieDiaria(iv, { creative_id: c.id });

@@ -51,9 +51,17 @@ function valoresAnalise(k) {
 
 // ---------------------------------------------------------------- base de comparação
 // Nível 1: histórico da própria conta. Nível 2: escopos parecidos. Nível 3: referência editável.
-function amostras(nivel, registro, ivRef) {
+//
+// Levantar as entidades da conta é a parte cara (passa por todas as métricas de 90 dias),
+// então ela roda UMA vez e é reaproveitada quando a tela analisa uma lista inteira.
+export function entidadesDoNivel(nivel, ivRef) {
   const tipo = TIPO_ENTIDADE[nivel] || "campaign";
-  const todos = porEntidade(ivRef, tipo, true).filter((x) => x.k.spend > 0 && x.k.impressions > 200);
+  return porEntidade(ivRef, tipo, true)
+    .filter((x) => x.k.spend > 0 && x.k.impressions > 200)
+    .map((x) => ({ id: x.id, registro: x.registro, valores: valoresAnalise(x.k) }));
+}
+function amostrasDe(nivel, registro, todos) {
+  const tipo = TIPO_ENTIDADE[nivel] || "campaign";
   const conta = todos.filter((x) => x.id !== registro.id);
   let similares = [];
   if (tipo === "campaign") {
@@ -64,7 +72,20 @@ function amostras(nivel, registro, ivRef) {
     const camp = registro.campaign_id;
     similares = conta.filter((x) => x.registro && x.registro.campaign_id === camp);
   }
-  return { conta: conta.map((x) => valoresAnalise(x.k)), similares: similares.map((x) => valoresAnalise(x.k)) };
+  return { conta: conta.map((x) => x.valores), similares: similares.map((x) => x.valores) };
+}
+// Tudo que é igual para todos os escopos do mesmo nível: configuração, referência e a lista da conta.
+export function baseCompartilhada(nivel, minimos = null) {
+  const cfg = db.settings();
+  const h = hoje();
+  const ivRef = { inicio: somaDias(h, -89), fim: h, dias: 90 };
+  return {
+    cfg, h, ivRef,
+    referencia: mesclarReferencia(cfg.referencias),
+    mins: { ...MINIMOS, ...(cfg.minimos_analise || {}), ...(minimos || {}) },
+    minimoBenchmark: num(cfg.minimo_benchmark) || 4,
+    todos: entidadesDoNivel(nivel, ivRef),
+  };
 }
 
 // ---------------------------------------------------------------- tendência dentro do período
@@ -170,36 +191,36 @@ function metasDoEscopo(campanha) {
 }
 
 // ---------------------------------------------------------------- análise completa
-export function analisar({ nivel = "campanha", registro, iv, minimos = null }) {
+// leve = análise para listas: pula série diária, tendência, atendimento, filhos e recortes.
+// O diagnóstico e o score continuam iguais; o que sai é só o detalhamento que a lista não mostra.
+export function analisar({ nivel = "campanha", registro, iv, minimos = null, base = null, leve = false }) {
   const chave = NIVEIS_FILTRO[nivel] || "campaign_id";
   const filtro = { [chave]: registro.id };
   const { campanha, criativo, publicoReg } = contextoDoEscopo(nivel, registro);
   const k = kpis(iv, filtro);
-  const kAnt = kpis(anterior(iv), filtro);
-  const serie = serieDiaria(iv, filtro);
+  const kAnt = leve ? null : kpis(anterior(iv), filtro);
+  const serie = leve ? [] : serieDiaria(iv, filtro);
   const bruto = brutoDe(k);
   const video = videoDe(k, criativo ? criativo.duration_seconds : null);
   const m = metricasCalculadas(bruto, video);
 
-  const cfg = db.settings();
-  const referencia = mesclarReferencia(cfg.referencias);
-  const mins = { ...MINIMOS, ...(cfg.minimos_analise || {}), ...(minimos || {}) };
-  const h = hoje();
-  const ivRef = { inicio: somaDias(h, -89), fim: h, dias: 90 };
-  const bmk = construirBenchmarks(CHAVES_BENCH, amostras(nivel, registro, ivRef), referencia, num(cfg.minimo_benchmark) || 4);
+  const b = base || baseCompartilhada(nivel, minimos);
+  const { cfg, referencia, mins, h } = b;
+  const bmk = construirBenchmarks(CHAVES_BENCH, amostrasDe(nivel, registro, b.todos), referencia, b.minimoBenchmark);
 
-  const diasComDados = serie.filter((d) => (d.impressions || 0) > 0 || (d.spend || 0) > 0).length;
+  // Na análise leve o número de dias vem do próprio agregado, que já conta os dias distintos.
+  const diasComDados = leve ? num(k.dias) : serie.filter((d) => (d.impressions || 0) > 0 || (d.spend || 0) > 0).length;
   const conf = confianca({
     impressoes: k.impressions, alcance: k.reach, cliques: k.outbound_clicks || k.link_clicks || k.clicks,
     gasto: k.spend, dias: diasComDados, video: k.video_3s || k.video_plays, leads: k.leads || k.results, vendas: k.sales,
   }, mins);
 
-  const blocos = blocosTendencia(serie);
+  const blocos = leve ? null : blocosTendencia(serie);
   const fad = blocos ? fadiga(blocos.inicio, blocos.fim) : fadiga(null, null);
   const publico = saudePublico(m, bmk, conf, { alcance: k.reach, tamanho_publico: publicoReg ? publicoReg.size : null, ctr_caindo: fad.piorando ? fad.piorando.includes("ctr") : false });
 
   // Textos de apoio que só o CRM conhece: atendimento e motivo de perda.
-  const at = atendimento(iv, filtro);
+  const at = leve ? { medidos: 0, total: 0, naoAtendidos: 0, leads: [] } : atendimento(iv, filtro);
   const sla_texto = at.medidos ? `Tempo médio até o primeiro contato: ${dec(at.tempoMedio, 0)} min${at.naoAtendidos ? `; ${inteiro(at.naoAtendidos)} lead(s) sem nenhum contato` : ""}` : (at.total ? `${inteiro(at.total)} lead(s) no período, ${inteiro(at.naoAtendidos)} sem nenhum contato` : "");
   const perdidos = at.leads.filter((l) => l.stage === "perdido" && l.loss_reason);
   const contagemPerda = {};
@@ -225,10 +246,24 @@ export function analisar({ nivel = "campanha", registro, iv, minimos = null }) {
   const resumo = resumo10s({ escopo: registro, score, cartoes, achados, gargalos: garg, fortes, conf, m });
 
   return {
-    filhos: filhosDoEscopo(nivel, registro, iv),
-    recortes: nivel === "campanha" ? recortesDaCampanha(registro.external_id) : null,
+    leve,
+    filhos: leve ? [] : filhosDoEscopo(nivel, registro, iv),
+    recortes: !leve && nivel === "campanha" ? recortesDaCampanha(registro.external_id) : null,
     nivel, registro, iv, filtro, k, kAnt, serie, bruto, video, m, bmk, conf, referencia,
     cartoes, achados, score, funil, gargalos: garg, fortes, plano: pl, resumo, ctx,
     contexto: { campanha, criativo, publico: publicoReg }, tendencia: blocos, fadiga: fad,
   };
+}
+
+
+// Analisa uma lista de escopos do mesmo nível reaproveitando a base de comparação.
+// Sem isso, cada anúncio recalcularia o histórico da conta inteira — em 50 anúncios,
+// 50 vezes o mesmo trabalho.
+export function analisarVarios({ nivel = "anuncio", registros = [], iv, minimos = null, leve = true }) {
+  if (!registros.length) return [];
+  const base = baseCompartilhada(nivel, minimos);
+  return registros.map((registro) => {
+    try { return analisar({ nivel, registro, iv, base, leve }); }
+    catch (e) { console.error("Análise de", registro && registro.name, e); return null; }
+  }).filter(Boolean);
 }

@@ -119,7 +119,7 @@ seguinte. Nenhuma camada pula a anterior, e só a última conhece o banco.
 | `regras.js` | Cartões por etapa, padrões nomeados de diagnóstico, saúde do público, fadiga do criativo |
 | `score.js` | Nota 0–100 com pesos por objetivo da campanha |
 | `recomendacoes.js` | Problema → evidência → hipótese → ação → prioridade → confiança; plano em três caixas; resumo em 10 segundos |
-| `index.js` | Junta os dados do CRM, roda o pipeline e devolve tudo pronto |
+| `index.js` | Junta os dados do CRM, roda o pipeline e devolve tudo pronto. `analisarVarios()` analisa uma lista inteira montando a base de comparação **uma vez** — sem isso, 50 anúncios refariam 50 vezes o histórico da conta |
 | `ui.js` | Desenha. Não julga nada |
 
 Três decisões que valem para o motor inteiro:

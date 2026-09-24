@@ -46,7 +46,10 @@ export function construirBenchmark(chave, amostras = {}, padrao = REFERENCIA_PAD
   for (const fonte of ["conta", "similares"]) {
     const bruto = (amostras[fonte] || []).map((o) => (o ? o[chave] : null));
     const d = distribuicao(bruto);
-    if (d && d.n >= minimo) {
+    // Distribuição só serve de régua quando ela separa alguém de alguém. Se todo mundo tem o
+    // mesmo valor (ou todo mundo tem zero), "acima da mediana" não quer dizer nada — e zero
+    // acabaria classificado como bom. Nesse caso cai para o próximo nível.
+    if (d && d.n >= minimo && d.p75 > d.p25 && d.mediana > 0) {
       return {
         chave, fonte, rotuloFonte: FONTES[fonte], n: d.n, menor_melhor: menor,
         alvo: d.mediana, bom: menor ? d.p25 : d.p75, ruim: menor ? d.p75 : d.p25, distribuicao: d,
@@ -75,6 +78,8 @@ export function classificar(valor, bm) {
   if (v == null) return { nivel: "sem_dados", texto: "métrica indisponível" };
   if (!bm) return { nivel: "sem_dados", texto: "sem base de comparação" };
   const menor = bm.menor_melhor;
+  // Piso de bom senso: em métrica onde maior é melhor, zero nunca é bom resultado.
+  if (!menor && v <= 0) return { nivel: "ruim", razao: 0, alvo: bm.alvo, fonte: bm.fonte, rotuloFonte: bm.rotuloFonte, texto: `comparado com ${bm.texto}` };
   const bom = menor ? v <= bm.bom : v >= bm.bom;
   const ruim = menor ? v >= bm.ruim : v <= bm.ruim;
   const nivel = bom ? "bom" : ruim ? "ruim" : "medio";
