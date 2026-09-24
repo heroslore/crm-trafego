@@ -1,39 +1,39 @@
 // Casca do aplicativo: menu, topo, período global, roteador, busca, notificações, perfil.
-import { db, garantirBase, inserirDemonstracao } from "./core/db.js?v=bb300066";
-import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js?v=bb300066";
-import { esc, hoje, somaDias, semAcento } from "./core/format.js?v=bb300066";
-import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js?v=bb300066";
-import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem } from "./core/sync.js?v=bb300066";
-import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js?v=bb300066";
-import { alertas } from "./core/rules.js?v=bb300066";
-import * as W from "./core/wame.js?v=bb300066";
-import * as MetaApi from "./core/meta.js?v=bb300066";
-import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js?v=bb300066";
-import { rotulo as rotuloOpcao } from "./core/schema.js?v=bb300066";
+import { db, garantirBase, inserirDemonstracao } from "./core/db.js?v=f9372346";
+import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js?v=f9372346";
+import { esc, hoje, somaDias, semAcento } from "./core/format.js?v=f9372346";
+import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js?v=f9372346";
+import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem } from "./core/sync.js?v=f9372346";
+import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js?v=f9372346";
+import { alertas } from "./core/rules.js?v=f9372346";
+import * as W from "./core/wame.js?v=f9372346";
+import * as MetaApi from "./core/meta.js?v=f9372346";
+import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js?v=f9372346";
+import { rotulo as rotuloOpcao } from "./core/schema.js?v=f9372346";
 
-import dashboard from "./modules/dashboard.js?v=bb300066";
-import hoje_ from "./modules/hoje.js?v=bb300066";
-import inbox from "./modules/inbox.js?v=bb300066";
-import decisoes from "./modules/decisoes.js?v=bb300066";
-import campanhas from "./modules/campanhas.js?v=bb300066";
-import anuncios from "./modules/anuncios.js?v=bb300066";
-import criativos from "./modules/criativos.js?v=bb300066";
-import produtos from "./modules/produtos.js?v=bb300066";
-import publicos from "./modules/publicos.js?v=bb300066";
-import leads from "./modules/leads.js?v=bb300066";
-import vendas from "./modules/vendas.js?v=bb300066";
-import clientes from "./modules/clientes.js?v=bb300066";
-import financeiro from "./modules/financeiro.js?v=bb300066";
-import testes from "./modules/testes.js?v=bb300066";
-import planejamento from "./modules/planejamento.js?v=bb300066";
-import tarefas from "./modules/tarefas.js?v=bb300066";
-import calendario from "./modules/calendario.js?v=bb300066";
-import briefings from "./modules/briefings.js?v=bb300066";
-import ideias from "./modules/ideias.js?v=bb300066";
-import relatorios from "./modules/relatorios.js?v=bb300066";
-import calculadoras from "./modules/calculadoras.js?v=bb300066";
-import concorrentes from "./modules/concorrentes.js?v=bb300066";
-import config from "./modules/config.js?v=bb300066";
+import dashboard from "./modules/dashboard.js?v=f9372346";
+import hoje_ from "./modules/hoje.js?v=f9372346";
+import inbox from "./modules/inbox.js?v=f9372346";
+import decisoes from "./modules/decisoes.js?v=f9372346";
+import campanhas from "./modules/campanhas.js?v=f9372346";
+import anuncios from "./modules/anuncios.js?v=f9372346";
+import criativos from "./modules/criativos.js?v=f9372346";
+import produtos from "./modules/produtos.js?v=f9372346";
+import publicos from "./modules/publicos.js?v=f9372346";
+import leads from "./modules/leads.js?v=f9372346";
+import vendas from "./modules/vendas.js?v=f9372346";
+import clientes from "./modules/clientes.js?v=f9372346";
+import financeiro from "./modules/financeiro.js?v=f9372346";
+import testes from "./modules/testes.js?v=f9372346";
+import planejamento from "./modules/planejamento.js?v=f9372346";
+import tarefas from "./modules/tarefas.js?v=f9372346";
+import calendario from "./modules/calendario.js?v=f9372346";
+import briefings from "./modules/briefings.js?v=f9372346";
+import ideias from "./modules/ideias.js?v=f9372346";
+import relatorios from "./modules/relatorios.js?v=f9372346";
+import calculadoras from "./modules/calculadoras.js?v=f9372346";
+import concorrentes from "./modules/concorrentes.js?v=f9372346";
+import config from "./modules/config.js?v=f9372346";
 
 export const MODULOS = [dashboard, hoje_, inbox, decisoes, campanhas, anuncios, criativos, produtos, publicos, leads, vendas, clientes, financeiro, testes, planejamento, tarefas, calendario, briefings, ideias, relatorios, calculadoras, concorrentes, config];
 const SECOES = [
@@ -175,7 +175,7 @@ async function iniciar() {
   // aparecem depois que a permissão de gestão for confirmada.
   if (MetaApi.configurado()) MetaApi.verificar().then(() => render()).catch(() => {});
   const r = await carregarMeta();
-  if (r.ok && r.novo) { toast("Dados da Meta atualizados."); verificarSemResposta(); render(); atualizarNotificacoes(); }
+  if (r.ok && r.novo) { toast(r.remapeado ? "Dados da Meta reimportados com os campos novos." : "Dados da Meta atualizados."); verificarSemResposta(); render(); atualizarNotificacoes(); }
   if (nuvemLigada()) { await sincronizar("abrir"); iniciarPoll(); render(); }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { carregarMeta().then((x) => { if (x.novo) render(); }); if (nuvemLigada()) sincronizar("voltar"); } });
   window.addEventListener("online", () => { if (nuvemLigada()) sincronizar("online"); });

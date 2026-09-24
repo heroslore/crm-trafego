@@ -2,17 +2,17 @@
 // O caminho é sempre o mesmo, na ordem:
 //   DADOS BRUTOS → MÉTRICAS CALCULADAS → BENCHMARKS → REGRAS → SCORE → RECOMENDAÇÕES → (interface)
 // Nada aqui altera dados: a análise só lê.
-import { db } from "../db.js?v=bb300066";
-import { kpis, serieDiaria, porEntidade, atendimento, plataformaBase } from "../metrics.js?v=bb300066";
-import { anterior } from "../periods.js?v=bb300066";
-import { META } from "../sync.js?v=bb300066";
-import { num, hoje, somaDias, diasEntre, pct, brl, inteiro, dec } from "../format.js?v=bb300066";
-import { metricasCalculadas, contagemOuNulo, numeroOuNulo, razao } from "./metricas.js?v=bb300066";
-import { construirBenchmarks, mesclarReferencia, MENOR_MELHOR } from "./benchmarks.js?v=bb300066";
-import { confianca, MINIMOS } from "./confianca.js?v=bb300066";
-import { cartoesEtapa, diagnosticos, saudePublico, fadiga } from "./regras.js?v=bb300066";
-import { pontuar } from "./score.js?v=bb300066";
-import { plano, gargalos, pontosFortes, resumo10s } from "./recomendacoes.js?v=bb300066";
+import { db } from "../db.js?v=f9372346";
+import { kpis, serieDiaria, porEntidade, atendimento, plataformaBase } from "../metrics.js?v=f9372346";
+import { anterior } from "../periods.js?v=f9372346";
+import { META } from "../sync.js?v=f9372346";
+import { num, hoje, somaDias, diasEntre, pct, brl, inteiro, dec } from "../format.js?v=f9372346";
+import { metricasCalculadas, contagemOuNulo, numeroOuNulo, razao } from "./metricas.js?v=f9372346";
+import { construirBenchmarks, mesclarReferencia, MENOR_MELHOR } from "./benchmarks.js?v=f9372346";
+import { confianca, MINIMOS } from "./confianca.js?v=f9372346";
+import { cartoesEtapa, diagnosticos, saudePublico, fadiga } from "./regras.js?v=f9372346";
+import { pontuar } from "./score.js?v=f9372346";
+import { plano, gargalos, pontosFortes, resumo10s } from "./recomendacoes.js?v=f9372346";
 
 export const CHAVES_BENCH = ["ctr", "cpc", "cpm", "frequencia", "cpl", "custo_conversa", "cpa", "roas", "conversao", "taxa_lead", "taxa_pagina", "margem", "retencao_inicial", "retencao_metade", "retencao_fim", "taxa_thruplay"];
 const NIVEIS_FILTRO = { campanha: "campaign_id", conjunto: "ad_set_id", anuncio: "ad_id", criativo: "creative_id" };
