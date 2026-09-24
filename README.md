@@ -39,6 +39,10 @@ O navegador fala direto com a API da Meta (ela responde com CORS liberado), ent�
 servidor no meio. Com a chave certa, dá para **pausar, reativar, mudar orçamento, duplicar e
 subir campanha** sem abrir o Gerenciador de Anúncios.
 
+**A tela diz a validade da chave.** Configurações → Meta mostra se a chave não expira (usuário
+do sistema) ou quanto tempo ela ainda tem, e avisa quando falta menos de uma semana — porque
+uma chave que morre faz os botões sumirem sem explicação.
+
 **Teste antes de precisar.** Em Configurações → Meta há o botão **"Testar comando (não altera
 nada)"**: ele reenvia para uma campanha o status que ela já tem. Se a Meta aceitar, pausar,
 orçamento, duplicar e encerrar funcionam; se recusar, a tela diz o motivo em português. É a

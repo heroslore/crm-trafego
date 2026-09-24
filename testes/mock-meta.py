@@ -48,6 +48,10 @@ class H(BaseHTTPRequestHandler):
             return self.erro("Invalid OAuth access token", 190)
         if q.get("access_token") == "sem-permissao" and caminho == "me/permissions":
             return self.responder({"data": [{"permission": "ads_read", "status": "granted"}]})
+        if caminho == "debug_token":
+            return self.responder({"data": {"type": "SYSTEM_USER", "application": "App de teste", "is_valid": True,
+                                            "expires_at": 0, "data_access_expires_at": 0,
+                                            "scopes": ["ads_management", "ads_read", "pages_show_list", "pages_read_engagement"]}})
         if caminho == "me":
             return self.responder({"id": "1", "name": "Ygor (teste)"})
         if caminho == "me/permissions":
