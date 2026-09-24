@@ -355,3 +355,25 @@ a.msg-midia { color:inherit; text-decoration:underline; }
 .analise .tabela-wrap { max-width:100%; }
 .analise .tabela td:nth-child(3), .analise .tabela td:last-child { white-space:normal; min-width:150px; }
 .an-rec-linha p, .an-rec-linha li, .an-etapa-txt, .an-bloco-txt { overflow-wrap:anywhere; }
+
+/* ---------------- diagnóstico em lista (anúncios e criativos) */
+.an-diags { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:12px; }
+.an-diag { background:var(--card); border:1px solid var(--borda); border-left:3px solid var(--cinza); border-radius:var(--raio); padding:12px 14px; display:flex; flex-direction:column; gap:8px; min-width:0; }
+.an-diag-cab { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; }
+.an-diag-img { width:46px; height:46px; object-fit:cover; border-radius:9px; background:var(--card2); }
+.an-diag-tit { min-width:0; } .an-diag-tit b { display:block; overflow-wrap:anywhere; }
+.an-diag-nota { border-radius:10px; padding:6px 10px; text-align:center; min-width:62px; }
+.an-diag-nota span { display:block; font-size:1.3rem; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; }
+.an-diag-nota small { font-size:.6rem; }
+.an-trilha { display:flex; gap:4px; flex-wrap:wrap; }
+.an-passo { display:inline-flex; align-items:center; gap:3px; font-size:.62rem; padding:2px 6px; border-radius:999px; background:var(--card2); border:1px solid var(--borda); white-space:nowrap; }
+.an-passo i { font-style:normal; color:var(--texto2); }
+.an-passo-verde { background:var(--verde-bg); border-color:rgba(34,197,94,.3); } .an-passo-amarelo { background:var(--amarelo-bg); border-color:rgba(245,158,11,.3); }
+.an-passo-vermelho { background:var(--vermelho-bg); border-color:rgba(239,68,68,.3); } .an-passo-cinza { background:var(--cinza-bg); }
+.an-diag-nums { display:flex; flex-wrap:wrap; gap:4px 14px; font-size:.8rem; font-variant-numeric:tabular-nums; border-top:1px dashed var(--borda); border-bottom:1px dashed var(--borda); padding:7px 0; }
+.an-diag-nums span { display:flex; flex-direction:column; } .an-diag-nums i { font-style:normal; font-size:.62rem; color:var(--mudo); text-transform:uppercase; letter-spacing:.06em; }
+.an-diag-linha { display:grid; grid-template-columns:54px 1fr; gap:8px; font-size:.82rem; align-items:start; }
+.an-diag-linha > span { font-size:.6rem; letter-spacing:.08em; text-transform:uppercase; color:var(--mudo); padding-top:2px; }
+.an-diag-linha p { overflow-wrap:anywhere; } .an-diag-acao p { font-weight:600; }
+.an-diag-pe { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:.78rem; }
+@media (max-width:520px){ .an-diags { grid-template-columns:1fr; } .an-passo i { display:none; } }
