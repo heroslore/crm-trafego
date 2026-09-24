@@ -8,6 +8,7 @@ import { lerCSV, lerXLSX, mapearColunas, importar, CAMPOS_IMPORT } from "../core
 import * as W from "../core/wame.js";
 import { REFERENCIA_PADRAO, mesclarReferencia, MENOR_MELHOR } from "../core/analise/benchmarks.js";
 import { MINIMOS } from "../core/analise/confianca.js";
+import * as MetaApi from "../core/meta.js";
 
 let aba = "empresa", importState = null;
 const METAS = [["faturamento_mes", "Meta de faturamento mensal (R$)"], ["faturamento_semana", "Meta de faturamento semanal (R$)"], ["vendas_mes", "Meta de vendas no mês"], ["leads_mes", "Meta de leads no mês"], ["roas_min", "ROAS mínimo"], ["cpa_max", "CPA máximo (R$)"], ["cpl_max", "CPL máximo (R$)"], ["ticket_medio", "Ticket médio desejado (R$)"], ["investimento_max_mes", "Investimento máximo mensal (R$)"], ["ctr_min", "CTR mínimo (%)"], ["sla_minutos", "Tempo máximo para o primeiro atendimento (minutos)"], ["taxa_contato_min", "Taxa mínima de leads atendidos (%)"], ["ltv_meta", "LTV desejado por cliente (R$)"]];
@@ -56,6 +57,33 @@ function abaAnalise() {
     <div class="form-grade">${Object.keys(ROTULOS_MIN).map((k) => `<div class="campo"><label>${esc(ROTULOS_MIN[k])}</label><input type="number" step="any" data-min="${k}" value="${esc(mins[k])}"></div>`).join("")}
       <div class="campo"><label>Campanhas necessárias para usar o histórico como base</label><input type="number" step="1" data-cfg2="minimo_benchmark" value="${esc(cfg.minimo_benchmark != null ? cfg.minimo_benchmark : 4)}"></div></div>
     ${podeEditar() ? `<button class="btn btn-primario" data-salvar-analise style="margin-top:12px">💾 Salvar referências</button> <button class="btn" data-restaurar-analise style="margin-top:12px">↩️ Voltar ao padrão</button>` : ""}`);
+}
+function abaMeta() {
+  const c = MetaApi.cfg, e = MetaApi.estado;
+  const temGestao = e.permissoes.includes("ads_management");
+  const contaNome = e.conta ? `${e.conta.name || ""} · ${e.conta.currency || ""}${e.conta.account_status != 1 ? " · ⚠️ conta com restrição" : ""}` : "";
+  const estadoHtml = e.verificado === null
+    ? (MetaApi.configurado() ? `<div class="aviso aviso-info">Chave guardada neste aparelho. Clique em "Testar chave" para conferir o acesso.</div>` : `<div class="aviso aviso-info">Ainda sem chave neste aparelho. Sem ela o CRM continua lendo os dados da coleta diária, mas não consegue mexer nas campanhas.</div>`)
+    : e.verificado
+      ? `<div class="aviso ${temGestao ? "aviso-ok" : "aviso-alerta"}">${temGestao ? "✓" : "⚠️"} Conectado como <b>${esc((e.perfil || {}).name || "")}</b> na conta <b>${esc(contaNome)}</b>.<br>Permissões da chave: ${e.permissoes.length ? e.permissoes.map((p) => `<span class="tag">${esc(p)}</span>`).join(" ") : "nenhuma"}.${temGestao ? "" : "<br><b>Falta <code>ads_management</code></b> — com o que existe hoje dá para ler, não para pausar nem criar campanha."}</div>`
+      : `<div class="aviso aviso-erro">Não consegui usar essa chave: ${esc(e.erro || "erro desconhecido")}</div>`;
+  return cartao("Meta — controlar campanhas pelo CRM", `
+    ${estadoHtml}
+    <p class="sub" style="margin:10px 0">Com a chave certa, o CRM pausa, reativa, muda orçamento, duplica e sobe campanha direto na sua conta de anúncios. Sem servidor no meio: o navegador fala direto com a Meta.</p>
+    <div class="form-grade">
+      <div class="campo largo"><label>Chave de acesso (token) com <code>ads_management</code></label><input type="password" id="mtToken" value="${esc(c.token ? "••••••••••••" : "")}" placeholder="EAAG…" autocapitalize="off" autocomplete="off"><small>Gere em developers.facebook.com → sua aplicação → Ferramentas → Explorador da API, marcando <code>ads_management</code>, <code>ads_read</code>, <code>pages_show_list</code> e <code>pages_read_engagement</code>. Depois troque por uma chave de longa duração.</small></div>
+      <div class="campo"><label>Conta de anúncios</label><input type="text" id="mtConta" value="${esc(c.conta || "")}" placeholder="act_123456789" autocapitalize="off"></div>
+      <div class="campo"><label>Versão da API</label><input type="text" id="mtVersao" value="${esc(c.versao || MetaApi.VERSAO_API)}"></div>
+    </div>
+    <label class="check" style="margin-top:10px"><input type="checkbox" id="mtLigado"${c.ligado ? " checked" : ""}> <b>Permitir que o CRM altere campanhas nesta conta</b> (pausar, orçamento, duplicar, criar)</label>
+    <p class="sub">Desligado, os botões somem das telas e o CRM volta a só ler. É o freio de mão.</p>
+    <div class="aviso aviso-alerta" style="margin-top:10px"><b>Onde essa chave fica.</b> Só neste aparelho, no armazenamento do navegador — nunca no banco, no backup nem na nuvem. Quem tem essa chave gasta o dinheiro da conta de anúncios, então ela não é compartilhada entre a equipe: cada pessoa que precisar controlar campanhas cola a dela no próprio aparelho. No celular da sua funcionária, sem chave, os botões simplesmente não aparecem.</div>
+    ${podeEditar() ? `<div class="linha-btns" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primario" data-mt-salvar>💾 Salvar e testar</button><button class="btn" data-mt-testar>🔌 Testar chave</button>${MetaApi.configurado() ? `<button class="btn btn-perigo" data-mt-esquecer>🗑️ Esquecer a chave deste aparelho</button>` : ""}</div>` : ""}
+    <h3>O que o CRM faz e o que não faz</h3>
+    <div class="lista">
+      ${[["Pausar e reativar", "campanha, conjunto e anúncio, com confirmação"], ["Mudar orçamento diário", "com aviso sobre reiniciar o aprendizado"], ["Duplicar campanha", "cópia completa, nascendo pausada"], ["Subir campanha nova", "impulsionando publicação ou com imagem e texto novos"], ["Registrar tudo", "cada ação entra no histórico de decisões, que mede o antes e o depois"]].map(([t, d]) => `<div class="item"><div class="item-txt"><div class="item-titulo">${esc(t)}</div><div class="item-sub">${esc(d)}</div></div><div class="item-dir">${badge("faz", "verde")}</div></div>`).join("")}
+      ${[["Apagar campanha", "nunca. Encerrar é decisão para o Gerenciador de Anúncios"], ["Mexer sozinho", "nenhuma ação acontece sem você confirmar na tela"], ["Subir ativa por padrão", "campanha nova e cópia nascem pausadas"]].map(([t, d]) => `<div class="item"><div class="item-txt"><div class="item-titulo">${esc(t)}</div><div class="item-sub">${esc(d)}</div></div><div class="item-dir">${badge("não faz", "cinza")}</div></div>`).join("")}
+    </div>`);
 }
 function abaAutomacoes() {
   const lista = db.all("automations");
@@ -132,8 +160,8 @@ export default {
   id: "config", titulo: "Configurações", icone: "⚙️",
   render(root, ctx) {
     if (ctx.rota.aba) aba = ctx.rota.aba;
-    const corpo = { empresa: abaEmpresa, usuarios: abaUsuarios, mensagens: abaMensagens, metas: abaMetas, analise: abaAnalise, automacoes: abaAutomacoes, importar: abaImportar, integracoes: abaIntegracoes, nuvem: abaNuvem, dados: abaDados }[aba] || abaEmpresa;
-    root.innerHTML = `<div class="pagina-cab"><div><h1>Configurações</h1><p class="sub">Empresas, usuários e permissões, mensagens (WhatsApp/Instagram/Messenger), metas, referências da análise, automações, importação, integrações, nuvem e backup</p></div></div>${abas([["empresa", "Empresas"], ["usuarios", "Usuários"], ["mensagens", "Mensagens"], ["metas", "Metas e alertas"], ["analise", "Análise"], ["automacoes", "Automações"], ["importar", "Importar dados"], ["integracoes", "Integrações"], ["nuvem", "Nuvem"], ["dados", "Dados e backup"]], aba)}${corpo(ctx)}`;
+    const corpo = { empresa: abaEmpresa, usuarios: abaUsuarios, mensagens: abaMensagens, meta: abaMeta, metas: abaMetas, analise: abaAnalise, automacoes: abaAutomacoes, importar: abaImportar, integracoes: abaIntegracoes, nuvem: abaNuvem, dados: abaDados }[aba] || abaEmpresa;
+    root.innerHTML = `<div class="pagina-cab"><div><h1>Configurações</h1><p class="sub">Empresas, usuários e permissões, mensagens (WhatsApp/Instagram/Messenger), metas, referências da análise, automações, importação, integrações, nuvem e backup</p></div></div>${abas([["empresa", "Empresas"], ["usuarios", "Usuários"], ["mensagens", "Mensagens"], ["meta", "Meta (campanhas)"], ["metas", "Metas e alertas"], ["analise", "Análise"], ["automacoes", "Automações"], ["importar", "Importar dados"], ["integracoes", "Integrações"], ["nuvem", "Nuvem"], ["dados", "Dados e backup"]], aba)}${corpo(ctx)}`;
     root.querySelectorAll("[data-aba]").forEach((b) => b.addEventListener("click", () => { aba = b.dataset.aba; ctx.navegar(`#/config?aba=${aba}`); }));
     const on = (sel, ev, fn) => root.querySelectorAll(sel).forEach((el) => el.addEventListener(ev, (e) => fn(el, e)));
     on("[data-wm-salvar]", "click", async () => {
@@ -182,6 +210,26 @@ export default {
     on("[data-editar-emp]", "click", (el) => abrirFormulario("companies", el.dataset.editarEmp, { onSave: ctx.rerender, onDelete: ctx.rerender }));
     on("[data-novo-user]", "click", () => abrirFormulario("users", null, { onSave: ctx.rerender }));
     on("[data-editar-user]", "click", (el) => abrirFormulario("users", el.dataset.editarUser, { onSave: ctx.rerender, onDelete: ctx.rerender, permitirApagar: el.dataset.editarUser !== (usuario() || {}).id }));
+    const testarMeta = async () => {
+      try { await MetaApi.verificar(); toast(MetaApi.podeEscrever() ? "Conectado. O controle das campanhas está ligado." : "Chave aceita, mas o controle ainda não está liberado."); }
+      catch (e) { toast("Não deu: " + e.message, "erro"); }
+      ctx.rerender();
+    };
+    on("[data-mt-salvar]", "click", async () => {
+      const t = root.querySelector("#mtToken").value.trim();
+      MetaApi.salvarCfg({
+        ...(t && !/^•+$/.test(t) ? { token: t } : {}),
+        conta: root.querySelector("#mtConta").value.trim(),
+        versao: root.querySelector("#mtVersao").value.trim() || MetaApi.VERSAO_API,
+        ligado: root.querySelector("#mtLigado").checked,
+      });
+      await testarMeta();
+    });
+    on("[data-mt-testar]", "click", testarMeta);
+    on("[data-mt-esquecer]", "click", () => {
+      if (!confirm("Apagar a chave da Meta deste aparelho? O CRM volta a só ler os dados da coleta.")) return;
+      MetaApi.limparCfg(); toast("Chave apagada deste aparelho."); ctx.rerender();
+    });
     on("[data-salvar-analise]", "click", () => {
       const ref = {};
       root.querySelectorAll("[data-ref-bom]").forEach((i) => { const k = i.dataset.refBom; ref[k] = { ...(ref[k] || {}), bom: Number(i.value) }; });
