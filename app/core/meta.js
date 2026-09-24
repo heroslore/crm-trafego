@@ -63,7 +63,14 @@ function amigavel(e) {
   if (cod === 200 || cod === 10 || cod === 299) return "Esta chave não tem permissão para alterar campanhas. Falta a permissão ads_management na conta de anúncios.";
   if (cod === 17 || cod === 613 || sub === 2446079) return "A Meta limitou a quantidade de chamadas por agora. Espere alguns minutos e tente de novo.";
   if (cod === 2 || cod === 1) return "A Meta está instável neste momento. Tente de novo em alguns segundos.";
-  if (cod === 100) return e.message || "A Meta recusou os dados enviados.";
+  if (cod === 100) {
+    // Escrever com chave de leitura devolve exatamente isto, em inglês e enganoso: diz que o
+    // objeto "não existe", quando o que falta é permissão. Traduzir é obrigatório.
+    if (/does not exist|missing permissions|does not support this operation/i.test(e.message || "")) {
+      return "A Meta recusou: esta chave não pode alterar este objeto. Quase sempre é falta da permissão ads_management (a chave só lê), ou o objeto não pertence à conta de anúncios configurada aqui.";
+    }
+    return e.message || "A Meta recusou os dados enviados.";
+  }
   if (cod === 368) return "A conta de anúncios está com restrição. Resolva no Gerenciador de Anúncios antes.";
   return e.message || "A Meta recusou o comando.";
 }
@@ -119,6 +126,17 @@ export const contaAtiva = () => estado.conta && Number(estado.conta.account_stat
 
 // ---------------------------------------------------------------- leitura de um objeto
 export const CAMPOS_STATUS = "id,name,status,effective_status,daily_budget,lifetime_budget,issues_info";
+
+// Teste de escrita que não altera nada: reenvia para um objeto o status que ele JÁ tem.
+// Serve para responder de vez "o comando funciona ou não?", sem a pessoa precisar pausar
+// uma campanha de verdade para descobrir.
+export async function testarEscrita(externalId, statusAtual) {
+  const antes = await situacao(externalId);
+  const alvo = statusAtual || antes.status;
+  await post(externalId, { status: alvo });
+  const depois = await situacao(externalId);
+  return { nome: antes.name, status_antes: antes.status, status_depois: depois.status, inalterado: antes.status === depois.status };
+}
 export async function situacao(id) { return get(id, CAMPOS_STATUS); }
 
 // ---------------------------------------------------------------- comandos
