@@ -4,11 +4,11 @@
 //   2. Depois de dar certo, o CRM se atualiza e a ação entra no histórico de decisões —
 //      é o mesmo histórico que mede o antes e o depois de cada mudança.
 //   3. Campanha nova e cópia nascem PAUSADAS. Quem liga o dinheiro é a pessoa.
-import { db } from "./db.js?v=46e26fb2";
-import * as M from "./meta.js?v=46e26fb2";
-import { modal, fecharModal, toast, badge } from "./ui.js?v=46e26fb2";
-import { esc, brl, agora, num } from "./format.js?v=46e26fb2";
-import { usuario, podeEditar } from "./auth.js?v=46e26fb2";
+import { db } from "./db.js?v=ebf7a3c7";
+import * as M from "./meta.js?v=ebf7a3c7";
+import { modal, fecharModal, toast, badge } from "./ui.js?v=ebf7a3c7";
+import { esc, brl, agora, num } from "./format.js?v=ebf7a3c7";
+import { usuario, podeEditar } from "./auth.js?v=ebf7a3c7";
 
 const TABELA = { campanha: "campaigns", conjunto: "ad_sets", anuncio: "ads" };
 const NOME_TIPO = { campanha: "campanha", conjunto: "conjunto", anuncio: "anúncio" };

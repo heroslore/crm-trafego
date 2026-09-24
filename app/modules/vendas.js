@@ -1,10 +1,10 @@
-import { db } from "../core/db.js?v=46e26fb2";
-import { kpis, vendasNoPeriodo, custoDaVenda, porEntidade, liquidoDaVenda, taxaPagamento, vendaVale } from "../core/metrics.js?v=46e26fb2";
-import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, kpi, barrasH, toast, itemLista } from "../core/ui.js?v=46e26fb2";
-import { esc, brl, inteiro, pct, mult, dataBR, hoje, agora } from "../core/format.js?v=46e26fb2";
-import { bannerDemo, btnNovo } from "./comum.js?v=46e26fb2";
-import { rotulo as rotuloOpcao } from "../core/schema.js?v=46e26fb2";
-import { podeEditar, usuario } from "../core/auth.js?v=46e26fb2";
+import { db } from "../core/db.js?v=ebf7a3c7";
+import { kpis, vendasNoPeriodo, custoDaVenda, porEntidade, liquidoDaVenda, taxaPagamento, vendaVale } from "../core/metrics.js?v=ebf7a3c7";
+import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, kpi, barrasH, toast, itemLista } from "../core/ui.js?v=ebf7a3c7";
+import { esc, brl, inteiro, pct, mult, dataBR, hoje, agora } from "../core/format.js?v=ebf7a3c7";
+import { bannerDemo, btnNovo } from "./comum.js?v=ebf7a3c7";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=ebf7a3c7";
+import { podeEditar, usuario } from "../core/auth.js?v=ebf7a3c7";
 
 export function abrirVenda(ctx, padrao = {}, id = null) {
   let pad = { date: hoje(), quantity: 1, seller_user_id: (usuario() || {}).id || "", ...padrao };

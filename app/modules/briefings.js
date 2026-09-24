@@ -1,9 +1,9 @@
-import { db } from "../core/db.js?v=46e26fb2";
-import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, kanban, abas } from "../core/ui.js?v=46e26fb2";
-import { esc, dataBR, hoje, brl } from "../core/format.js?v=46e26fb2";
-import { bannerDemo, btnNovo } from "./comum.js?v=46e26fb2";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=46e26fb2";
-import { podeEditar, usuario } from "../core/auth.js?v=46e26fb2";
+import { db } from "../core/db.js?v=ebf7a3c7";
+import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, kanban, abas } from "../core/ui.js?v=ebf7a3c7";
+import { esc, dataBR, hoje, brl } from "../core/format.js?v=ebf7a3c7";
+import { bannerDemo, btnNovo } from "./comum.js?v=ebf7a3c7";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=ebf7a3c7";
+import { podeEditar, usuario } from "../core/auth.js?v=ebf7a3c7";
 
 document.addEventListener("kanban:mover", (ev) => { if (ev.detail.kanban !== "briefings") return; db.update("briefings", ev.detail.id, { status: ev.detail.para }); if (window.CRM) window.CRM.render(); });
 export default {

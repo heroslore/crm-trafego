@@ -1,9 +1,10 @@
 // Interface da Análise Inteligente. Só desenha: todo o julgamento já veio pronto do motor.
 // A ordem das seções é a do briefing: primeiro o que decide, depois o que explica, por último o detalhe.
-import { cartao, badge, vazio, funil as funilUi, barrasH, tabela, prioridadeBadge } from "../ui.js?v=46e26fb2";
-import { esc, brl, pct, dec, inteiro, dataCurta } from "../format.js?v=46e26fb2";
-import { valorTexto, NIVEIS } from "./regras.js?v=46e26fb2";
-import { analisar } from "./index.js?v=46e26fb2";
+import { cartao, badge, vazio, funil as funilUi, barrasH, tabela, prioridadeBadge } from "../ui.js?v=ebf7a3c7";
+import { esc, brl, pct, dec, inteiro, dataCurta } from "../format.js?v=ebf7a3c7";
+import { valorTexto, NIVEIS } from "./regras.js?v=ebf7a3c7";
+import { MENOR_MELHOR as MENOR_EM_LISTA } from "./benchmarks.js?v=ebf7a3c7";
+import { analisar } from "./index.js?v=ebf7a3c7";
 
 // Ponto de entrada usado pelas telas. Se algo falhar no motor, a tela continua de pé:
 // a análise é um complemento, não pode derrubar a página da campanha.
@@ -129,6 +130,7 @@ function metricasTabela(lista, a) {
 // Repetido aqui para a interface não precisar importar a camada de benchmarks inteira.
 function classificarLocal(valor, bm) {
   const menor = bm.menor_melhor;
+  if (!menor && valor <= 0) return { nivel: "ruim", texto: `comparado com ${bm.texto}` };
   const nivel = (menor ? valor <= bm.bom : valor >= bm.bom) ? "bom" : (menor ? valor >= bm.ruim : valor <= bm.ruim) ? "ruim" : "medio";
   return { nivel, texto: `comparado com ${bm.texto}` };
 }
@@ -150,6 +152,92 @@ function tendenciaHtml(a) {
     <div class="tabela-wrap"><table class="tabela"><thead><tr><th>Indicador</th><th>Início</th><th>Fim</th><th>Variação</th></tr></thead><tbody>
       ${(f.sinais || []).map((s) => `<tr${s.ruim ? ' class="an-destaque"' : ""}><td>${esc(s.rotulo)}</td><td>${esc(s.fmt(s.de))}</td><td>${esc(s.fmt(s.para))}</td><td>${s.var > 0 ? "+" : ""}${pct(s.var)}</td></tr>`).join("")}
     </tbody></table></div>`;
+}
+
+// ---------------------------------------------------------------- diagnóstico de uma lista
+// Mesma leitura do motor, condensada em cartão: serve para varrer dezenas de anúncios
+// sem abrir um por um e achar onde o dinheiro está sendo perdido.
+const ORDENS = [["gasto", "Maior gasto"], ["pior", "Pior nota"], ["melhor", "Melhor nota"]];
+export const chipsOrdem = (ativa, attr = "data-ord") => `<div class="chips">${ORDENS.map(([v, t]) => `<button class="chip${v === ativa ? " ativa" : ""}" ${attr}="${v}">${t}</button>`).join("")}</div>`;
+
+export function ordenarAnalises(lista, ordem = "gasto") {
+  const nota = (a) => (a.score.score == null ? -1 : a.score.score);
+  const copia = lista.slice();
+  if (ordem === "pior") return copia.sort((a, b) => (nota(a) === -1) - (nota(b) === -1) || nota(a) - nota(b) || b.k.spend - a.k.spend);
+  if (ordem === "melhor") return copia.sort((a, b) => nota(b) - nota(a) || b.k.spend - a.k.spend);
+  return copia.sort((a, b) => b.k.spend - a.k.spend);
+}
+
+function etapasMini(a) {
+  return `<div class="an-trilha">${a.cartoes.map((c) => {
+    const n = NIVEIS[c.nivel] || NIVEIS.sem_dados;
+    return `<span class="an-passo an-passo-${n[2]}" title="${esc(c.titulo)}: ${esc(n[1])} — ${esc(c.explicacao)}">${n[0]}<i>${esc(c.titulo)}</i></span>`;
+  }).join("")}</div>`;
+}
+
+export function cartaoDiagnostico(a, { href, imagem = "", subtitulo = "" } = {}) {
+  const s = a.score, g = a.gargalos[0], r = a.resumo;
+  const numeros = [
+    ["Gasto", brl(a.k.spend)],
+    ["CTR", a.m.ctr.valor != null ? pct(a.m.ctr.valor) : "—"],
+    ["Leads", inteiro(a.k.leads_base)],
+    ["CPL", a.m.cpl.valor != null ? brl(a.m.cpl.valor) : "—"],
+    ["Vendas", inteiro(a.k.sales)],
+    ["ROAS", a.m.roas.valor != null ? dec(a.m.roas.valor, 2) + "x" : "—"],
+  ];
+  return `<div class="an-diag an-borda-${s.cor}">
+    <div class="an-diag-cab">
+      ${imagem ? `<img class="an-diag-img" src="${esc(imagem)}" alt="" loading="lazy" onerror="this.remove()">` : ""}
+      <div class="an-diag-tit">
+        <a href="${esc(href)}"><b>${esc(a.registro.name || "(sem nome)")}</b></a>
+        ${subtitulo ? `<div class="sub">${subtitulo}</div>` : ""}
+      </div>
+      <div class="an-diag-nota an-score-${s.cor}">
+        <span>${s.score != null ? s.score : "—"}</span>
+        <small>${s.score != null ? "de 100" : "sem nota"}</small>
+      </div>
+    </div>
+    ${etapasMini(a)}
+    <div class="an-diag-nums">${numeros.map(([r2, v]) => `<span><i>${esc(r2)}</i>${esc(v)}</span>`).join("")}</div>
+    <div class="an-diag-linha"><span>Gargalo</span><p>${g ? esc(g.titulo + ": " + g.texto) : esc(r.diagnostico)}</p></div>
+    <div class="an-diag-linha an-diag-acao"><span>Fazer</span><p>${esc(r.proxima_acao)}</p></div>
+    <div class="an-diag-pe">${confPill(a.conf.nivel)}<a class="link" href="${esc(href)}">ver análise completa →</a></div>
+  </div>`;
+}
+
+export function listaDiagnostico(analises, montarLink, opcoes = {}) {
+  if (!analises.length) return vazio(opcoes.vazioTxt || "Nada com entrega no período selecionado.");
+  return `<div class="an-diags">${analises.map((a) => cartaoDiagnostico(a, montarLink(a))).join("")}</div>`;
+}
+
+// Quem é o melhor e o pior em cada etapa do funil — a comparação que decide o que copiar.
+export function comparativoEtapas(analises, montarLink) {
+  const uteis = analises.filter((a) => a.cartoes.some((c) => c.nivel !== "sem_dados"));
+  if (uteis.length < 2) return "";
+  const chaves = ["atencao", "retencao", "clique", "conversao", "custo", "faturamento"];
+  const linhas = chaves.map((chave) => {
+    let com = uteis.map((a) => ({ a, c: a.cartoes.find((x) => x.chave === chave) })).filter((x) => x.c && x.c.valor != null && x.c.nivel !== "sem_dados");
+    if (com.length < 2) return "";
+    // Só compara quem está medindo a MESMA coisa: a etapa de custo, por exemplo, pode estar
+    // em CPA num anúncio e em CPL noutro, e confrontar os dois não diria nada.
+    const contagem = {};
+    for (const x of com) contagem[x.c.chaveValor || chave] = (contagem[x.c.chaveValor || chave] || 0) + 1;
+    const metrica = Object.keys(contagem).sort((a, b) => contagem[b] - contagem[a])[0];
+    com = com.filter((x) => (x.c.chaveValor || chave) === metrica);
+    if (com.length < 2) return "";
+    const menor = MENOR_EM_LISTA.has(metrica);
+    const ord = com.slice().sort((x, y) => (menor ? x.c.valor - y.c.valor : y.c.valor - x.c.valor));
+    const bom = ord[0], ruim = ord[ord.length - 1];
+    // O selo vem do próprio número contra a base daquele escopo, não da nota geral da etapa.
+    const selo = (x) => { const bm = x.a.bmk[metrica]; return bm ? pill(classificarLocal(x.c.valor, bm).nivel) : ""; };
+    const rotulo = bom.c.rotuloValor && bom.c.rotuloValor.toLowerCase() !== bom.c.titulo.toLowerCase() ? `${esc(bom.c.titulo)} <small>${esc(bom.c.rotuloValor)}</small>` : esc(bom.c.titulo);
+    return `<tr><td>${rotulo}</td>
+      <td>${selo(bom)} <a href="${esc(montarLink(bom.a).href)}">${esc(bom.a.registro.name)}</a> <b>${esc(bom.c.valorTxt)}</b></td>
+      <td>${selo(ruim)} <a href="${esc(montarLink(ruim.a).href)}">${esc(ruim.a.registro.name)}</a> <b>${esc(ruim.c.valorTxt)}</b></td></tr>`;
+  }).filter(Boolean).join("");
+  if (!linhas) return "";
+  return `<div class="tabela-wrap"><table class="tabela"><thead><tr><th>Etapa</th><th>Melhor</th><th>Pior</th></tr></thead><tbody>${linhas}</tbody></table></div>
+    <p class="sub">Comparação dentro do período e do filtro atuais. Etapa sem dado suficiente em pelo menos dois anúncios não aparece.</p>`;
 }
 
 // ---------------------------------------------------------------- níveis abaixo e recortes
