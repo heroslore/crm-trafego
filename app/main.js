@@ -1,38 +1,39 @@
 // Casca do aplicativo: menu, topo, período global, roteador, busca, notificações, perfil.
-import { db, garantirBase, inserirDemonstracao } from "./core/db.js?v=0f43faaa";
-import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js?v=0f43faaa";
-import { esc, hoje, somaDias, semAcento } from "./core/format.js?v=0f43faaa";
-import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js?v=0f43faaa";
-import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem } from "./core/sync.js?v=0f43faaa";
-import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js?v=0f43faaa";
-import { alertas } from "./core/rules.js?v=0f43faaa";
-import * as W from "./core/wame.js?v=0f43faaa";
-import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js?v=0f43faaa";
-import { rotulo as rotuloOpcao } from "./core/schema.js?v=0f43faaa";
+import { db, garantirBase, inserirDemonstracao } from "./core/db.js?v=46e26fb2";
+import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js?v=46e26fb2";
+import { esc, hoje, somaDias, semAcento } from "./core/format.js?v=46e26fb2";
+import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js?v=46e26fb2";
+import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem } from "./core/sync.js?v=46e26fb2";
+import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js?v=46e26fb2";
+import { alertas } from "./core/rules.js?v=46e26fb2";
+import * as W from "./core/wame.js?v=46e26fb2";
+import * as MetaApi from "./core/meta.js?v=46e26fb2";
+import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js?v=46e26fb2";
+import { rotulo as rotuloOpcao } from "./core/schema.js?v=46e26fb2";
 
-import dashboard from "./modules/dashboard.js?v=0f43faaa";
-import hoje_ from "./modules/hoje.js?v=0f43faaa";
-import inbox from "./modules/inbox.js?v=0f43faaa";
-import decisoes from "./modules/decisoes.js?v=0f43faaa";
-import campanhas from "./modules/campanhas.js?v=0f43faaa";
-import anuncios from "./modules/anuncios.js?v=0f43faaa";
-import criativos from "./modules/criativos.js?v=0f43faaa";
-import produtos from "./modules/produtos.js?v=0f43faaa";
-import publicos from "./modules/publicos.js?v=0f43faaa";
-import leads from "./modules/leads.js?v=0f43faaa";
-import vendas from "./modules/vendas.js?v=0f43faaa";
-import clientes from "./modules/clientes.js?v=0f43faaa";
-import financeiro from "./modules/financeiro.js?v=0f43faaa";
-import testes from "./modules/testes.js?v=0f43faaa";
-import planejamento from "./modules/planejamento.js?v=0f43faaa";
-import tarefas from "./modules/tarefas.js?v=0f43faaa";
-import calendario from "./modules/calendario.js?v=0f43faaa";
-import briefings from "./modules/briefings.js?v=0f43faaa";
-import ideias from "./modules/ideias.js?v=0f43faaa";
-import relatorios from "./modules/relatorios.js?v=0f43faaa";
-import calculadoras from "./modules/calculadoras.js?v=0f43faaa";
-import concorrentes from "./modules/concorrentes.js?v=0f43faaa";
-import config from "./modules/config.js?v=0f43faaa";
+import dashboard from "./modules/dashboard.js?v=46e26fb2";
+import hoje_ from "./modules/hoje.js?v=46e26fb2";
+import inbox from "./modules/inbox.js?v=46e26fb2";
+import decisoes from "./modules/decisoes.js?v=46e26fb2";
+import campanhas from "./modules/campanhas.js?v=46e26fb2";
+import anuncios from "./modules/anuncios.js?v=46e26fb2";
+import criativos from "./modules/criativos.js?v=46e26fb2";
+import produtos from "./modules/produtos.js?v=46e26fb2";
+import publicos from "./modules/publicos.js?v=46e26fb2";
+import leads from "./modules/leads.js?v=46e26fb2";
+import vendas from "./modules/vendas.js?v=46e26fb2";
+import clientes from "./modules/clientes.js?v=46e26fb2";
+import financeiro from "./modules/financeiro.js?v=46e26fb2";
+import testes from "./modules/testes.js?v=46e26fb2";
+import planejamento from "./modules/planejamento.js?v=46e26fb2";
+import tarefas from "./modules/tarefas.js?v=46e26fb2";
+import calendario from "./modules/calendario.js?v=46e26fb2";
+import briefings from "./modules/briefings.js?v=46e26fb2";
+import ideias from "./modules/ideias.js?v=46e26fb2";
+import relatorios from "./modules/relatorios.js?v=46e26fb2";
+import calculadoras from "./modules/calculadoras.js?v=46e26fb2";
+import concorrentes from "./modules/concorrentes.js?v=46e26fb2";
+import config from "./modules/config.js?v=46e26fb2";
 
 export const MODULOS = [dashboard, hoje_, inbox, decisoes, campanhas, anuncios, criativos, produtos, publicos, leads, vendas, clientes, financeiro, testes, planejamento, tarefas, calendario, briefings, ideias, relatorios, calculadoras, concorrentes, config];
 const SECOES = [
@@ -164,17 +165,20 @@ document.addEventListener("drop", (ev) => { const col = ev.target.closest && ev.
 async function iniciar() {
   db.carregar(); garantirBase();
   if (!db.settings().demo_inserido && !db.settings().demo_removido && !db.count("products") && !db.count("leads") && !db.count("sales")) inserirDemonstracao();
-  carregarUsuario(); nuvemLer(); iniciarAutomacoes(); W.carregarCfg();
+  carregarUsuario(); nuvemLer(); iniciarAutomacoes(); W.carregarCfg(); MetaApi.carregarCfg();
   montarMenu(); montarPeriodo(); render(); atualizarNotificacoes();
   let timerMudou = null;
   db.onChange(({ tabela }) => { if (tabela !== "alerts" && tabela !== "settings") agendarEnvio(); clearTimeout(timerMudou); timerMudou = setTimeout(() => { montarMenu(); atualizarNotificacoes(); }, 300); });
   onNuvem(() => { const el = document.querySelector("[data-nuvem-status]"); if (el) el.textContent = ""; });
   if (W.configurado()) { W.onMensagens(() => { montarMenu(); }); W.verificarConexao().catch(() => {}); W.iniciarPolling(); }
+  // Confere a chave da Meta em segundo plano: os botões de pausar/subir campanha só
+  // aparecem depois que a permissão de gestão for confirmada.
+  if (MetaApi.configurado()) MetaApi.verificar().then(() => render()).catch(() => {});
   const r = await carregarMeta();
   if (r.ok && r.novo) { toast("Dados da Meta atualizados."); verificarSemResposta(); render(); atualizarNotificacoes(); }
   if (nuvemLigada()) { await sincronizar("abrir"); iniciarPoll(); render(); }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { carregarMeta().then((x) => { if (x.novo) render(); }); if (nuvemLigada()) sincronizar("voltar"); } });
   window.addEventListener("online", () => { if (nuvemLigada()) sincronizar("online"); });
-  window.CRM = { db, estado, render, wame: W };
+  window.CRM = { db, estado, render, wame: W, meta: MetaApi };
 }
 iniciar();

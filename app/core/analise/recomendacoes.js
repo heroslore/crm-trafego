@@ -2,8 +2,8 @@
 // Toda recomendação sai com a mesma estrutura (item 53): problema, evidência, hipótese,
 // ação, prioridade e confiança. E o plano é separado em três caixas, porque mexer em tudo
 // ao mesmo tempo impede saber o que resolveu.
-import { pct, brl, inteiro } from "../format.js?v=0f43faaa";
-import { listar } from "./regras.js?v=0f43faaa";
+import { pct, brl, inteiro } from "../format.js?v=46e26fb2";
+import { listar } from "./regras.js?v=46e26fb2";
 
 export const ORDEM_PRIORIDADE = { urgente: 0, alta: 1, media: 2, baixa: 3 };
 export const ORDEM_IMPACTO = { alto: 0, medio: 1, baixo: 2 };

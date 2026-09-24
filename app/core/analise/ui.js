@@ -1,9 +1,9 @@
 // Interface da Análise Inteligente. Só desenha: todo o julgamento já veio pronto do motor.
 // A ordem das seções é a do briefing: primeiro o que decide, depois o que explica, por último o detalhe.
-import { cartao, badge, vazio, funil as funilUi, barrasH, tabela, prioridadeBadge } from "../ui.js?v=0f43faaa";
-import { esc, brl, pct, dec, inteiro, dataCurta } from "../format.js?v=0f43faaa";
-import { valorTexto, NIVEIS } from "./regras.js?v=0f43faaa";
-import { analisar } from "./index.js?v=0f43faaa";
+import { cartao, badge, vazio, funil as funilUi, barrasH, tabela, prioridadeBadge } from "../ui.js?v=46e26fb2";
+import { esc, brl, pct, dec, inteiro, dataCurta } from "../format.js?v=46e26fb2";
+import { valorTexto, NIVEIS } from "./regras.js?v=46e26fb2";
+import { analisar } from "./index.js?v=46e26fb2";
 
 // Ponto de entrada usado pelas telas. Se algo falhar no motor, a tela continua de pé:
 // a análise é um complemento, não pode derrubar a página da campanha.
