@@ -10,7 +10,7 @@ import { num, hoje, somaDias, diasEntre, pct, brl, inteiro, dec } from "../forma
 import { metricasCalculadas, contagemOuNulo, numeroOuNulo, razao } from "./metricas.js";
 import { construirBenchmarks, mesclarReferencia, MENOR_MELHOR } from "./benchmarks.js";
 import { confianca, MINIMOS } from "./confianca.js";
-import { cartoesEtapa, diagnosticos, saudePublico, fadiga } from "./regras.js";
+import { cartoesEtapa, diagnosticos, saudePublico, fadiga, gargaloRelativo } from "./regras.js";
 import { pontuar } from "./score.js";
 import { plano, gargalos, pontosFortes, resumo10s } from "./recomendacoes.js";
 
@@ -294,9 +294,10 @@ export function analisar({ nivel = "campanha", registro, iv, minimos = null, bas
     dias_com_dados: diasComDados,
   };
   const cartoes = cartoesEtapa(m, bmk, conf, ctx);
+  ctx.gargalo = gargaloRelativo(m, bmk, conf, ctx);
   const achados = diagnosticos(m, bmk, conf, cartoes, ctx);
   const score = pontuar(cartoes, ctx.objetivo, conf, cfg.analise || {});
-  const funil = { etapas: m.funil, maior: m.maior_queda_funil };
+  const funil = { etapas: m.funil, maior: m.maior_queda_funil, gargalo: ctx.gargalo };
   const garg = gargalos(cartoes, achados, funil);
   const fortes = pontosFortes(cartoes, achados, m);
   const pl = plano(achados, cartoes, conf);

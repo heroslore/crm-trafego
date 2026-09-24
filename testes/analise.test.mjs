@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { metricasCalculadas, contagemOuNulo } from "../app/core/analise/metricas.js";
 import { construirBenchmarks, REFERENCIA_PADRAO, classificar } from "../app/core/analise/benchmarks.js";
 import { confianca } from "../app/core/analise/confianca.js";
-import { cartoesEtapa, diagnosticos, saudePublico, fadiga } from "../app/core/analise/regras.js";
+import { cartoesEtapa, diagnosticos, saudePublico, fadiga, gargaloRelativo } from "../app/core/analise/regras.js";
 import { consideraVendas, normalizarModoVenda } from "../app/core/analise/index.js";
 import { pontuar } from "../app/core/analise/score.js";
 import { plano, gargalos, resumo10s, pontosFortes } from "../app/core/analise/recomendacoes.js";
@@ -26,9 +26,10 @@ function motor({ bruto, video = {}, objetivo = "whatsapp", conta = [], tendencia
   const publico = saudePublico(m, bmk, conf, { alcance: bruto.reach, tamanho_publico, ctr_caindo: fad.piorando ? fad.piorando.includes("ctr") : false });
   const ctx = { objetivo, bruto, metas: {}, alcance: bruto.reach, tamanho_publico, publico, fadiga: fad, lucro_liquido: bruto.net_profit, vendas_consideradas: vendasConsideradas, vendas_parciais: vendasParciais, modo_vendas: "parcial" };
   const cartoes = cartoesEtapa(m, bmk, conf, ctx);
+  ctx.gargalo = gargaloRelativo(m, bmk, conf, ctx);
   const achados = diagnosticos(m, bmk, conf, cartoes, ctx);
   const score = pontuar(cartoes, objetivo, conf);
-  const funil = { etapas: m.funil, maior: m.maior_queda_funil };
+  const funil = { etapas: m.funil, maior: m.maior_queda_funil, gargalo: ctx.gargalo };
   const garg = gargalos(cartoes, achados, funil);
   const fortes = pontosFortes(cartoes, achados, m);
   return { m, bmk, conf, cartoes, achados, score, funil, publico, fadiga: fad, gargalos: garg, fortes, plano: plano(achados, cartoes, conf), resumo: resumo10s({ score, cartoes, achados, gargalos: garg, fortes, conf, m }) };
@@ -128,6 +129,50 @@ test("métrica ausente fica indisponível, nunca zero", () => {
   for (const mt of m.lista) assert.ok(mt.formula, `${mt.chave} precisa declarar a fórmula`);
 });
 
+test("vídeo e clique são eixos paralelos: o funil não compara clique com ThruPlay", () => {
+  const m = metricasCalculadas(
+    { spend: 100, impressions: 20000, reach: 9000, clicks: 200, link_clicks: 120, outbound_clicks: 100, leads: 8, sales: 0 },
+    { plays: 12000, v3s: 5000, p25: 3000, p50: 2000, p75: 900, p95: 400, thruplay: 1700 },
+  );
+  const chaves = m.funil.map((e) => e.chave);
+  for (const proibida of ["atencao", "retencao", "interesse"]) {
+    assert.ok(!chaves.includes(proibida), `"${proibida}" é etapa de vídeo e não pode estar no funil de clique`);
+  }
+  const clique = m.funil.find((e) => e.chave === "clique");
+  assert.equal(clique.de, "Pessoas alcançadas", "o clique se compara com quem foi alcançado, não com ThruPlay");
+  // e a maior queda absoluta nunca é o degrau do clique, que perde ~99% sempre
+  assert.notEqual(m.maior_queda_funil && m.maior_queda_funil.etapa, "clique");
+});
+
+test("o gargalo é a etapa mais longe da base, não a de maior queda absoluta", () => {
+  // CTR excelente (5%) e retenção de vídeo sofrível: o gargalo tem de ser o vídeo,
+  // mesmo com o degrau do clique perdendo 95% das pessoas em número absoluto.
+  const conta = [{ ctr: 0.01 }, { ctr: 0.012 }, { ctr: 0.009 }, { ctr: 0.011 }, { ctr: 0.013 },
+                 { retencao_inicial: 0.3 }, { retencao_inicial: 0.32 }, { retencao_inicial: 0.28 }, { retencao_inicial: 0.35 }, { retencao_inicial: 0.31 }];
+  const r = motor({
+    // 15% dos cliques viram contato (bom) e o vídeo segura só 6% além dos 3s (ruim)
+    bruto: { spend: 300, impressions: 40000, reach: 20000, frequency: 2, clicks: 2400, link_clicks: 2000, leads: 300, sales: null, revenue: null, gross_profit: null, net_profit: null },
+    video: { plays: 26000, v3s: 2400, p25: 1400, p50: 900, p75: 500, p95: 250, thruplay: 800 },
+    conta, vendasConsideradas: false,
+  });
+  assert.ok(r.gargalos.length > 0, "precisa apontar algum gargalo");
+  assert.equal(r.gargalos[0].etapa, "atencao", `apontou ${r.gargalos[0].etapa} em vez da atenção`);
+  assert.match(r.resumo.diagnostico, /3 primeiros segundos/i);
+  assert.ok(!/se perdem entre/.test(r.resumo.diagnostico), "não descreve a queda absoluta como se fosse o gargalo");
+});
+
+test("etapa fraca sem padrão nomeado ainda recebe uma ação concreta", () => {
+  const conta = [{ ctr: 0.015 }, { ctr: 0.018 }, { ctr: 0.012 }, { ctr: 0.02 }, { ctr: 0.016 }];
+  const r = motor({
+    bruto: { spend: 200, impressions: 30000, reach: 14000, frequency: 2.1, clicks: 120, link_clicks: 60, leads: 4, sales: 0 },
+    conta,
+  });
+  assert.ok(r.achados.length > 0, "não pode ficar sem nenhuma recomendação");
+  const acoes = r.achados.map((a) => a.acao).join(" ");
+  assert.ok(!/^Manter como está/.test(r.resumo.proxima_acao), `ação genérica demais: "${r.resumo.proxima_acao}"`);
+  assert.match(acoes, /chamada|CTA|público|abertura/i);
+});
+
 test("a maior queda do vídeo é apontada na etapa certa", () => {
   const m = metricasCalculadas(
     { spend: 200, impressions: 30000, clicks: 200, link_clicks: 120 },
@@ -159,6 +204,16 @@ test("benchmark do histórico da conta tem prioridade sobre a referência padrã
   const r = motor({ bruto: { spend: 300, impressions: 40000, reach: 15000, frequency: 2, clicks: 900, link_clicks: 600, leads: 15, sales: 2, revenue: 900, gross_profit: 400, net_profit: 100 }, conta });
   assert.equal(r.bmk.ctr.fonte, "conta");
   assert.equal(nivelDe(r, "clique"), "ruim");
+});
+
+test("ficar um fio fora do pacote da conta é médio, não ruim", () => {
+  // conta onde a frequência dos anúncios vive entre 1,2 e 1,35
+  const conta = [1.2, 1.25, 1.3, 1.32, 1.35].map((f) => ({ frequencia: f }));
+  const bmk = construirBenchmarks(["frequencia"], { conta }, REFERENCIA_PADRAO);
+  assert.equal(bmk.frequencia.fonte, "conta");
+  assert.equal(classificar(1.38, bmk.frequencia).nivel, "medio", "1,38 de frequência não é ruim");
+  assert.equal(classificar(1.22, bmk.frequencia).nivel, "bom");
+  assert.equal(classificar(2.4, bmk.frequencia).nivel, "ruim", "aí sim está longe do pacote");
 });
 
 test("base de comparação sem variação não vira régua, e zero nunca é bom", () => {

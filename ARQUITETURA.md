@@ -183,3 +183,19 @@ Por isso existe `VERSAO_MAPA` em `core/sync.js`. Ela **sobe junto com qualquer m
 no banco é menor que a do código, mesmo com o arquivo igual. `testes/sync-remapeia.mjs`
 simula um banco importado por uma versão antiga e verifica que os campos voltam sozinhos,
 sem duplicar linhas.
+
+
+## Dois erros de leitura que o funil pode induzir
+
+**Vídeo e clique são eixos paralelos.** Assistir até o ThruPlay não é pré-requisito para
+clicar: dá para clicar no segundo 2. Quando as duas coisas entravam no mesmo funil em
+sequência, o motor anunciava quedas que não existem ("94% se perdem entre ThruPlay e
+cliques"). Hoje `montarFunil()` cobre só o caminho até a venda (impressões → alcance →
+cliques → página → contatos → qualificados → vendas) e a retenção do vídeo vive em
+`etapasVideo()`, com seção própria na tela.
+
+**Queda grande não é o mesmo que gargalo.** De quem vê para quem clica se perde mais de 99%
+em qualquer campanha do mundo; esse degrau venceria para sempre uma disputa por "maior
+queda". Por isso quem aponta o gargalo é `gargaloRelativo()`: a etapa mais distante da base
+de comparação, medida por `valor ÷ alvo`. A maior queda absoluta continua visível no desenho
+do funil, rotulada como referência, não como diagnóstico.
