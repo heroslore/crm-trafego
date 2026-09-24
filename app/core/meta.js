@@ -5,8 +5,8 @@
 // A chave de acesso NÃO fica no banco, no backup nem na nuvem: mora só neste
 // aparelho (localStorage), porque quem tem essa chave gasta o dinheiro da conta.
 // Todo comando é confirmado antes e vira registro no histórico de decisões.
-import { db } from "./db.js?v=e40367ec";
-import { num } from "./format.js?v=e40367ec";
+import { db } from "./db.js?v=43d2fd7f";
+import { num } from "./format.js?v=43d2fd7f";
 
 // Atenção: "crm-trafego-meta" já é usada pelo sync.js para guardar o meta.json da coleta.
 // Esta configuração mora numa chave própria.

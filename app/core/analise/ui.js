@@ -1,10 +1,10 @@
 // Interface da Análise Inteligente. Só desenha: todo o julgamento já veio pronto do motor.
 // A ordem das seções é a do briefing: primeiro o que decide, depois o que explica, por último o detalhe.
-import { cartao, badge, vazio, funil as funilUi, barrasH, tabela, prioridadeBadge } from "../ui.js?v=e40367ec";
-import { esc, brl, pct, dec, inteiro, dataCurta, dataBR } from "../format.js?v=e40367ec";
-import { valorTexto, NIVEIS } from "./regras.js?v=e40367ec";
-import { MENOR_MELHOR as MENOR_EM_LISTA } from "./benchmarks.js?v=e40367ec";
-import { analisar } from "./index.js?v=e40367ec";
+import { cartao, badge, vazio, funil as funilUi, barrasH, tabela, prioridadeBadge } from "../ui.js?v=43d2fd7f";
+import { esc, brl, pct, dec, inteiro, dataCurta, dataBR } from "../format.js?v=43d2fd7f";
+import { valorTexto, NIVEIS } from "./regras.js?v=43d2fd7f";
+import { MENOR_MELHOR as MENOR_EM_LISTA } from "./benchmarks.js?v=43d2fd7f";
+import { analisar } from "./index.js?v=43d2fd7f";
 
 // Ponto de entrada usado pelas telas. Se algo falhar no motor, a tela continua de pé:
 // a análise é um complemento, não pode derrubar a página da campanha.
@@ -104,9 +104,13 @@ function planoHtml(a) {
 function funilHtml(a) {
   const etapas = a.funil.etapas.filter((e) => e.disponivel);
   if (!etapas.length) return vazio("Sem números suficientes para desenhar o funil.");
-  const q = a.funil.maior;
-  return `${funilUi(etapas.map((e) => ({ rotulo: e.rotulo, n: e.n, extra: e.taxa != null ? `${pct(e.taxa)} de ${e.de.toLowerCase()}` : "", cor: q && q.etapa === e.chave ? "var(--vermelho)" : "var(--acento)" })))}
-    ${q ? `<div class="aviso aviso-alerta">Maior queda do funil: <b>${esc(q.rotulo)}</b>. ${esc(pct(q.perda))} das pessoas se perdem entre “${esc(q.de)}” e “${esc(q.rotulo)}”. <small>(${esc(q.formula)})</small></div>` : ""}
+  const g = a.funil.gargalo, q = a.funil.maior;
+  const destacar = g && ["clique", "conversao"].includes(g.etapa) ? (g.etapa === "clique" ? "clique" : "contato") : null;
+  return `${funilUi(etapas.map((e) => ({ rotulo: e.rotulo, n: e.n, extra: e.taxa != null ? `${pct(e.taxa)} de ${e.de.toLowerCase()}` : "", cor: destacar === e.chave ? "var(--vermelho)" : "var(--acento)" })))}
+    ${g ? `<div class="aviso aviso-alerta">Etapa mais fraca: <b>${esc(g.titulo)}</b>. ${esc(g.texto)}</div>`
+        : `<div class="aviso aviso-ok">Nenhuma etapa do funil está fora do padrão da base de comparação.</div>`}
+    ${q ? `<p class="sub">Só para referência: a maior queda em número absoluto está em “${esc(q.rotulo)}” (${esc(pct(q.perda))} de ${esc(String(q.de).toLowerCase())}). Queda grande não é o mesmo que problema — do anúncio para o clique se perde mais de 99% em qualquer campanha. O que aponta gargalo é a comparação com a base, acima.</p>` : ""}
+    <p class="sub">Assistir o vídeo e clicar são caminhos <b>paralelos</b>, não etapas em sequência: dá para clicar no segundo 2 sem nunca chegar ao ThruPlay. Por isso a retenção do vídeo tem seção própria, logo abaixo, e não entra neste funil.</p>
     ${a.funil.etapas.some((e) => !e.disponivel) ? `<p class="sub">Etapas sem dado no período: ${a.funil.etapas.filter((e) => !e.disponivel).map((e) => esc(e.rotulo)).join(", ")}. Aparecem vazias de propósito — preencher com zero daria uma conclusão falsa.</p>` : ""}`;
 }
 

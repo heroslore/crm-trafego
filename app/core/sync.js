@@ -1,6 +1,6 @@
 // Integrações: dados da Meta (dados/meta.json) e nuvem no GitHub (crm.json em repositório privado).
-import { db } from "./db.js?v=e40367ec";
-import { agora, horaCurta, b64utf8, utf8b64, semAcento } from "./format.js?v=e40367ec";
+import { db } from "./db.js?v=43d2fd7f";
+import { agora, horaCurta, b64utf8, utf8b64, semAcento } from "./format.js?v=43d2fd7f";
 
 export let META = null; // arquivo bruto, usado pelos recortes de público
 

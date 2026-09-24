@@ -2,8 +2,8 @@
 // Toda recomendação sai com a mesma estrutura (item 53): problema, evidência, hipótese,
 // ação, prioridade e confiança. E o plano é separado em três caixas, porque mexer em tudo
 // ao mesmo tempo impede saber o que resolveu.
-import { pct, brl, inteiro } from "../format.js?v=e40367ec";
-import { listar } from "./regras.js?v=e40367ec";
+import { pct, brl, inteiro } from "../format.js?v=43d2fd7f";
+import { listar } from "./regras.js?v=43d2fd7f";
 
 export const ORDEM_PRIORIDADE = { urgente: 0, alta: 1, media: 2, baixa: 3 };
 export const ORDEM_IMPACTO = { alto: 0, medio: 1, baixo: 2 };
@@ -12,8 +12,10 @@ const ordenar = (a, b) => (ORDEM_PRIORIDADE[a.prioridade] - ORDEM_PRIORIDADE[b.p
 // Gargalos: no máximo três, os de maior impacto. Lista longa vira lista ignorada (item 50).
 export function gargalos(cartoes, achados, funil) {
   const lista = [];
-  const queda = funil && funil.maior;
-  if (queda) lista.push({ tipo: "funil", titulo: `Maior queda do funil: ${queda.rotulo}`, texto: `${pct(queda.perda)} das pessoas se perdem entre "${queda.de}" e "${queda.rotulo}" (${queda.formula}).`, prioridade: "alta", impacto: "alto" });
+  // O gargalo é a etapa mais distante da base de comparação, não a de maior queda absoluta:
+  // do anúncio para o clique se perde ~99% em qualquer campanha, e isso não é um problema.
+  const g = funil && funil.gargalo;
+  if (g) lista.push({ tipo: "etapa", titulo: g.titulo, texto: g.texto, prioridade: g.razao < 0.6 ? "alta" : "media", impacto: g.razao < 0.6 ? "alto" : "medio", etapa: g.etapa });
   for (const a of achados.filter((a) => ["urgente", "alta"].includes(a.prioridade) && a.id !== "escalar" && a.id !== "cpm_alto_roas_bom")) {
     lista.push({ tipo: "padrao", titulo: a.nome, texto: a.problema, prioridade: a.prioridade, impacto: a.impacto, etapa: a.etapa });
   }
@@ -67,10 +69,19 @@ export function plano(achados, cartoes, conf) {
 export function resumo10s({ escopo, score, cartoes, achados, gargalos: garg, fortes, conf, m }) {
   const principal = garg[0] || null;
   const oportunidade = achados.find((a) => a.id === "escalar") || achados.find((a) => a.prioridade === "baixa") || (fortes[0] ? { nome: fortes[0].titulo, problema: fortes[0].texto } : null);
-  const proxima = (achados.filter((a) => ["urgente", "alta"].includes(a.prioridade)).sort(ordenar)[0] || achados[0] || null);
+  // "Lançar as vendas" e "esperar volume" são recados de contexto, não a próxima ação de
+  // tráfego: se existe um problema concreto, é ele que manda. Sem problema concreto, aí sim
+  // o recado de contexto vira a próxima ação.
+  const contexto = new Set(["vendas_nao_lancadas", "amostra_curta", "cpm_alto_roas_bom"]);
+  const acionaveis = achados.filter((a) => !contexto.has(a.id));
+  const proxima = (acionaveis.filter((a) => ["urgente", "alta"].includes(a.prioridade)).sort(ordenar)[0]
+    || acionaveis.sort(ordenar)[0]
+    || achados.filter((a) => ["urgente", "alta"].includes(a.prioridade)).sort(ordenar)[0]
+    || achados[0] || null);
   const etapas = cartoes.filter((c) => c.nivel !== "sem_dados");
   const ruins = etapas.filter((c) => c.nivel === "ruim").map((c) => c.titulo.toLowerCase());
   const bons = etapas.filter((c) => c.nivel === "bom").map((c) => c.titulo.toLowerCase());
+  const g = (m.gargalo_relativo) || null;
   const queda = m.maior_queda_funil;
   const frase = conf.nivel === "insuficiente"
     ? `Ainda não há amostra para avaliar: ${inteiro(conf.amostra.impressoes)} impressões e ${brl(conf.amostra.gasto)} investidos. Os dados aparecem abaixo, mas sem conclusão.`
@@ -78,16 +89,21 @@ export function resumo10s({ escopo, score, cartoes, achados, gargalos: garg, for
   // O diagnóstico descreve ONDE o funil quebra; o problema descreve o QUÊ. Um não repete o outro.
   const diagnostico = conf.nivel === "insuficiente"
     ? "Amostra insuficiente para diagnóstico. Os números existem, mas ainda não significam nada."
-    : queda
-      ? `A maior perda está entre “${queda.de}” e “${queda.rotulo}”: ${pct(queda.perda)} das pessoas não avançam (${queda.formula}).${ruins.length ? ` Etapas em nível ruim: ${listar(ruins)}.` : ""}`
-      : ruins.length ? `Etapas em nível ruim: ${listar(ruins)}.` : "Nenhum gargalo claro nos dados atuais.";
+    : principal
+      ? `${principal.titulo}: ${principal.texto}`
+      : ruins.length ? `Etapas em nível ruim: ${listar(ruins)}.`
+        : queda ? `Nenhuma etapa fora do padrão. A maior queda em número absoluto está em “${queda.rotulo}” (${pct(queda.perda)}), o que é o comportamento normal desse degrau.`
+          : "Nenhum gargalo claro nos dados atuais.";
   return {
     frase, diagnostico,
     problema: principal ? principal.titulo : null,
     problema_texto: principal ? principal.texto : null,
     oportunidade: oportunidade ? (oportunidade.nome || oportunidade.titulo) : null,
     oportunidade_texto: oportunidade ? (oportunidade.problema || oportunidade.texto) : null,
-    proxima_acao: proxima ? proxima.acao : (conf.nivel === "insuficiente" ? "Deixar rodar até atingir volume mínimo antes de mexer." : "Manter como está e reavaliar no próximo período."),
+    proxima_acao: proxima ? proxima.acao
+      : conf.nivel === "insuficiente" ? "Deixar rodar até atingir volume mínimo antes de mexer."
+        : conf.nivel === "baixa" ? "Nada fora do padrão até aqui, mas a amostra ainda é pequena: deixar rodar mais alguns dias antes de mexer."
+          : "Nenhuma etapa fora do padrão da conta. Manter como está e reavaliar no próximo período.",
     confianca: conf.nivel, rotuloConfianca: conf.rotulo,
   };
 }

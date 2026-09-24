@@ -1,6 +1,6 @@
 // Importação de CSV/XLSX (principalmente exportações do Gerenciador de Anúncios da Meta).
-import { db } from "./db.js?v=e40367ec";
-import { semAcento, hoje } from "./format.js?v=e40367ec";
+import { db } from "./db.js?v=43d2fd7f";
+import { semAcento, hoje } from "./format.js?v=43d2fd7f";
 
 export const CAMPOS_IMPORT = [
   ["campaign", "Campanha", ["nome da campanha", "campanha", "campaign name", "campaign"]],

@@ -1,13 +1,13 @@
-import { db } from "../core/db.js?v=e40367ec";
-import { kpis, serieDiaria } from "../core/metrics.js?v=e40367ec";
-import { cartao, tabela, badge, badgeOpcao, chips, abas, abrirFormulario, vazio, graficoLinhas, itemLista } from "../core/ui.js?v=e40367ec";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=e40367ec";
-import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem, listaSemEntrega } from "../core/analise/ui.js?v=e40367ec";
-import { analisarVarios, janelaDeEntrega } from "../core/analise/index.js?v=e40367ec";
-import * as AcoesMeta from "../core/acoes-meta.js?v=e40367ec";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=e40367ec";
-import { rotulo as rotuloOpcao } from "../core/schema.js?v=e40367ec";
-import { podeEditar } from "../core/auth.js?v=e40367ec";
+import { db } from "../core/db.js?v=43d2fd7f";
+import { kpis, serieDiaria } from "../core/metrics.js?v=43d2fd7f";
+import { cartao, tabela, badge, badgeOpcao, chips, abas, abrirFormulario, vazio, graficoLinhas, itemLista } from "../core/ui.js?v=43d2fd7f";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=43d2fd7f";
+import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem, listaSemEntrega } from "../core/analise/ui.js?v=43d2fd7f";
+import { analisarVarios, janelaDeEntrega } from "../core/analise/index.js?v=43d2fd7f";
+import * as AcoesMeta from "../core/acoes-meta.js?v=43d2fd7f";
+import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=43d2fd7f";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=43d2fd7f";
+import { podeEditar } from "../core/auth.js?v=43d2fd7f";
 
 let filtro = "ativa", visao = "diagnostico", ordem = "gasto";
 function lista(root, ctx) {

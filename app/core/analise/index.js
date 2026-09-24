@@ -2,17 +2,17 @@
 // O caminho é sempre o mesmo, na ordem:
 //   DADOS BRUTOS → MÉTRICAS CALCULADAS → BENCHMARKS → REGRAS → SCORE → RECOMENDAÇÕES → (interface)
 // Nada aqui altera dados: a análise só lê.
-import { db } from "../db.js?v=e40367ec";
-import { kpis, serieDiaria, porEntidade, atendimento, plataformaBase } from "../metrics.js?v=e40367ec";
-import { anterior } from "../periods.js?v=e40367ec";
-import { META } from "../sync.js?v=e40367ec";
-import { num, hoje, somaDias, diasEntre, pct, brl, inteiro, dec } from "../format.js?v=e40367ec";
-import { metricasCalculadas, contagemOuNulo, numeroOuNulo, razao } from "./metricas.js?v=e40367ec";
-import { construirBenchmarks, mesclarReferencia, MENOR_MELHOR } from "./benchmarks.js?v=e40367ec";
-import { confianca, MINIMOS } from "./confianca.js?v=e40367ec";
-import { cartoesEtapa, diagnosticos, saudePublico, fadiga } from "./regras.js?v=e40367ec";
-import { pontuar } from "./score.js?v=e40367ec";
-import { plano, gargalos, pontosFortes, resumo10s } from "./recomendacoes.js?v=e40367ec";
+import { db } from "../db.js?v=43d2fd7f";
+import { kpis, serieDiaria, porEntidade, atendimento, plataformaBase } from "../metrics.js?v=43d2fd7f";
+import { anterior } from "../periods.js?v=43d2fd7f";
+import { META } from "../sync.js?v=43d2fd7f";
+import { num, hoje, somaDias, diasEntre, pct, brl, inteiro, dec } from "../format.js?v=43d2fd7f";
+import { metricasCalculadas, contagemOuNulo, numeroOuNulo, razao } from "./metricas.js?v=43d2fd7f";
+import { construirBenchmarks, mesclarReferencia, MENOR_MELHOR } from "./benchmarks.js?v=43d2fd7f";
+import { confianca, MINIMOS } from "./confianca.js?v=43d2fd7f";
+import { cartoesEtapa, diagnosticos, saudePublico, fadiga, gargaloRelativo } from "./regras.js?v=43d2fd7f";
+import { pontuar } from "./score.js?v=43d2fd7f";
+import { plano, gargalos, pontosFortes, resumo10s } from "./recomendacoes.js?v=43d2fd7f";
 
 export const CHAVES_BENCH = ["ctr", "cpc", "cpm", "frequencia", "cpl", "custo_conversa", "cpa", "roas", "conversao", "taxa_lead", "taxa_pagina", "margem", "retencao_inicial", "retencao_metade", "retencao_fim", "taxa_thruplay"];
 const NIVEIS_FILTRO = { campanha: "campaign_id", conjunto: "ad_set_id", anuncio: "ad_id", criativo: "creative_id" };
@@ -294,9 +294,10 @@ export function analisar({ nivel = "campanha", registro, iv, minimos = null, bas
     dias_com_dados: diasComDados,
   };
   const cartoes = cartoesEtapa(m, bmk, conf, ctx);
+  ctx.gargalo = gargaloRelativo(m, bmk, conf, ctx);
   const achados = diagnosticos(m, bmk, conf, cartoes, ctx);
   const score = pontuar(cartoes, ctx.objetivo, conf, cfg.analise || {});
-  const funil = { etapas: m.funil, maior: m.maior_queda_funil };
+  const funil = { etapas: m.funil, maior: m.maior_queda_funil, gargalo: ctx.gargalo };
   const garg = gargalos(cartoes, achados, funil);
   const fortes = pontosFortes(cartoes, achados, m);
   const pl = plano(achados, cartoes, conf);

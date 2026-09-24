@@ -2,10 +2,10 @@
 // É aqui que o sistema "pensa como gestor de tráfego": nenhuma métrica é julgada sozinha,
 // sempre no contexto da etapa anterior e da seguinte. Regras determinísticas, sem IA:
 // mesmos números entram, mesmo diagnóstico sai.
-import { pct, brl, dec, inteiro } from "../format.js?v=e40367ec";
-import { numeroOuNulo, temValor, razao } from "./metricas.js?v=e40367ec";
-import { classificar } from "./benchmarks.js?v=e40367ec";
-import { confiancaDe } from "./confianca.js?v=e40367ec";
+import { pct, brl, dec, inteiro } from "../format.js?v=43d2fd7f";
+import { numeroOuNulo, temValor, razao } from "./metricas.js?v=43d2fd7f";
+import { classificar } from "./benchmarks.js?v=43d2fd7f";
+import { confiancaDe } from "./confianca.js?v=43d2fd7f";
 
 export const NIVEIS = { bom: ["🟢", "BOM", "verde"], medio: ["🟡", "MÉDIO", "amarelo"], ruim: ["🔴", "RUIM", "vermelho"], sem_dados: ["⚪", "DADOS INSUFICIENTES", "cinza"] };
 
@@ -224,6 +224,50 @@ export function cartoesEtapa(m, bmk, conf, ctx = {}) {
   return cartoes;
 }
 
+// ---------------------------------------------------------------- onde está o gargalo
+// Não é "onde caem mais pessoas" — de quem vê para quem clica caem ~99% em qualquer anúncio.
+// É "qual etapa está mais longe do que essa conta costuma fazer". Uma queda grande e normal
+// não é problema; uma queda pequena mas fora do padrão é.
+const ETAPAS_GARGALO = [
+  { chave: "retencao_inicial", etapa: "atencao", titulo: "Atenção nos 3 primeiros segundos", pega: (m) => m.video.retencao_inicial, precisa: "video" },
+  { chave: "retencao_metade", etapa: "retencao", titulo: "Retenção até a metade do vídeo", pega: (m) => m.video.retencao_metade, precisa: "video" },
+  { chave: "ctr", etapa: "clique", titulo: "Clique (CTR)", pega: (m) => m.ctr, precisa: "clique" },
+  { chave: "taxa_pagina", etapa: "conversao", titulo: "Chegada na página depois do clique", pega: (m) => m.taxa_pagina, precisa: "clique" },
+  { chave: "taxa_lead", etapa: "conversao", titulo: "Clique que vira contato", pega: (m) => m.taxa_lead, precisa: "conversao" },
+  { chave: "conversao", etapa: "conversao", titulo: "Lead que vira venda", pega: (m) => m.conversao, precisa: "venda" },
+];
+export function gargaloRelativo(m, bmk, conf, ctx = {}) {
+  const s = conf.suficiente || {};
+  let pior = null;
+  for (const e of ETAPAS_GARGALO) {
+    if (e.precisa && s[e.precisa] === false) continue;
+    if (e.chave === "conversao" && ctx.vendas_consideradas === false) continue;
+    if (e.chave === "conversao" && ctx.vendas_parciais === true) continue;  // numerador incompleto
+    const mt = e.pega(m), bm = bmk[e.chave];
+    if (!mt || mt.valor == null || !bm || !bm.alvo) continue;
+    const razao = mt.valor / bm.alvo;             // todas estas são "quanto maior, melhor"
+    if (razao >= 0.95) continue;                  // está no padrão ou acima: não é gargalo
+    if (!pior || razao < pior.razao) pior = { ...e, valor: mt.valor, alvo: bm.alvo, razao, fonte: bm.rotuloFonte, baseTexto: bm.texto, formula: mt.formula };
+  }
+  if (!pior) return null;
+  return {
+    ...pior,
+    texto: `${pct(pior.valor)} contra ${pct(pior.alvo)} da base de comparação (${pior.baseTexto}) — é a etapa mais distante do padrão, ${pct(1 - pior.razao)} abaixo.`,
+  };
+}
+
+// O que fazer quando uma etapa está fraca e nenhum padrão nomeado pegou o caso.
+export const ACOES_POR_ETAPA = {
+  atencao: { hipotese: "Os primeiros segundos não dão motivo para continuar assistindo.", acao: "Refazer só a abertura do vídeo: produto em uso, preço na tela ou pergunta direta nos 3 primeiros segundos." },
+  retencao: { hipotese: "O vídeo demora para entregar o que prometeu no começo.", acao: "Encurtar e adiantar a informação principal (preço, condição, prova) para antes do ponto de maior queda." },
+  clique: { hipotese: "A chamada não está convidando ao clique, ou o público não é o certo para essa oferta.", acao: "Testar uma chamada nova (CTA falado e escrito, oferta explícita no texto do anúncio). Se o CTR não mexer, testar outro público com o mesmo criativo." },
+  conversao: { hipotese: "A perda está depois do clique: destino, oferta, preço ou tempo de resposta.", acao: "Conferir o destino do clique, a mensagem automática do WhatsApp e o tempo até o primeiro atendimento." },
+  custo: { hipotese: "O custo por resultado está acima do que esta conta costuma fazer.", acao: "Comparar com os anúncios de custo menor no mesmo período e repetir o que eles têm de diferente (público, criativo ou oferta)." },
+  publico: { hipotese: "O público já viu este anúncio vezes demais ou não é o perfil certo.", acao: "Ampliar ou trocar o público mantendo o criativo que já funciona." },
+  saturacao: { hipotese: "O público atual está cansando deste criativo.", acao: "Subir criativo novo para o mesmo público, ou ampliar o público mantendo o criativo." },
+  faturamento: { hipotese: "O retorno está abaixo da base de comparação.", acao: "Rever preço e oferta antes de mexer no criativo: com CPL bom e retorno baixo, o problema costuma ser o que é vendido, não como é anunciado." },
+};
+
 // ---------------------------------------------------------------- padrões nomeados
 // Cada padrão cruza pelo menos duas etapas: é o que separa "criativo ruim" de
 // "criativo bom com problema depois do clique".
@@ -345,6 +389,28 @@ export function diagnosticos(m, bmk, conf, cartoes, ctx = {}) {
       evidencias: (p.evidencias(x) || []).filter(Boolean),
       confianca: confiancaDe(p.etapa, conf),
     });
+  }
+  // Nenhum padrão nomeado pegou, mas alguma etapa está fraca? Melhor dizer qual e o que fazer
+  // do que devolver "manter como está" para um anúncio com CTR de 0,2%.
+  const acionaveis = achados.filter((a) => !["amostra_curta", "vendas_nao_lancadas", "cpm_alto_roas_bom"].includes(a.id));
+  if (!acionaveis.length && conf.nivel !== "insuficiente") {
+    const g = ctx.gargalo || gargaloRelativo(m, bmk, conf, ctx);
+    // Só etapa em nível RUIM vira recomendação de ofício. Etapa "média" sem estar fora da base
+    // não justifica mandar trocar criativo — seria inventar trabalho.
+    const cartaoRuim = cartoes.find((c) => c.nivel === "ruim");
+    const etapa = g ? g.etapa : cartaoRuim ? cartaoRuim.chave : null;
+    const guia = etapa && ACOES_POR_ETAPA[etapa];
+    if (guia) {
+      const titulo = g ? g.titulo : (cartaoRuim && cartaoRuim.titulo) || "Etapa mais fraca";
+      achados.push({
+        id: "etapa_mais_fraca", nome: `Ponto mais fraco: ${titulo.toLowerCase()}`, etapa,
+        prioridade: g && g.razao < 0.6 ? "alta" : "media", impacto: g && g.razao < 0.6 ? "alto" : "medio",
+        problema: g ? `${titulo}: ${g.texto}` : `${titulo} é a etapa em pior nível com os dados atuais.`,
+        hipotese: guia.hipotese, acao: guia.acao,
+        evidencias: g ? [`${titulo}: ${pct(g.valor)} (${g.formula || ""})`.trim(), `Base de comparação: ${pct(g.alvo)} (${g.baseTexto})`] : [],
+        confianca: confiancaDe(etapa, conf),
+      });
+    }
   }
   return achados;
 }
