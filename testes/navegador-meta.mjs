@@ -57,6 +57,7 @@ await p.waitForTimeout(1200);
 const txtCfg = await p.locator(".cartao").first().innerText();
 ok(/Conectado como/.test(txtCfg), "mostra que está conectado");
 ok(/ads_management/.test(txtCfg), "lista a permissão de gestão");
+ok(/não expira/.test(txtCfg), "diz a validade da chave");
 await p.locator(".cartao").first().screenshot({ path: `${SAIDA}/meta-config.png` });
 
 console.log("\n[1b] Teste de comando que não altera nada");
