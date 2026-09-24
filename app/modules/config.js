@@ -9,6 +9,7 @@ import * as W from "../core/wame.js";
 import { REFERENCIA_PADRAO, mesclarReferencia, MENOR_MELHOR } from "../core/analise/benchmarks.js";
 import { MINIMOS } from "../core/analise/confianca.js";
 import * as MetaApi from "../core/meta.js";
+import { MODOS_VENDA, MODO_VENDA_PADRAO, normalizarModoVenda } from "../core/analise/index.js";
 
 let aba = "empresa", importState = null;
 const METAS = [["faturamento_mes", "Meta de faturamento mensal (R$)"], ["faturamento_semana", "Meta de faturamento semanal (R$)"], ["vendas_mes", "Meta de vendas no mês"], ["leads_mes", "Meta de leads no mês"], ["roas_min", "ROAS mínimo"], ["cpa_max", "CPA máximo (R$)"], ["cpl_max", "CPL máximo (R$)"], ["ticket_medio", "Ticket médio desejado (R$)"], ["investimento_max_mes", "Investimento máximo mensal (R$)"], ["ctr_min", "CTR mínimo (%)"], ["sla_minutos", "Tempo máximo para o primeiro atendimento (minutos)"], ["taxa_contato_min", "Taxa mínima de leads atendidos (%)"], ["ltv_meta", "LTV desejado por cliente (R$)"]];
@@ -52,6 +53,12 @@ function abaAnalise() {
   return cartao("Análise inteligente", `<p class="sub" style="margin-bottom:10px">A Análise Inteligente compara cada métrica com a melhor base disponível, nesta ordem: <b>1)</b> histórico da sua conta, <b>2)</b> campanhas parecidas, <b>3)</b> a referência abaixo. Ou seja: estes números só são usados enquanto a conta não tiver histórico suficiente — e você pode mudá-los quando quiser.</p>
     <h3>Referência padrão</h3>
     <div class="tabela-wrap"><table class="tabela"><thead><tr><th>Métrica</th><th>Considerar bom a partir de</th><th>Considerar ruim a partir de</th></tr></thead><tbody>${linhas}</tbody></table></div>
+    <h3>Como a análise trata as vendas</h3>
+    <p class="sub">Quando a venda acontece no WhatsApp e nem sempre dá tempo de lançar no CRM, contar "nenhuma venda lançada" como "nenhuma venda" derruba a nota de anúncios que estão funcionando.</p>
+    <div class="form-grade"><div class="campo largo"><label>Acompanhamento de vendas</label><select data-cfg2="vendas_analise">${MODOS_VENDA.map(([v, t]) => `<option value="${esc(v)}"${normalizarModoVenda(cfg.vendas_analise) === v ? " selected" : ""}>${esc(t)}</option>`).join("")}</select></div></div>
+    <div class="lista" style="margin-top:8px">
+      ${[["Nem toda venda é lançada", "Sem nenhuma venda no escopo, vendas ficam fora da nota. Com alguma venda, faturamento e ROAS entram como <b>piso</b> (mínimo confirmado) e a taxa de venda e o CPA ficam de fora — assim lançar uma venda de dez nunca piora a avaliação."], ["Toda venda é lançada no CRM", "Usa tudo. Nenhuma venda lançada passa a significar conversão zero de verdade."], ["Não usar vendas na análise", "A leitura para no lead, em qualquer situação."]].map(([t, d]) => `<div class="item"><div class="item-txt"><div class="item-titulo">${esc(t)}</div><div class="item-sub">${d}</div></div></div>`).join("")}
+    </div>
     <h3>Quando o sistema pode concluir</h3>
     <p class="sub">Abaixo destes mínimos a análise mostra ⚪ “dados insuficientes” em vez de inventar um diagnóstico. Subir demais esses números deixa o sistema mudo; baixar demais faz ele concluir sobre ruído.</p>
     <div class="form-grade">${Object.keys(ROTULOS_MIN).map((k) => `<div class="campo"><label>${esc(ROTULOS_MIN[k])}</label><input type="number" step="any" data-min="${k}" value="${esc(mins[k])}"></div>`).join("")}
@@ -237,12 +244,12 @@ export default {
       const mins = {};
       root.querySelectorAll("[data-min]").forEach((i) => { if (i.value !== "") mins[i.dataset.min] = Number(i.value); });
       const extra = {};
-      root.querySelectorAll("[data-cfg2]").forEach((i) => { extra[i.dataset.cfg2] = Number(i.value) || 0; });
+      root.querySelectorAll("[data-cfg2]").forEach((i) => { extra[i.dataset.cfg2] = i.tagName === "SELECT" ? i.value : (Number(i.value) || 0); });
       db.setSettings({ referencias: ref, minimos_analise: mins, ...extra });
       toast("Referências salvas. A análise já usa os novos valores.");
       ctx.rerender();
     });
-    on("[data-restaurar-analise]", "click", () => { db.setSettings({ referencias: null, minimos_analise: null }); toast("Referência padrão restaurada."); ctx.rerender(); });
+    on("[data-restaurar-analise]", "click", () => { db.setSettings({ referencias: null, minimos_analise: null, vendas_analise: MODO_VENDA_PADRAO }); toast("Referência padrão restaurada."); ctx.rerender(); });
     on("[data-salvar-metas]", "click", () => { root.querySelectorAll("[data-meta]").forEach((i) => db.setGoal(i.dataset.meta, METAS.find((m) => m[0] === i.dataset.meta)[1], Number(i.value) || 0)); const cfg = {}; root.querySelectorAll("[data-cfg]").forEach((i) => cfg[i.dataset.cfg] = Number(i.value) || 0);
       const taxas = {}; root.querySelectorAll("[data-taxa]").forEach((i) => taxas[i.dataset.taxa] = Number(i.value) || 0);
       db.setSettings({ ...cfg, taxas }); toast("Metas, regras e taxas salvas."); ctx.rerender(); });

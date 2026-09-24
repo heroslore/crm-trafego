@@ -8,13 +8,14 @@ import { metricasCalculadas, contagemOuNulo } from "../app/core/analise/metricas
 import { construirBenchmarks, REFERENCIA_PADRAO, classificar } from "../app/core/analise/benchmarks.js";
 import { confianca } from "../app/core/analise/confianca.js";
 import { cartoesEtapa, diagnosticos, saudePublico, fadiga } from "../app/core/analise/regras.js";
+import { consideraVendas, normalizarModoVenda } from "../app/core/analise/index.js";
 import { pontuar } from "../app/core/analise/score.js";
 import { plano, gargalos, resumo10s, pontosFortes } from "../app/core/analise/recomendacoes.js";
 
 const CHAVES = ["ctr", "cpc", "cpm", "frequencia", "cpl", "custo_conversa", "cpa", "roas", "conversao", "taxa_lead", "taxa_pagina", "margem", "retencao_inicial", "retencao_metade", "retencao_fim", "taxa_thruplay"];
 
 // Roda o pipeline inteiro sem banco: bruto → métricas → benchmarks → regras → score → recomendações.
-function motor({ bruto, video = {}, objetivo = "whatsapp", conta = [], tendencia = null, tamanho_publico = null, dias = 7 }) {
+function motor({ bruto, video = {}, objetivo = "whatsapp", conta = [], tendencia = null, tamanho_publico = null, dias = 7, vendasConsideradas = true, vendasParciais = false }) {
   const m = metricasCalculadas(bruto, video);
   const bmk = construirBenchmarks(CHAVES, { conta }, REFERENCIA_PADRAO);
   const conf = confianca({
@@ -23,7 +24,7 @@ function motor({ bruto, video = {}, objetivo = "whatsapp", conta = [], tendencia
   });
   const fad = tendencia ? fadiga(tendencia.inicio, tendencia.fim) : fadiga(null, null);
   const publico = saudePublico(m, bmk, conf, { alcance: bruto.reach, tamanho_publico, ctr_caindo: fad.piorando ? fad.piorando.includes("ctr") : false });
-  const ctx = { objetivo, bruto, metas: {}, alcance: bruto.reach, tamanho_publico, publico, fadiga: fad, lucro_liquido: bruto.net_profit };
+  const ctx = { objetivo, bruto, metas: {}, alcance: bruto.reach, tamanho_publico, publico, fadiga: fad, lucro_liquido: bruto.net_profit, vendas_consideradas: vendasConsideradas, vendas_parciais: vendasParciais, modo_vendas: "parcial" };
   const cartoes = cartoesEtapa(m, bmk, conf, ctx);
   const achados = diagnosticos(m, bmk, conf, cartoes, ctx);
   const score = pontuar(cartoes, objetivo, conf);
@@ -175,6 +176,52 @@ test("base de comparação sem variação não vira régua, e zero nunca é bom"
   const degenerada = { chave: "conversao", menor_melhor: false, bom: 0, ruim: 0, alvo: 0, texto: "teste" };
   assert.equal(classificar(0, degenerada).nivel, "ruim");
   assert.equal(classificar(0.3, degenerada).nivel, "bom");
+});
+
+test("venda não lançada não é venda zero: a nota para no lead em vez de despencar", () => {
+  // mesmo anúncio, duas leituras: com vendas fora da conta e com vendas contadas como zero
+  const comum = { spend: 400, impressions: 60000, reach: 22000, frequency: 2.1, clicks: 1200, link_clicks: 800, leads: 44, sales: 0 };
+  const semVendas = motor({ bruto: { ...comum, sales: null, revenue: null, gross_profit: null, net_profit: null }, vendasConsideradas: false });
+  const comZero = motor({ bruto: comum, vendasConsideradas: true });
+
+  assert.equal(semVendas.m.conversao.valor, null, "sem venda lançada, conversão lead→venda é indisponível");
+  assert.equal(semVendas.m.cpa.valor, null);
+  assert.equal(semVendas.m.roas.valor, null);
+  assert.equal(nivelDe(semVendas, "faturamento"), "sem_dados");
+  assert.match(semVendas.cartoes.find((c) => c.chave === "faturamento").explicacao, /não estão lançadas/i);
+  assert.ok(!ids(semVendas).includes("leads_sem_venda"), "não pode acusar 'poucas vendas' quando venda nem é registrada");
+  assert.ok(ids(semVendas).includes("vendas_nao_lancadas"), "deve avisar que faltam as vendas, sem culpar o anúncio");
+
+  // a nota não pode ser derrubada pela ausência de registro
+  assert.ok(semVendas.score.score > comZero.score.score, `sem vendas ${semVendas.score.score} deveria ser maior que com zero ${comZero.score.score}`);
+  // e o modo automático liga sozinho quando a primeira venda aparece
+  assert.deepEqual(consideraVendas("parcial", { sales: 0 }), { usar: false, parcial: false });
+  assert.deepEqual(consideraVendas("parcial", { sales: 1 }), { usar: true, parcial: true });
+  assert.deepEqual(consideraVendas("nunca", { sales: 9 }), { usar: false, parcial: false });
+  assert.deepEqual(consideraVendas("completo", { sales: 0 }), { usar: true, parcial: false });
+  assert.equal(normalizarModoVenda("auto"), "parcial");
+  assert.equal(normalizarModoVenda("sempre"), "completo");
+  assert.equal(normalizarModoVenda("qualquer coisa"), "parcial");
+});
+
+test("lançar a primeira venda nunca piora a nota do anúncio", () => {
+  // o caso real: 44 leads pelo WhatsApp, quase nenhuma venda registrada
+  const base = { spend: 400, impressions: 60000, reach: 22000, frequency: 2.1, clicks: 1200, link_clicks: 800, leads: 44 };
+  const nenhuma = motor({ bruto: { ...base, sales: null, revenue: null, gross_profit: null, net_profit: null }, vendasConsideradas: false });
+  const uma = motor({ bruto: { ...base, sales: 1, revenue: 1800, gross_profit: 900, net_profit: 500 }, vendasConsideradas: true, vendasParciais: true });
+
+  assert.ok(uma.score.score >= nenhuma.score.score,
+    `com 1 venda lançada a nota (${uma.score.score}) não pode cair abaixo da nota sem venda (${nenhuma.score.score})`);
+  // a taxa de venda aparece, mas não manda na etapa
+  assert.notEqual(uma.m.conversao.valor, null, "a taxa continua visível");
+  assert.notEqual(nivelDe(uma, "conversao"), "ruim", "taxa de venda distorcida não pode derrubar a etapa");
+  assert.match(uma.cartoes.find((c) => c.chave === "conversao").explicacao, /piso e não entra na nota/i);
+  // ROAS bom com registro parcial é conclusão válida (é o mínimo confirmado)
+  assert.equal(nivelDe(uma, "faturamento"), "bom");
+  assert.match(uma.cartoes.find((c) => c.chave === "faturamento").explicacao, /mínimo confirmado/i);
+  // e o custo não passa a ser julgado por um CPA inflado
+  assert.notEqual(uma.cartoes.find((c) => c.chave === "custo").chaveValor, "cpa");
+  assert.ok(!ids(uma).includes("leads_sem_venda"), "registro parcial não pode virar acusação de 'poucas vendas'");
 });
 
 test("campanha sem vídeo não recebe nota de atenção inventada", () => {

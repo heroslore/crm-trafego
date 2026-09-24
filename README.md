@@ -75,8 +75,9 @@ Três regras sustentam isso:
 2. **Sem amostra, sem veredito.** Abaixo do mínimo de impressões, cliques, dias e resultados,
    a etapa aparece como ⚪ *dados insuficientes* em vez de receber uma nota. Campanha nova não
    é condenada por causa de número pequeno.
-3. **Comparação entre iguais.** Na tabela "quem ganha em cada etapa", só entram anúncios medindo a mesma coisa — CPL com CPL, nunca CPL contra CPA. E uma base de comparação onde todo mundo tem o mesmo número (ou todo mundo tem zero) não vira régua: cai para a referência padrão.
-4. **Ausência não é zero.** Métrica que a plataforma não informou aparece como
+3. **Venda não lançada não é venda zero.** Quando a venda acontece no WhatsApp e nem sempre dá tempo de registrar, contar "nenhuma venda lançada" como "nenhuma venda" derruba a nota de anúncios que estão funcionando. No modo padrão (*nem toda venda é lançada*), sem nenhuma venda no escopo as métricas de venda ficam fora da nota; com alguma venda, faturamento e ROAS entram como **piso** — o mínimo confirmado, que pode ser maior mas nunca menor — e a taxa de venda e o CPA ficam de fora, porque são justamente as que o registro parcial distorce. Assim, lançar uma venda de dez nunca piora a avaliação. Quem lança todas muda para *toda venda é lançada* em Configurações → Análise e passa a ter a leitura completa.
+4. **Comparação entre iguais.** Na tabela "quem ganha em cada etapa", só entram anúncios medindo a mesma coisa — CPL com CPL, nunca CPL contra CPA. E uma base de comparação onde todo mundo tem o mesmo número (ou todo mundo tem zero) não vira régua: cai para a referência padrão.
+5. **Ausência não é zero.** Métrica que a plataforma não informou aparece como
    "indisponível". Zero é resultado; vazio é falta de informação — e os dois levam a decisões
    diferentes.
 
