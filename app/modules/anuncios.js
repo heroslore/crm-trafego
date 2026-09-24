@@ -5,7 +5,7 @@ import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.
 import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem, listaSemEntrega } from "../core/analise/ui.js";
 import { analisarVarios, janelaDeEntrega } from "../core/analise/index.js";
 import * as AcoesMeta from "../core/acoes-meta.js";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js";
+import { bannerDemo, btnNovo, linhaNumeros, avisoVendasNaoLancadas } from "./comum.js";
 import { rotulo as rotuloOpcao } from "../core/schema.js";
 import { podeEditar } from "../core/auth.js";
 
@@ -17,6 +17,7 @@ function lista(root, ctx) {
   root.innerHTML = `${bannerDemo()}<div class="pagina-cab"><div><h1>Anúncios</h1><p class="sub">${lin.length} anúncio(s) · ${comGasto.filter((a) => !a.k.sales && !a.k.leads_base && a.k.spend >= 50).length} gastando sem resultado no período</p></div><div class="pagina-acoes">${btnNovo("Novo anúncio", 'data-novo="1"')}</div></div>
     ${abas([["diagnostico", "🧠 Diagnóstico"], ["tabela", "Tabela"]], visao)}
     ${chips([["ativa", "Ativos"], ["pausada", "Pausados"], ["todas", "Todos"]], filtro, "data-f")}<div style="height:10px"></div>
+    ${avisoVendasNaoLancadas(comGasto, "anúncio(s)")}
     ${visao === "diagnostico" ? diagnosticoHtml(lin, ctx) : cartao("", tabela("anuncios", { colunas: [
       { key: "name", label: "Anúncio", render: (a) => `${a.cr && a.cr.thumbnail ? `<img class="mini" src="${esc(a.cr.thumbnail)}" alt="">` : ""}<a href="#/anuncios/${a.id}">${esc(a.name)}</a><br><small>${a.camp ? esc(a.camp.name) : "—"}${a.cr ? " · " + esc(rotuloOpcao("creative_type", a.cr.type)) : ""}</small>` },
       { key: "objetivo", label: "Objetivo", valor: (a) => a.camp ? rotuloOpcao("objective", a.camp.objective) : "", render: (a) => badgeObjetivo(a.camp) || "<small>—</small>" },

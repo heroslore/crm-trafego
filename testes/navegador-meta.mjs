@@ -239,6 +239,36 @@ const over = await p.evaluate(() => document.documentElement.scrollWidth - docum
 ok(over === 0, `sem transbordo horizontal (${over}px)`);
 await p.screenshot({ path: `${SAIDA}/meta-mobile.png`, fullPage: false });
 
+console.log("\n[10] Venda não lançada não vira prejuízo inventado");
+await p.setViewportSize({ width: 1400, height: 1000 });
+// camp-meta gastou R$ 50 e não tem nenhuma venda lançada. No modo "parcial" (padrão),
+// ROAS 0,00x e ROI -100% seriam mentira: ninguém mediu prejuízo nenhum.
+await p.goto(BASE + "#/campanhas", { waitUntil: "networkidle" });
+await p.waitForTimeout(1500);
+const kParcial = await p.evaluate(async () => {
+  const { kpis } = await import("./app/core/metrics.js");
+  return kpis({ inicio: "2000-01-01", fim: "2100-01-01" }, { campaign_id: "camp-meta" });
+});
+ok(kParcial.spend > 0, "a campanha de teste tem gasto no período");
+ok(kParcial.roas === null, "ROAS fica nulo sem venda lançada (era 0,00x)");
+ok(kParcial.roi === null, "ROI fica nulo sem venda lançada (era -100%)");
+ok(kParcial.conversion === null, "taxa de conversão fica nula sem venda lançada");
+ok(kParcial.vendas_medidas === false, "a métrica se declara não medida");
+const listaTxt = await p.locator("main").innerText();
+ok(/aparecem como "—"/.test(listaTxt), "a lista explica por que o traço está ali");
+ok(!/-100,0%/.test(listaTxt), "nenhum -100% de ROI sobrou na tela");
+
+// Já no modo "completo", quem diz que lança tudo continua vendo o zero real.
+const kCompleto = await p.evaluate(async () => {
+  const { db } = await import("./app/core/db.js");
+  const { kpis } = await import("./app/core/metrics.js");
+  db.setSettings({ vendas_analise: "completo" });
+  return kpis({ inicio: "2000-01-01", fim: "2100-01-01" }, { campaign_id: "camp-meta" });
+});
+ok(kCompleto.roas === 0, "no modo \"toda venda é lançada\", ROAS 0 volta a aparecer");
+ok(kCompleto.roi === -1, "no modo \"toda venda é lançada\", ROI -100% volta a aparecer");
+
+
 console.log("\nERROS DE JS:", erros.length);
 for (const e of erros.slice(0, 10)) console.log(" -", e);
 console.log(falhas ? `\n${falhas} verificação(ões) falharam.` : "\nTodas as verificações passaram.");
