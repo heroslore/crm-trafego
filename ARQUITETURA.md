@@ -122,14 +122,19 @@ seguinte. Nenhuma camada pula a anterior, e só a última conhece o banco.
 | `index.js` | Junta os dados do CRM, roda o pipeline e devolve tudo pronto. `analisarVarios()` analisa uma lista inteira montando a base de comparação **uma vez** — sem isso, 50 anúncios refariam 50 vezes o histórico da conta |
 | `ui.js` | Desenha. Não julga nada |
 
-Três decisões que valem para o motor inteiro:
+Quatro decisões que valem para o motor inteiro:
 
 1. **Métrica sem dado é `null`, nunca `0`.** Zero é resultado; `null` é ausência de
    informação. É por isso que a tela mostra "indisponível" em vez de "0%".
 2. **Nenhuma regra universal.** Não existe "CTR abaixo de 1% é ruim". A comparação vem do
    histórico da conta; na falta dele, de campanhas parecidas; e só em último caso da
    referência padrão, que fica editável em Configurações → Análise e é sempre nomeada no texto.
-3. **Motor determinístico.** Os mesmos números produzem sempre o mesmo diagnóstico. Se um dia
+3. **Registro parcial de venda é piso, não veredito.** Com vendas lançadas só em parte, o
+   faturamento é um limite inferior (pode ser maior, nunca menor) e por isso um ROAS alto vale
+   como conclusão; já a taxa de venda e o CPA ficam distorcidos pelo numerador incompleto e
+   saem da nota. Sem isso, lançar a primeira venda de dez pioraria a avaliação do anúncio —
+   um incentivo exatamente invertido. Escolhido em Configurações → Análise.
+4. **Motor determinístico.** Os mesmos números produzem sempre o mesmo diagnóstico. Se um dia
    uma IA entrar nesse caminho, será para reescrever o texto — nunca para decidir se uma
    métrica é boa ou ruim.
 
