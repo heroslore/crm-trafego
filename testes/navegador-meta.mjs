@@ -48,6 +48,7 @@ await p.reload({ waitUntil: "networkidle" });
 await p.waitForTimeout(1500);
 
 const chamadas = async () => (await (await fetch(`${MOCK}/v23.0/__chamadas?access_token=x`)).json());
+let cs = [];
 await fetch(`${MOCK}/v23.0/__limpar?access_token=x`);   // zera o diário de chamadas da execução anterior
 
 console.log("\n[1] Configurações → Meta reconhece a chave");
@@ -57,6 +58,16 @@ const txtCfg = await p.locator(".cartao").first().innerText();
 ok(/Conectado como/.test(txtCfg), "mostra que está conectado");
 ok(/ads_management/.test(txtCfg), "lista a permissão de gestão");
 await p.locator(".cartao").first().screenshot({ path: `${SAIDA}/meta-config.png` });
+
+console.log("\n[1b] Teste de comando que não altera nada");
+await p.locator("[data-mt-escrita]").click();
+await p.waitForTimeout(1200);
+const resultado = await p.locator("#mtResultado").innerText();
+ok(/O comando funciona/.test(resultado), `responde se o comando passa: "${resultado.split("\n")[0].slice(0, 80)}"`);
+cs = await chamadas();
+const noop = cs.filter((c) => c.metodo === "POST" && c.dados.status);
+ok(noop.length === 1, "fez exatamente um POST de status no teste");
+await fetch(`${MOCK}/v23.0/__limpar?access_token=x`);
 
 console.log("\n[2] Pausar campanha");
 await p.goto(BASE + "#/campanhas/camp-meta", { waitUntil: "networkidle" });
@@ -69,7 +80,7 @@ ok(/Vai parar de rodar e de gastar/.test(txtModal), "confirmação explica o efe
 await p.locator("#modal").screenshot({ path: `${SAIDA}/meta-confirma-pausa.png` });
 await p.locator("#modal [data-ok]").click();
 await p.waitForTimeout(900);
-let cs = await chamadas();
+cs = await chamadas();
 const pausa = cs.filter((c) => c.metodo === "POST" && c.dados.status === "PAUSED");
 ok(pausa.length === 1, "enviou exatamente um POST status=PAUSED");
 ok(pausa[0] && pausa[0].caminho === "120200000000001", "usou o id da campanha na Meta");

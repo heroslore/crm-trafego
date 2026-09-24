@@ -85,7 +85,19 @@ function abaMeta() {
     <label class="check" style="margin-top:10px"><input type="checkbox" id="mtLigado"${c.ligado ? " checked" : ""}> <b>Permitir que o CRM altere campanhas nesta conta</b> (pausar, orçamento, duplicar, criar)</label>
     <p class="sub">Desligado, os botões somem das telas e o CRM volta a só ler. É o freio de mão.</p>
     <div class="aviso aviso-alerta" style="margin-top:10px"><b>Onde essa chave fica.</b> Só neste aparelho, no armazenamento do navegador — nunca no banco, no backup nem na nuvem. Quem tem essa chave gasta o dinheiro da conta de anúncios, então ela não é compartilhada entre a equipe: cada pessoa que precisar controlar campanhas cola a dela no próprio aparelho. No celular da sua funcionária, sem chave, os botões simplesmente não aparecem.</div>
-    ${podeEditar() ? `<div class="linha-btns" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primario" data-mt-salvar>💾 Salvar e testar</button><button class="btn" data-mt-testar>🔌 Testar chave</button>${MetaApi.configurado() ? `<button class="btn btn-perigo" data-mt-esquecer>🗑️ Esquecer a chave deste aparelho</button>` : ""}</div>` : ""}
+    <div id="mtResultado"></div>
+    ${podeEditar() ? `<div class="linha-btns" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primario" data-mt-salvar>💾 Salvar e testar</button><button class="btn" data-mt-testar>🔌 Testar chave</button><button class="btn" data-mt-escrita title="Reenvia para uma campanha o status que ela já tem: prova que o comando funciona sem alterar nada">🧪 Testar comando (não altera nada)</button>${MetaApi.configurado() ? `<button class="btn btn-perigo" data-mt-esquecer>🗑️ Esquecer a chave deste aparelho</button>` : ""}</div>` : ""}
+    <details style="margin-top:14px"><summary class="sub">Como conseguir uma chave que não expira (recomendado)</summary>
+      <p class="sub" style="margin-top:8px">A chave do Explorador da API dura cerca de <b>2 horas</b>, e a estendida dura 60 dias. Quem controla campanhas todo dia acaba tendo que refazer. A chave de <b>usuário do sistema</b> não expira:</p>
+      <ol class="sub" style="padding-left:18px;line-height:1.7">
+        <li>Abra <a href="https://business.facebook.com/settings/system-users" target="_blank" rel="noopener">business.facebook.com → Configurações do negócio → Usuários → Usuários do sistema</a>.</li>
+        <li><b>Adicionar</b> → nome qualquer (ex.: “CRM Tráfego”) → função <b>Administrador</b>.</li>
+        <li>Em <b>Adicionar ativos</b>, escolha <b>Contas de anúncios</b>, marque a sua e dê <b>Controle total</b>. Faça o mesmo em <b>Páginas</b> se for subir campanha nova por aqui.</li>
+        <li><b>Gerar novo token</b> → escolha a sua aplicação → marque <code>ads_management</code>, <code>ads_read</code>, <code>pages_show_list</code> e <code>pages_read_engagement</code> → Gerar.</li>
+        <li>Copie e cole no campo acima. Essa chave vale até você revogá-la.</li>
+      </ol>
+      <p class="sub">Se a sua aplicação não aparecer na lista do passo 4, ela precisa estar adicionada ao negócio em <b>Configurações do negócio → Contas → Aplicativos</b>.</p>
+    </details>
     <h3>O que o CRM faz e o que não faz</h3>
     <div class="lista">
       ${[["Pausar e reativar", "campanha, conjunto e anúncio, com confirmação"], ["Mudar orçamento diário", "com aviso sobre reiniciar o aprendizado"], ["Duplicar campanha", "cópia completa, nascendo pausada"], ["Subir campanha nova", "impulsionando publicação ou com imagem e texto novos"], ["Registrar tudo", "cada ação entra no histórico de decisões, que mede o antes e o depois"]].map(([t, d]) => `<div class="item"><div class="item-txt"><div class="item-titulo">${esc(t)}</div><div class="item-sub">${esc(d)}</div></div><div class="item-dir">${badge("faz", "verde")}</div></div>`).join("")}
@@ -233,6 +245,18 @@ export default {
       await testarMeta();
     });
     on("[data-mt-testar]", "click", testarMeta);
+    on("[data-mt-escrita]", "click", async () => {
+      const alvo = root.querySelector("#mtResultado");
+      const camp = db.where("campaigns", (c) => c.external_id && c.source === "meta").sort((a, b) => (a.status === "pausada" ? -1 : 1) - (b.status === "pausada" ? -1 : 1))[0];
+      if (!camp) { alvo.innerHTML = `<div class="aviso aviso-alerta">Nenhuma campanha vinda da Meta no CRM para testar. Espere a próxima coleta.</div>`; return; }
+      alvo.innerHTML = `<div class="aviso aviso-info">Testando em “${esc(camp.name)}”…</div>`;
+      try {
+        const r = await MetaApi.testarEscrita(camp.external_id);
+        alvo.innerHTML = `<div class="aviso aviso-ok"><b>✓ O comando funciona.</b> A Meta aceitou a alteração em “${esc(r.nome)}” e o status continua <b>${esc(r.status_depois)}</b>${r.inalterado ? " (nada mudou, como esperado)" : ""}.<br>Pausar, reativar, orçamento, duplicar e encerrar vão funcionar nas telas de campanha e de anúncio.</div>`;
+      } catch (e) {
+        alvo.innerHTML = `<div class="aviso aviso-erro"><b>✗ O comando não passou.</b> ${esc(e.message)}${e.codigo ? `<br><small>código ${esc(e.codigo)}</small>` : ""}</div>`;
+      }
+    });
     on("[data-mt-esquecer]", "click", () => {
       if (!confirm("Apagar a chave da Meta deste aparelho? O CRM volta a só ler os dados da coleta.")) return;
       MetaApi.limparCfg(); toast("Chave apagada deste aparelho."); ctx.rerender();

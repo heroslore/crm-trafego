@@ -39,8 +39,15 @@ O navegador fala direto com a API da Meta (ela responde com CORS liberado), ent�
 servidor no meio. Com a chave certa, dá para **pausar, reativar, mudar orçamento, duplicar e
 subir campanha** sem abrir o Gerenciador de Anúncios.
 
+**Teste antes de precisar.** Em Configurações → Meta há o botão **"Testar comando (não altera
+nada)"**: ele reenvia para uma campanha o status que ela já tem. Se a Meta aceitar, pausar,
+orçamento, duplicar e encerrar funcionam; se recusar, a tela diz o motivo em português. É a
+forma de saber sem ter que pausar uma campanha de verdade para descobrir.
+
 **O que é preciso.** Uma chave de acesso com a permissão `ads_management` (a coleta diária
-usa só `ads_read`, que lê mas não mexe). Gere em developers.facebook.com → sua aplicação →
+usa só `ads_read`, que lê mas não mexe). A chave do Explorador da API dura ~2 horas e a
+estendida 60 dias; para não refazer toda hora, use uma chave de **usuário do sistema**, que
+não expira — o passo a passo está na própria tela de Configurações → Meta. Gere em developers.facebook.com → sua aplicação →
 Ferramentas → Explorador da API, marcando `ads_management`, `ads_read`, `pages_show_list` e
 `pages_read_engagement`; depois troque por uma chave de longa duração. Cole em
 **Configurações → Meta (campanhas)**, informe a conta (`act_…`) e ligue o interruptor.
