@@ -3,8 +3,8 @@
 //
 // A chave da instância NÃO fica no banco sincronizado: ela mora só neste aparelho
 // (localStorage), porque quem tem a chave controla o WhatsApp da loja.
-import { db } from "./db.js?v=b1025fca";
-import { agora, hoje, telLimpo, uid, semAcento } from "./format.js?v=b1025fca";
+import { db } from "./db.js?v=890e3831";
+import { agora, hoje, telLimpo, uid, semAcento } from "./format.js?v=890e3831";
 
 const CHAVE_CFG = "crm-trafego-wame";
 export const BASES = ["https://us.api-wa.me", "https://server.api-wa.me"];

@@ -1,16 +1,16 @@
-import { db } from "../core/db.js?v=b1025fca";
-import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=b1025fca";
-import { situacaoCampanha } from "../core/rules.js?v=b1025fca";
-import { blocoAnalise } from "../core/analise/ui.js?v=b1025fca";
-import * as AcoesMeta from "../core/acoes-meta.js?v=b1025fca";
-import { listaDiagnostico, comparativoEtapas, ordenarAnalises } from "../core/analise/ui.js?v=b1025fca";
-import { analisarVarios } from "../core/analise/index.js?v=b1025fca";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=b1025fca";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=b1025fca";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=b1025fca";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=b1025fca";
-import { usuario } from "../core/auth.js?v=b1025fca";
-import { podeEditar } from "../core/auth.js?v=b1025fca";
+import { db } from "../core/db.js?v=890e3831";
+import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=890e3831";
+import { situacaoCampanha } from "../core/rules.js?v=890e3831";
+import { blocoAnalise } from "../core/analise/ui.js?v=890e3831";
+import * as AcoesMeta from "../core/acoes-meta.js?v=890e3831";
+import { listaDiagnostico, comparativoEtapas, ordenarAnalises } from "../core/analise/ui.js?v=890e3831";
+import { analisarVarios } from "../core/analise/index.js?v=890e3831";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=890e3831";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=890e3831";
+import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=890e3831";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=890e3831";
+import { usuario } from "../core/auth.js?v=890e3831";
+import { podeEditar } from "../core/auth.js?v=890e3831";
 
 let filtroStatus = "ativa", filtroPlat = "";
 
