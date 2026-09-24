@@ -3,6 +3,8 @@ import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendime
 import { situacaoCampanha } from "../core/rules.js";
 import { blocoAnalise } from "../core/analise/ui.js";
 import * as AcoesMeta from "../core/acoes-meta.js";
+import { listaDiagnostico, comparativoEtapas, ordenarAnalises } from "../core/analise/ui.js";
+import { analisarVarios } from "../core/analise/index.js";
 import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js";
 import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js";
 import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js";
@@ -19,6 +21,7 @@ function lista(root, ctx) {
   const q = new URLSearchParams((location.hash.split("?")[1] || ""));
   root.innerHTML = `${bannerDemo()}
     <div class="pagina-cab"><div><h1>Campanhas</h1><p class="sub">${todas.filter((x) => x.c.status === "ativa").length} ativa(s) de ${todas.length} · números do período selecionado</p></div><div class="pagina-acoes">${podeEditar() ? `<button class="btn" data-lancar>📝 Lançar métricas do dia</button><a class="btn" href="#/config?aba=importar">⬆️ Importar CSV/XLSX</a>` : ""}${AcoesMeta.ligado() ? `<button class="btn btn-verde" data-meta-nova="">🚀 Subir campanha na Meta</button>` : ""}${btnNovo("Nova campanha", 'data-novo="1"')}</div></div>
+    ${AcoesMeta.dicaLista(lin)}
     <div class="filtros-linha">${chips([["ativa", "Ativas"], ["pausada", "Pausadas"], ["planejada", "Planejadas"], ["producao", "Em produção"], ["finalizada", "Finalizadas"], ["todas", "Todas"]], filtroStatus, "data-fs")}<select data-fp><option value="">Todas as plataformas</option>${OPCOES.platform.map(([v, t]) => `<option value="${v}"${filtroPlat === v ? " selected" : ""}>${t}</option>`).join("")}</select></div>
     ${cartao("", tabela("campanhas", { colunas: [
       { key: "name", label: "Campanha", render: (l) => `<a href="#/campanhas/${l.id}">${esc(l.name)}</a><br><small>${esc(rotuloOpcao("platform", l.platform))} · ${esc(rotuloOpcao("objective", l.objective))}${l.product_id ? " · " + esc((db.get("products", l.product_id) || {}).name || "") : ""}</small>` },
@@ -79,6 +82,35 @@ function cartaoDecisoes(c) {
   return cartao(`Histórico de decisões <small>7 dias antes × 7 dias depois</small>`, corpo, podeEditar() ? `<button class="btn btn-pq" data-nova-decisao>➕ Registrar decisão</button>` : "");
 }
 
+// Qual criativo desta campanha foi melhor — a comparação que decide o que repetir.
+// Analisa os anúncios da campanha (cada um carrega o seu criativo) no período da tela.
+function comparativoDaCampanha(c, iv) {
+  const ads = db.where("ads", (a) => a.campaign_id === c.id);
+  if (!ads.length) return "";
+  const comEntrega = ads.filter((a) => { const k = kpis(iv, { ad_id: a.id }); return k.spend > 0 || k.impressions > 0; });
+  if (!comEntrega.length) {
+    return cartao("Criativos desta campanha", vazio(`Nenhum dos ${ads.length} anúncio(s) desta campanha teve entrega no período selecionado. Troque o período no topo — “Todo o histórico” mostra desde o começo.`));
+  }
+  const analises = analisarVarios({ nivel: "anuncio", registros: comEntrega, iv });
+  const link = (an) => {
+    const cr = an.contexto.criativo;
+    return {
+      href: `#/anuncios/${an.registro.id}`,
+      imagem: cr && cr.thumbnail ? cr.thumbnail : "",
+      subtitulo: cr ? `${esc(cr.name)} · ${esc(rotuloOpcao("creative_type", cr.type))}` : "sem criativo ligado",
+      etiquetas: badgeOpcao("campaign_status", an.registro.status),
+      acoes: AcoesMeta.botaoStatus("anuncio", an.registro),
+    };
+  };
+  const comp = comparativoEtapas(analises, link);
+  const melhor = ordenarAnalises(analises, "melhor")[0];
+  return cartao(`🎬 Criativos desta campanha <small>${analises.length} com entrega no período</small>`,
+    `${melhor && melhor.score.score != null ? `<div class="aviso aviso-ok">Melhor do período: <b>${esc(melhor.registro.name)}</b>, ${melhor.score.score}/100.${melhor.fortes.length ? ` Ganha em ${esc(melhor.fortes.slice(0, 3).map((f) => f.titulo.toLowerCase()).join(", "))}.` : ""} O que ainda trava nele: ${esc(melhor.resumo.diagnostico)}</div>` : ""}
+     ${comp || `<p class="sub">Com um anúncio só não há o que comparar. A comparação aparece quando dois ou mais tiverem entrega no mesmo período.</p>`}
+     <h3>Um a um</h3>
+     ${listaDiagnostico(ordenarAnalises(analises, "gasto"), link, {})}`);
+}
+
 function detalhe(root, ctx, c) {
   const iv = ctx.iv, media = mediaCampanhas(iv), s = situacaoCampanha(c, iv, media), k = s.k;
   const serie = serieDiaria(iv, { campaign_id: c.id });
@@ -99,6 +131,7 @@ function detalhe(root, ctx, c) {
       ${cartao("Público", sets.length ? `<div class="lista">${sets.map((a) => itemLista({ titulo: esc(a.name), sub: esc(a.targeting || "") + (a.audience_id ? " · " + esc((db.get("audiences", a.audience_id) || {}).name || "") : ""), badges: badgeOpcao("campaign_status", a.status), direita: (a.daily_budget ? brl(a.daily_budget) + "/dia " : "") + AcoesMeta.botaoStatus("conjunto", a) })).join("")}</div>` : (c.audience_id ? itemLista({ titulo: esc((db.get("audiences", c.audience_id) || {}).name || ""), sub: "público principal" }) : vazio("Sem conjuntos cadastrados.")), podeEditar() ? `<button class="btn btn-pq" data-novo-conjunto>➕ Conjunto</button>` : "")}
     </div>
     ${cartao("Resultados no período", linhaNumeros(k, ["spend", "revenue", "gross_profit", "roas", "roi", "leads", "sales", "conversion", "cpl", "cpa", "ticket", "ctr", "cpc", "cpm", "impressions", "reach"]) + graficoLinhas({ rotulos: serie.map((d) => dataCurta(d.date)), series: [{ nome: "Investimento", cor: "var(--acento)", valores: serie.map((d) => d.spend), barras: true }, { nome: "Faturamento", cor: "var(--verde)", valores: serie.map((d) => d.revenue) }], formato: "money", altura: 200 }))}
+    ${comparativoDaCampanha(c, iv)}
     ${cartaoDecisoes(c)}
     <div class="grid2">
       ${cartao("Anúncios e criativos", ads.length ? tabela("camp-ads", { colunas: [{ key: "name", label: "Anúncio", render: (a) => { const cr = db.get("creatives", a.creative_id); return `${cr && cr.thumbnail ? `<img class="mini" src="${esc(cr.thumbnail)}" alt="">` : ""}<a href="#/anuncios/${a.id}">${esc(a.name)}</a>${cr ? `<br><small><a href="#/criativos/${cr.id}">${esc(cr.name)}</a></small>` : ""}`; } }, { key: "status", label: "Status", render: (a) => badgeOpcao("campaign_status", a.status) }, { key: "spend", label: "Gasto", tipo: "num", valor: (a) => kpis(iv, { ad_id: a.id }).spend, fmt: brl }, { key: "leads", label: "Leads", tipo: "num", valor: (a) => kpis(iv, { ad_id: a.id }).leads_base, fmt: inteiro }, { key: "sales", label: "Vendas", tipo: "num", valor: (a) => kpis(iv, { ad_id: a.id }).sales, fmt: inteiro }, { key: "ctr", label: "CTR", tipo: "num", valor: (a) => kpis(iv, { ad_id: a.id }).ctr, fmt: (v) => pct(v) }, { key: "cpa", label: "CPA", tipo: "num", valor: (a) => kpis(iv, { ad_id: a.id }).cpa, fmt: brl }, { key: "meta", label: "Na Meta", render: (a) => AcoesMeta.botaoStatus("anuncio", a) || "<small>—</small>" }], linhas: ads, ordem: "spend" }) : vazio("Nenhum anúncio cadastrado nesta campanha."), podeEditar() ? `<button class="btn btn-pq" data-novo-anuncio>➕ Anúncio</button>` : "")}

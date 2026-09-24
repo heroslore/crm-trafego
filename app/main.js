@@ -49,7 +49,18 @@ export const estado = { periodo: { tipo: "30d", inicio: "", fim: "" }, rota: { m
 try { const p = JSON.parse(localStorage.getItem("crm-trafego-periodo") || "null"); if (p && p.tipo) estado.periodo = p; } catch {}
 
 const $ = (id) => document.getElementById(id);
-const ctx = () => ({ iv: intervalo(estado.periodo), periodo: estado.periodo, rota: estado.rota, navegar, rerender: render, usuario: usuario() });
+// Data do registro mais antigo, para o período "Todo o histórico". Fica em cache porque
+// varre todas as métricas; qualquer mudança no banco limpa o cache.
+let primeiroDiaCache = null;
+function primeiroDiaComDados() {
+  if (primeiroDiaCache !== null) return primeiroDiaCache || null;
+  let min = "";
+  for (const m of db.all("campaign_metrics")) if (m.date && (!min || m.date < min)) min = m.date.slice(0, 10);
+  for (const v of db.all("sales")) if (v.date && (!min || v.date < min)) min = v.date.slice(0, 10);
+  primeiroDiaCache = min;
+  return min || null;
+}
+const ctx = () => ({ iv: intervalo(estado.periodo, primeiroDiaComDados()), periodo: estado.periodo, rota: estado.rota, navegar, rerender: render, usuario: usuario() });
 
 // ---------------------------------------------------------------- roteador
 function lerHash() {
@@ -105,7 +116,7 @@ function gravarPeriodo() { try { localStorage.setItem("crm-trafego-periodo", JSO
 // ---------------------------------------------------------------- notificações
 let cacheAlertas = [];
 function atualizarNotificacoes() {
-  try { cacheAlertas = alertas(intervalo(estado.periodo)); } catch (e) { console.error(e); cacheAlertas = []; }
+  try { cacheAlertas = alertas(intervalo(estado.periodo, primeiroDiaComDados())); } catch (e) { console.error(e); cacheAlertas = []; }
   const n = cacheAlertas.filter((a) => a.prioridade === "urgente" || a.prioridade === "alta").length;
   const c = $("notifCont"); c.textContent = n; c.style.display = n ? "" : "none";
   $("painelNotif").innerHTML = `<div class="cab"><span>Alertas automáticos (${cacheAlertas.length})</span><a href="#/decisoes" class="link">Central de decisões</a></div>` + (cacheAlertas.length ? cacheAlertas.slice(0, 40).map((a) => `<div class="notif"><div class="txt"><a href="${esc(a.link || "#/decisoes")}" style="color:inherit">${prioridadeBadge(a.prioridade)} ${esc(a.texto)}</a><small>${esc(a.categoria)}</small></div><button title="Descartar" data-descartar="${esc(a.key)}">✕</button></div>`).join("") : `<div class="vazio">Nenhum alerta agora.</div>`);
@@ -143,6 +154,9 @@ document.addEventListener("click", (ev) => {
   if (t.closest("#btnTema")) { const atual = document.documentElement.getAttribute("data-theme") === "light" ? "" : "light"; if (atual) document.documentElement.setAttribute("data-theme", atual); else document.documentElement.removeAttribute("data-theme"); try { localStorage.setItem("crm-trafego-tema", atual); } catch {} return; }
   if (!t.closest(".busca")) $("buscaRes").classList.remove("aberta");
   const chipP = t.closest("[data-periodo]"); if (chipP) { estado.periodo = { ...estado.periodo, tipo: chipP.dataset.periodo }; gravarPeriodo(); montarPeriodo(); render(); return; }
+  // "Analisar o período em que rodou": joga o filtro global para a janela de entrega daquele anúncio.
+  const janela = t.closest("[data-ir-periodo]");
+  if (janela) { estado.periodo = { tipo: "custom", inicio: janela.dataset.inicio, fim: janela.dataset.fim }; gravarPeriodo(); montarPeriodo(); render(); window.scrollTo({ top: 0 }); return; }
 });
 document.addEventListener("change", (ev) => {
   const t = ev.target;
@@ -168,7 +182,7 @@ async function iniciar() {
   carregarUsuario(); nuvemLer(); iniciarAutomacoes(); W.carregarCfg(); MetaApi.carregarCfg();
   montarMenu(); montarPeriodo(); render(); atualizarNotificacoes();
   let timerMudou = null;
-  db.onChange(({ tabela }) => { if (tabela !== "alerts" && tabela !== "settings") agendarEnvio(); clearTimeout(timerMudou); timerMudou = setTimeout(() => { montarMenu(); atualizarNotificacoes(); }, 300); });
+  db.onChange(({ tabela }) => { if (tabela === "campaign_metrics" || tabela === "sales" || tabela === "*") primeiroDiaCache = null; if (tabela !== "alerts" && tabela !== "settings") agendarEnvio(); clearTimeout(timerMudou); timerMudou = setTimeout(() => { montarMenu(); atualizarNotificacoes(); }, 300); });
   onNuvem(() => { const el = document.querySelector("[data-nuvem-status]"); if (el) el.textContent = ""; });
   if (W.configurado()) { W.onMensagens(() => { montarMenu(); }); W.verificarConexao().catch(() => {}); W.iniciarPolling(); }
   // Confere a chave da Meta em segundo plano: os botões de pausar/subir campanha só

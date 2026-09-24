@@ -177,6 +177,20 @@ export function filhosDoEscopo(nivel, registro, iv, limite = 12) {
   }).filter((x) => x.k.spend > 0 || x.k.impressions > 0).sort((a, b) => b.k.spend - a.k.spend).slice(0, limite);
 }
 
+// Quando o anúncio realmente rodou, olhando todo o histórico e não só o período da tela.
+// É o que permite dizer "este rodou de 01/08 a 15/08" em vez de só "sem dados".
+export function janelaDeEntrega(nivel, id) {
+  const chave = NIVEIS_FILTRO[nivel] || "campaign_id";
+  const linhas = db.where("campaign_metrics", (m) => m[chave] === id && (num(m.impressions) > 0 || num(m.spend) > 0));
+  if (!linhas.length) return null;
+  const datas = linhas.map((r) => String(r.date).slice(0, 10)).sort();
+  return {
+    inicio: datas[0], fim: datas[datas.length - 1], dias: new Set(datas).size,
+    gasto: linhas.reduce((t, r) => t + num(r.spend), 0),
+    impressoes: linhas.reduce((t, r) => t + num(r.impressions), 0),
+  };
+}
+
 // Recortes que só existem na coleta automática da Meta: posicionamento e demografia.
 // Quando o arquivo não foi carregado, a seção simplesmente não aparece — nada é inventado.
 export function recortesDaCampanha(externalId) {

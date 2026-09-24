@@ -3,9 +3,10 @@ import { kpis, serieDiaria, mediaCampanhas } from "../core/metrics.js";
 import { classificarCriativo, CLASSES_CRIATIVO, diagnosticoVideo } from "../core/rules.js";
 import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista, abas, kpi, barrasH } from "../core/ui.js";
 import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js";
-import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem } from "../core/analise/ui.js";
-import { analisarVarios } from "../core/analise/index.js";
+import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem, listaSemEntrega } from "../core/analise/ui.js";
+import { analisarVarios, janelaDeEntrega } from "../core/analise/index.js";
 import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js";
+import { badgeObjetivo } from "./anuncios.js";
 import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js";
 import { podeEditar } from "../core/auth.js";
 
@@ -35,16 +36,22 @@ function lista(root, ctx) {
 }
 // Mesma leitura do motor aplicada a todos os criativos do filtro, de uma vez só.
 function diagnosticoHtml(lin, ctx) {
-  const analises = analisarVarios({ nivel: "criativo", registros: lin, iv: ctx.iv });
+  const comEntrega = lin.filter((c) => c.k.spend > 0 || c.k.impressions > 0);
+  const fora = lin.filter((c) => !(c.k.spend > 0 || c.k.impressions > 0)).map((c) => ({
+    registro: c, janela: janelaDeEntrega("criativo", c.id), href: `#/criativos/${c.id}`, imagem: c.thumbnail || "",
+  }));
+  const analises = analisarVarios({ nivel: "criativo", registros: comEntrega, iv: ctx.iv });
   const link = (an) => ({
     href: `#/criativos/${an.registro.id}`,
     imagem: an.registro.thumbnail || "",
     subtitulo: [rotuloOpcao("creative_type", an.registro.type), an.contexto.campanha ? esc(an.contexto.campanha.name) : ""].filter(Boolean).join(" · "),
+    etiquetas: badgeObjetivo(an.contexto.campanha),
   });
   const comparativo = comparativoEtapas(analises, link);
   return `${comparativo ? cartao("Quem ganha em cada etapa", comparativo) : ""}
-    <div class="filtros-linha">${chipsOrdem(ordem)}</div>
-    ${listaDiagnostico(ordenarAnalises(analises, ordem), link, { vazioTxt: "Nenhum criativo com entrega no período selecionado." })}`;
+    ${analises.length ? `<div class="filtros-linha">${chipsOrdem(ordem)}</div>` : ""}
+    ${listaDiagnostico(ordenarAnalises(analises, ordem), link, { vazioTxt: "Nenhum criativo teve entrega no período selecionado. Troque o período no topo — “Todo o histórico” mostra tudo desde o começo da conta." })}
+    ${listaSemEntrega(fora, "Criativos sem entrega neste período")}`;
 }
 
 function detalhe(root, ctx, c) {
