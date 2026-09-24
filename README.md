@@ -14,6 +14,7 @@ relatórios, concorrentes e configurações. Funciona em computador e celular, i
 | **Hoje** | responde rápido: gastei, vendi, lucrei, leads, vendas, melhor/pior campanha, produto mais vendido, campanha gastando sem vender, lead parado, tarefa urgente |
 | **Dashboard** | investimento, faturamento, lucro bruto e após anúncios, ROAS, ROI, leads, **leads qualificados**, vendas, conversão, CPL, **CPL qualificado**, CPA, ticket, CTR, CPC, CPM, com variação vs período anterior e avaliação pelas metas; **o que aconteceu depois que o lead chegou**; **atendimento** (tempo médio, faixas de 5 min / 15 min / 1 h, nunca atendidos, fila de espera); **ritmo do orçamento** do mês com projeção; gráficos por dia; metas; valor por etapa; parados; agenda |
 | **Central de Decisões** | "O que precisa da minha atenção hoje?" por prioridade (urgente/alta/média/baixa); oportunidades de campanha; alertas automáticos; Analista de Tráfego IA (texto explicativo, nunca decide sozinho) |
+| **Análise Inteligente** | dentro da campanha, do anúncio e do criativo: score 0–100, resumo em 10 segundos, diagnóstico por etapa (atenção, retenção, clique, conversão, público, custo, faturamento, saturação), funil completo com a maior queda, curva de retenção do vídeo, fadiga do criativo, saúde do público e plano de ação dividido em **agora / próximo teste / não alterar**. Toda métrica aparece com a fórmula usada e com a base contra a qual foi comparada |
 | **Campanhas** | plataforma, objetivo, produto, datas, status, orçamentos, gasto, faturamento, leads, vendas, CPL, CPL qualificado, CPA, CTR, CPC, CPM, ROAS, ROI, ticket e decisão; **histórico de decisões** com o efeito de cada mudança (7 dias antes × 7 dias depois); lançamento manual de métricas; conjuntos e anúncios |
 | **Anúncios / Criativos** | biblioteca com tipo, copy, CTA, responsável, link/arquivo, ranking visual e classificação automática (campeão, bom, em teste, saturando, baixo, pausar). **Retenção de vídeo** (3 s, ThruPlay, 25/50/75/95%, custo por ThruPlay) e diagnóstico que separa "gancho fraco" de "prende mas não converte" |
 | **Produtos** | estoque, custo, preço, margem, vendas 7/30 dias, faturamento, lucro, campanhas relacionadas; classificação automática (campeão, potencial, normal, baixa saída, parado, estoque crítico) e filtros "vendendo muito", "precisa de campanha", "parado", "estoque alto", "acabando" |
@@ -29,13 +30,39 @@ relatórios, concorrentes e configurações. Funciona em computador e celular, i
 | **Briefings / Ideias** | solicitação de criativo com status até publicado; banco de ideias por status |
 | **Relatórios** | semanal e mensal automáticos (TOP 5, piores, crescimento, comparação com o período anterior), comparador de períodos, rankings, analista |
 | **Calculadoras** | ROAS, ROI, CPA máximo, orçamento necessário, leads necessários, ponto de equilíbrio |
-| **Configurações** | empresas/lojas, usuários e perfis (admin, gestor, marketing, criador, vendedor, visualizador), metas, regras de alerta, automações, importação CSV/XLSX do Gerenciador de Anúncios, integrações, nuvem e backup |
+| **Configurações** | empresas/lojas, usuários e perfis (admin, gestor, marketing, criador, vendedor, visualizador), metas, regras de alerta, **referências e mínimos da Análise Inteligente**, automações, importação CSV/XLSX do Gerenciador de Anúncios, integrações, nuvem e backup |
+
+## Como a Análise Inteligente lê os números
+
+Ela nunca olha uma métrica sozinha. Percorre o funil inteiro — impressão → atenção →
+retenção → clique → contato → venda → faturamento — e responde duas perguntas: **onde a
+maior perda acontece** e **o que fazer a seguir**.
+
+Três regras sustentam isso:
+
+1. **Comparação com base nomeada.** Não existe regra universal do tipo "CTR abaixo de 1% é
+   ruim". A comparação vem do histórico da sua conta; na falta dele, de campanhas parecidas;
+   e só em último caso da referência padrão, que é editável em Configurações → Análise. O
+   texto sempre diz qual base foi usada.
+2. **Sem amostra, sem veredito.** Abaixo do mínimo de impressões, cliques, dias e resultados,
+   a etapa aparece como ⚪ *dados insuficientes* em vez de receber uma nota. Campanha nova não
+   é condenada por causa de número pequeno.
+3. **Ausência não é zero.** Métrica que a plataforma não informou aparece como
+   "indisponível". Zero é resultado; vazio é falta de informação — e os dois levam a decisões
+   diferentes.
+
+Para a análise de vídeo funcionar por inteiro, três campos ajudam e são preenchidos à mão
+quando a plataforma não manda: **duração do vídeo** (no criativo), **tamanho estimado do
+público** (no público) e as **metas da própria campanha** (CPA, CPL, custo por conversa,
+ROAS, CTR), que têm prioridade sobre qualquer referência.
 
 ## Como os dados entram
 
 - **Meta Ads**: o coletor (`coletor/coletar.py`) roda todo dia (GitHub Actions 08:20 / rotina do
   Claude 08:30) e grava `dados/meta.json`. O CRM transforma isso em campanhas, conjuntos,
   anúncios, criativos e métricas diárias, sem apagar o que você editou (produto, decisão, notas).
+  A coleta traz a cadeia completa do vídeo (reproduções, 2 s, 3 s, 25/50/75/95/100%, ThruPlay e
+  tempo médio assistido), cliques de saída, visitas à página e conversas iniciadas.
 - **Google, TikTok e outras**: lançamento manual em Campanhas ou importação CSV/XLSX.
 - **Conversas**: WhatsApp, Instagram e Messenger pela api-wa.me, lidos direto pelo navegador.
   Configure em Configurações → Mensagens colando a *key* da instância. A chave fica só naquele
@@ -88,7 +115,7 @@ coletor/coletar.py    Meta Ads -> dados/meta.json
 ```bash
 python3 -m http.server 8000          # abre http://localhost:8000
 python3 coletor/coletar.py --verificar
-python3 -m unittest coletor/test_coletar.py
+./testes/rodar.sh                    # sintaxe dos módulos + motor de análise + coletor
 ```
 
 Sem dependências para instalar. O leitor de XLSX é carregado sob demanda de um CDN.

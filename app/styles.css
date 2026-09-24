@@ -21,6 +21,7 @@ small { color:var(--mudo); }
 code { background:var(--card2); padding:1px 6px; border-radius:6px; font-size:.85em; }
 .mudo { color:var(--mudo); } .sub { color:var(--texto2); font-size:.9rem; margin-top:2px; }
 .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; } .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.grid2 > *, .grid3 > *, .kpis > * { min-width:0; } /* sem isto, uma tabela larga dentro do cartão empurra a página inteira no celular */
 @media (max-width:900px){ .grid2, .grid3 { grid-template-columns:1fr; } }
 
 /* ---------------- casca */
@@ -294,3 +295,63 @@ a.msg-midia { color:inherit; text-decoration:underline; }
 .msg-link { color:inherit; text-decoration:underline; word-break:break-all; }
 .msg.dele .msg-link { color:var(--acento2); }
 .msg-txt.mudo { opacity:.65; }
+
+/* ---------------- análise inteligente */
+.analise { display:flex; flex-direction:column; gap:18px; }
+.an-pill { display:inline-flex; align-items:center; gap:4px; font-size:.7rem; font-weight:700; letter-spacing:.03em; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+.an-verde { background:var(--verde-bg); color:var(--verde); } .an-amarelo { background:var(--amarelo-bg); color:var(--amarelo); }
+.an-vermelho { background:var(--vermelho-bg); color:var(--vermelho); } .an-cinza { background:var(--cinza-bg); color:var(--mudo); }
+.an-conf { font-size:.68rem; padding:2px 7px; border-radius:999px; background:var(--cinza-bg); color:var(--texto2); white-space:nowrap; }
+.an-conf-alta { background:var(--verde-bg); color:var(--verde); } .an-conf-media { background:var(--ciano-bg); color:var(--ciano); }
+.an-conf-baixa { background:var(--amarelo-bg); color:var(--amarelo); } .an-conf-insuficiente { background:var(--cinza-bg); color:var(--mudo); }
+.an-indisp { color:var(--mudo); font-style:italic; }
+
+.an-resumo { display:grid; grid-template-columns:150px 1fr; gap:16px; align-items:start; }
+.an-score { border-radius:var(--raio); padding:14px; text-align:center; border:1px solid var(--borda); background:var(--card2); }
+.an-score-verde { background:var(--verde-bg); border-color:rgba(34,197,94,.35); } .an-score-amarelo { background:var(--amarelo-bg); border-color:rgba(245,158,11,.35); }
+.an-score-vermelho { background:var(--vermelho-bg); border-color:rgba(239,68,68,.35); } .an-score-cinza { background:var(--cinza-bg); }
+.an-score-num { font-size:2.6rem; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; }
+.an-score-max { font-size:.72rem; color:var(--texto2); } .an-score-rot { margin-top:6px; font-size:.75rem; font-weight:700; letter-spacing:.03em; }
+.an-frase { font-size:1rem; line-height:1.5; margin-bottom:10px; }
+.an-blocos { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.an-bloco { background:var(--card2); border:1px solid var(--borda); border-radius:10px; padding:10px 12px; }
+.an-bloco-rot { font-size:.66rem; letter-spacing:.1em; text-transform:uppercase; color:var(--mudo); margin-bottom:3px; }
+.an-bloco-txt { font-size:.86rem; line-height:1.45; }
+.an-bloco-acao { border-color:var(--acento); background:var(--acento-bg); }
+.an-rodape { margin-top:10px; font-size:.8rem; color:var(--texto2); display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
+
+.an-sec { border-top:1px solid var(--borda); padding-top:14px; }
+.an-sec > h2 { margin-bottom:10px; }
+.an-etapas { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; }
+.an-etapa { background:var(--card2); border:1px solid var(--borda); border-left:3px solid var(--cinza); border-radius:10px; padding:10px 12px; }
+.an-borda-verde { border-left-color:var(--verde); } .an-borda-amarelo { border-left-color:var(--amarelo); }
+.an-borda-vermelho { border-left-color:var(--vermelho); } .an-borda-cinza { border-left-color:var(--cinza); }
+.an-etapa-cab { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.an-etapa-valor { font-size:1.3rem; font-weight:700; font-variant-numeric:tabular-nums; margin:2px 0 4px; }
+.an-etapa-txt { font-size:.82rem; color:var(--texto2); line-height:1.45; }
+.an-mini { list-style:none; margin-top:8px; border-top:1px dashed var(--borda); padding-top:6px; display:flex; flex-direction:column; gap:3px; }
+.an-mini li { display:grid; grid-template-columns:1fr auto; gap:6px; font-size:.76rem; align-items:baseline; }
+.an-mini li small { grid-column:1/-1; color:var(--mudo); font-size:.68rem; }
+.an-pesos { margin-top:12px; } .an-pesos summary, .an-mais summary { cursor:pointer; font-size:.85rem; color:var(--acento2); padding:6px 0; }
+
+.an-plano { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.an-col h3 { margin-top:0; color:var(--texto); }
+.an-rec { background:var(--card2); border:1px solid var(--borda); border-radius:10px; padding:10px 12px; margin-bottom:10px; }
+.an-rec-cab { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
+.an-rec-linha { display:grid; grid-template-columns:76px 1fr; gap:8px; font-size:.82rem; margin-bottom:4px; align-items:start; }
+.an-rec-linha > span { font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--mudo); padding-top:2px; }
+.an-rec-linha ul { padding-left:16px; } .an-rec-linha li { margin-bottom:2px; }
+.an-rec-acao p { font-weight:600; }
+.an-rec-pe { text-align:right; }
+.an-manter { background:var(--verde-bg); border:1px solid rgba(34,197,94,.3); border-radius:10px; padding:8px 12px; margin-bottom:8px; font-size:.82rem; }
+.an-manter p { color:var(--texto2); margin-top:2px; }
+.an-sinais { list-style:none; display:flex; flex-wrap:wrap; gap:6px; margin:6px 0; }
+.an-sinais li { background:var(--card2); border:1px solid var(--borda); border-radius:999px; padding:2px 10px; font-size:.76rem; color:var(--texto2); }
+.an-linha-titulo { margin-bottom:6px; }
+.an-destaque { background:var(--vermelho-bg); }
+@media (max-width:900px){ .an-resumo { grid-template-columns:1fr; } .an-blocos { grid-template-columns:1fr; } .an-plano { grid-template-columns:1fr; } }
+/* Itens de flex/grid encolhem: sem isto, uma tabela larga empurra a página inteira no celular. */
+.analise, .an-sec, .an-col, .an-resumo-txt, .an-etapa, .an-rec { min-width:0; }
+.analise .tabela-wrap { max-width:100%; }
+.analise .tabela td:nth-child(3), .analise .tabela td:last-child { white-space:normal; min-width:150px; }
+.an-rec-linha p, .an-rec-linha li, .an-etapa-txt, .an-bloco-txt { overflow-wrap:anywhere; }

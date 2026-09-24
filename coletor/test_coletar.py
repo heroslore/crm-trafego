@@ -34,7 +34,23 @@ class TestVideo(unittest.TestCase):
         self.assertEqual(v["video_p95"], 0)
 
     def test_sem_video_fica_zerado(self):
-        self.assertEqual(coletar.metricas_video({}), {"thruplay": 0, "video_p25": 0, "video_p50": 0, "video_p75": 0, "video_p95": 0, "video_3s": 0})
+        self.assertEqual(coletar.metricas_video({}), {"thruplay": 0, "video_p25": 0, "video_p50": 0, "video_p75": 0,
+                                                      "video_p95": 0, "video_p100": 0, "video_plays": 0, "video_2s": 0,
+                                                      "video_3s": 0})
+
+    def test_cadeia_completa_do_video(self):
+        linha = {
+            "video_play_actions": [{"action_type": "video_view", "value": "900"}],
+            "video_continuous_2_sec_watched_actions": [{"action_type": "video_view", "value": "500"}],
+            "video_p100_watched_actions": [{"action_type": "video_view", "value": "40"}],
+            "video_avg_time_watched_actions": [{"action_type": "video_view", "value": "7.5"}],
+            "actions": [{"action_type": "video_view", "value": "400"}],
+        }
+        v = coletar.metricas_video(linha)
+        self.assertEqual(v["video_plays"], 900)
+        self.assertEqual(v["video_2s"], 500)
+        self.assertEqual(v["video_p100"], 40)
+        self.assertEqual(v["tempo_medio"], 7.5)
 
 
 class TestJuncao(unittest.TestCase):

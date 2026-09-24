@@ -19,6 +19,7 @@ sem servidor próprio. Funciona em computador e celular, instalável como app.
 │    sync.js     Meta Ads (dados/meta.json) e nuvem GitHub   │
 │    importer.js CSV / XLSX (Gerenciador de Anúncios)        │
 │    auth.js     usuários, perfis e permissões               │
+│    analise/    motor da Análise Inteligente (7 arquivos)   │
 └───────────────┬─────────────────────────┬──────────────────┘
                 │ leitura                 │ leitura/gravação
      dados/meta.json (coleta diária)   repositório privado (crm.json)
@@ -34,6 +35,7 @@ sem servidor próprio. Funciona em computador e celular, instalável como app.
 | `core/db.js` | Banco de dados no navegador: tabelas, ids, `insert/update/remove/get/all/where`, índices, eventos `change`, persistência, exportação, dados de demonstração | Módulos nunca gravam no `localStorage` diretamente |
 | `core/metrics.js` | Agregações por período, campanha, conjunto, anúncio, criativo, produto, público, vendedor, plataforma, dia; tempo de atendimento (SLA); qualificação; receita líquida com descontos, taxas e frete; retenção de vídeo; ritmo do orçamento; clientes e LTV; efeito de uma decisão | Todo indicador é calculado aqui, nunca digitado |
 | `core/rules.js` | Classificação automática (produto, criativo), alertas, oportunidades, central de decisões, textos do analista | Só sugere; nunca altera dados sozinho |
+| `core/analise/` | Motor da Análise Inteligente: métricas com fórmula, benchmarks adaptativos, confiança estatística, regras de diagnóstico, score e recomendações | Camadas puras (sem banco) para poder ser testado fora do navegador |
 | `core/ui.js` | Cartão KPI, tabela ordenável, kanban, formulário gerado pelo schema, modal, gráficos SVG, barra de progresso, badges, toast | Componentes puros: recebem dados, devolvem HTML/handlers |
 | `core/wame.js` | Cliente da API da api-wa.me: conversas, envio, polling, criação automática de lead e atribuição da conversa à campanha pelo contexto do anúncio | Chamado direto do navegador (a API responde com CORS aberto); a chave nunca entra no banco |
 | `modules/*.js` | Cada tela exporta `{ id, titulo, icone, render(ctx) }` | Sem lógica de cálculo; usa metrics/rules/ui |
@@ -92,3 +94,41 @@ armazenamento, e `core/auth.js` concentra as permissões. Os módulos não mudam
 - Datas em ISO (`AAAA-MM-DD`), valores em reais como número (não centavos).
 - Registros de demonstração levam `demo: true` e podem ser apagados de uma vez.
 - Nunca remover funcionalidade existente sem pedido explícito.
+
+
+## O motor da Análise Inteligente
+
+Fica em `app/core/analise/` e roda sempre no mesmo sentido, uma camada alimentando a
+seguinte. Nenhuma camada pula a anterior, e só a última conhece o banco.
+
+```
+ DADOS BRUTOS → MÉTRICAS CALCULADAS → BENCHMARKS → REGRAS → SCORE → RECOMENDAÇÕES → INTERFACE
+   (index.js)      (metricas.js)     (benchmarks)  (regras)  (score)  (recomendacoes)   (ui.js)
+                                     + confianca.js
+```
+
+| Arquivo | O que faz |
+|---|---|
+| `metricas.js` | Cálculos puros com a fórmula declarada em cada métrica; cadeia de retenção do vídeo; funil completo; maior queda |
+| `benchmarks.js` | Base de comparação em três níveis e a referência padrão editável |
+| `confianca.js` | Tamanho de amostra: decide quando o sistema pode concluir e quando precisa ficar calado |
+| `regras.js` | Cartões por etapa, padrões nomeados de diagnóstico, saúde do público, fadiga do criativo |
+| `score.js` | Nota 0–100 com pesos por objetivo da campanha |
+| `recomendacoes.js` | Problema → evidência → hipótese → ação → prioridade → confiança; plano em três caixas; resumo em 10 segundos |
+| `index.js` | Junta os dados do CRM, roda o pipeline e devolve tudo pronto |
+| `ui.js` | Desenha. Não julga nada |
+
+Três decisões que valem para o motor inteiro:
+
+1. **Métrica sem dado é `null`, nunca `0`.** Zero é resultado; `null` é ausência de
+   informação. É por isso que a tela mostra "indisponível" em vez de "0%".
+2. **Nenhuma regra universal.** Não existe "CTR abaixo de 1% é ruim". A comparação vem do
+   histórico da conta; na falta dele, de campanhas parecidas; e só em último caso da
+   referência padrão, que fica editável em Configurações → Análise e é sempre nomeada no texto.
+3. **Motor determinístico.** Os mesmos números produzem sempre o mesmo diagnóstico. Se um dia
+   uma IA entrar nesse caminho, será para reescrever o texto — nunca para decidir se uma
+   métrica é boa ou ruim.
+
+Testes em `testes/analise.test.mjs` (`node --test`) cobrem os cenários que o motor precisa
+acertar: retenção boa com CTR baixo, CTR bom com conversão baixa, fadiga, amostra pequena,
+CPM alto com ROAS excelente, e a regra de que métrica ausente nunca vira zero.

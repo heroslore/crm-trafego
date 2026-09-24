@@ -2,6 +2,7 @@ import { db } from "../core/db.js";
 import { kpis, serieDiaria } from "../core/metrics.js";
 import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista } from "../core/ui.js";
 import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js";
+import { blocoAnalise } from "../core/analise/ui.js";
 import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js";
 import { rotulo as rotuloOpcao } from "../core/schema.js";
 import { podeEditar } from "../core/auth.js";
@@ -27,6 +28,7 @@ function detalhe(root, ctx, a) {
   const serie = serieDiaria(iv, { ad_id: a.id });
   const leads = db.where("leads", (l) => l.ad_id === a.id), vendas = db.where("sales", (s) => s.ad_id === a.id);
   root.innerHTML = `<div class="pagina-cab"><div><a href="#/anuncios" class="link">← Anúncios</a><h1>${esc(a.name)} ${badgeOpcao("campaign_status", a.status)}</h1><p class="sub">${camp ? `campanha <a href="#/campanhas/${camp.id}">${esc(camp.name)}</a>` : ""}${set ? ` · conjunto ${esc(set.name)}` : ""}${cr ? ` · criativo <a href="#/criativos/${cr.id}">${esc(cr.name)}</a>` : ""}</p></div><div class="pagina-acoes">${podeEditar() ? `<button class="btn btn-primario" data-editar>✏️ Editar</button>` : ""}</div></div>
+    ${blocoAnalise("anuncio", a, iv)}
     <div class="grid2">${cartao("Criativo", cr ? `<div style="display:flex;gap:12px;align-items:flex-start">${cr.thumbnail ? `<img src="${esc(cr.thumbnail)}" style="width:120px;height:120px;object-fit:cover;border-radius:10px">` : ""}<div><b>${esc(cr.name)}</b> ${badge(rotuloOpcao("creative_type", cr.type), "roxo")}<p class="sub">${esc(cr.copy || "")}</p>${cr.cta ? `<small>CTA: ${esc(cr.cta)}</small>` : ""}${cr.link ? `<br><a href="${esc(cr.link)}" target="_blank" rel="noopener">abrir</a>` : ""}</div></div>` : vazio("Sem criativo ligado."))}
     ${cartao("Atribuição", `<div class="kpis" style="grid-template-columns:1fr 1fr">${[["Leads (CRM)", inteiro(leads.length)], ["Vendas (CRM)", inteiro(vendas.length)], ["Faturamento", brl(vendas.reduce((s, v) => s + Number(v.value || 0), 0))], ["Resultados na plataforma", inteiro(k.results)]].map(([r, v]) => `<div class="kpi"><div class="kpi-rotulo">${r}</div><div class="kpi-valor">${v}</div></div>`).join("")}</div>`)}</div>
     ${cartao("Resultados no período", linhaNumeros(k, ["spend", "impressions", "reach", "link_clicks", "ctr", "cpc", "cpm", "leads", "cpl", "sales", "cpa", "revenue", "roas"]) + graficoLinhas({ rotulos: serie.map((d) => dataCurta(d.date)), series: [{ nome: "Investimento", cor: "var(--acento)", valores: serie.map((d) => d.spend), barras: true }, { nome: "Cliques", cor: "var(--ciano)", valores: serie.map((d) => d.link_clicks) }], altura: 180 }))}`;
