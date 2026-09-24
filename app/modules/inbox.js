@@ -1,12 +1,12 @@
 // Caixa de entrada: WhatsApp, Instagram e Messenger numa tela só, ligada aos leads.
-import { db } from "../core/db.js?v=e38ac044";
-import * as W from "../core/wame.js?v=e38ac044";
-import { cartao, vazio, badge, badgeOpcao, abrirFormulario, toast, itemLista, modal, fecharModal } from "../core/ui.js?v=e38ac044";
-import { esc, brl, dataBR, horaCurta, hoje, somaDias, agora, waLink, semAcento, telLimpo } from "../core/format.js?v=e38ac044";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=e38ac044";
-import { podeEditar, usuario } from "../core/auth.js?v=e38ac044";
-import { abrirVenda } from "./vendas.js?v=e38ac044";
-import { registrarInteracao, mudarEtapa, marcarPrimeiroContato, marcarPrimeiraResposta } from "./leads.js?v=e38ac044";
+import { db } from "../core/db.js?v=edb6a568";
+import * as W from "../core/wame.js?v=edb6a568";
+import { cartao, vazio, badge, badgeOpcao, abrirFormulario, toast, itemLista, modal, fecharModal } from "../core/ui.js?v=edb6a568";
+import { esc, brl, dataBR, horaCurta, hoje, somaDias, agora, waLink, semAcento, telLimpo } from "../core/format.js?v=edb6a568";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=edb6a568";
+import { podeEditar, usuario } from "../core/auth.js?v=edb6a568";
+import { abrirVenda } from "./vendas.js?v=edb6a568";
+import { registrarInteracao, mudarEtapa, marcarPrimeiroContato, marcarPrimeiraResposta } from "./leads.js?v=edb6a568";
 
 let canal = "", busca = "", filtro = "todas";
 const rascunhos = new Map();

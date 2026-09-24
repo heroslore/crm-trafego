@@ -1,7 +1,8 @@
 // Todos os indicadores do sistema são calculados aqui a partir de campaign_metrics, sales e leads.
-import { db } from "./db.js?v=e38ac044";
-import { dentro, dias as diasDe, anterior } from "./periods.js?v=e38ac044";
-import { num, variacao, somaDias, hoje, diasEntre } from "./format.js?v=e38ac044";
+import { db } from "./db.js?v=edb6a568";
+import { dentro, dias as diasDe, anterior } from "./periods.js?v=edb6a568";
+import { num, variacao, somaDias, hoje, diasEntre } from "./format.js?v=edb6a568";
+import { consideraVendas } from "./vendas-modo.js?v=edb6a568";
 
 // ---------------------------------------------------------------- filtros
 // filtro: { campaign_id, ad_set_id, ad_id, creative_id, product_id, audience_id, seller_user_id, platform, lojaFn }
@@ -104,8 +105,15 @@ export function agregar({ metricas = [], vendas = [], leads = [], extras = [] })
   // Lucro bruto = o que entrou menos mercadoria, taxas e frete pagos pela loja.
   k.gross_profit = k.revenue - k.cost - k.fees - k.shipping;
   k.net_profit = k.gross_profit - k.spend - k.extra_costs;
-  k.roas = k.spend > 0 ? k.revenue / k.spend : null;
-  k.roi = k.spend > 0 ? (k.gross_profit - k.spend) / k.spend : null;
+  // Nem toda venda é lançada (Configurações → Análise). Sem NENHUMA venda registrada neste
+  // escopo, ROAS 0,00x e ROI -100% não são resultado medido: são ausência de lançamento.
+  // Mostrar isso condenaria campanha que talvez esteja vendendo bem no WhatsApp. CPA e ticket
+  // já nasciam nulos sem venda; ROAS, ROI e taxa de conversão precisavam da mesma regra.
+  // No modo "completo" zero venda é zero venda mesmo, e o número volta a ser calculado.
+  const vendasMedidas = consideraVendas(db.settings().vendas_analise, k).usar;
+  k.vendas_medidas = vendasMedidas;
+  k.roas = k.spend > 0 && vendasMedidas ? k.revenue / k.spend : null;
+  k.roi = k.spend > 0 && vendasMedidas ? (k.gross_profit - k.spend) / k.spend : null;
   k.leads_base = k.leads || k.results;              // CRM primeiro; senão resultados da plataforma
   k.cpl = k.spend > 0 && k.leads_base > 0 ? k.spend / k.leads_base : null;
   k.cpl_plataforma = k.spend > 0 && k.results > 0 ? k.spend / k.results : null;
@@ -113,7 +121,7 @@ export function agregar({ metricas = [], vendas = [], leads = [], extras = [] })
   k.taxa_qualificacao = k.leads > 0 ? k.qualified / k.leads : null;
   k.cpa = k.spend > 0 && k.sales > 0 ? k.spend / k.sales : null;
   k.ticket = k.sales ? k.revenue / k.sales : null;
-  k.conversion = k.leads_base > 0 ? k.sales / k.leads_base : null;
+  k.conversion = k.leads_base > 0 && vendasMedidas ? k.sales / k.leads_base : null;
   const cliquesBase = k.link_clicks || k.clicks;
   k.ctr = k.impressions > 0 ? cliquesBase / k.impressions : null;
   k.cpc = cliquesBase > 0 ? k.spend / cliquesBase : null;

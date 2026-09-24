@@ -1,7 +1,7 @@
 // Banco de dados do navegador: tabelas em memória, persistência, eventos e dados de demonstração.
 // Módulos usam só esta API; o adaptador de armazenamento pode ser trocado sem mexer neles.
-import { TABELAS, TABELAS_COM_EMPRESA } from "./schema.js?v=e38ac044";
-import { uid, agora, hoje, somaDias } from "./format.js?v=e38ac044";
+import { TABELAS, TABELAS_COM_EMPRESA } from "./schema.js?v=edb6a568";
+import { uid, agora, hoje, somaDias } from "./format.js?v=edb6a568";
 
 const CHAVE = "crm-trafego-db";
 const VERSAO = 1;

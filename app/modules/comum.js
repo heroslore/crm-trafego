@@ -1,9 +1,9 @@
 // Pedaços compartilhados pelos módulos.
-import { db } from "../core/db.js?v=e38ac044";
-import { kpi, badge, badgeOpcao, cartao, vazio, itemLista, prioridadeBadge, fmtMetrica } from "../core/ui.js?v=e38ac044";
-import { avaliar, serieDiaria, contagensAtivas, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=e38ac044";
-import { esc, brl, inteiro, pct, mult, dataBR, hoje, diasEntre, dec } from "../core/format.js?v=e38ac044";
-import { usuario, podeEditar } from "../core/auth.js?v=e38ac044";
+import { db } from "../core/db.js?v=edb6a568";
+import { kpi, badge, badgeOpcao, cartao, vazio, itemLista, prioridadeBadge, fmtMetrica } from "../core/ui.js?v=edb6a568";
+import { avaliar, serieDiaria, contagensAtivas, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=edb6a568";
+import { esc, brl, inteiro, pct, mult, dataBR, hoje, diasEntre, dec } from "../core/format.js?v=edb6a568";
+import { usuario, podeEditar } from "../core/auth.js?v=edb6a568";
 
 export const bannerDemo = () => db.temDemo() ? `<div class="demo-banner"><span>🧪 Há dados de demonstração (marcados com <b>[DEMO]</b> / "(demo)") para você conhecer o sistema. Eles não são dados reais da empresa.</span><a href="#/config?aba=dados" class="btn btn-pq">Remover dados de demonstração</a></div>` : "";
 export const btnNovo = (texto, attr) => podeEditar() ? `<button class="btn btn-primario" ${attr}>➕ ${texto}</button>` : "";
@@ -21,6 +21,16 @@ export function cartoesContagem() {
   const c = contagensAtivas();
   return kpi({ rotulo: "Campanhas ativas", valor: inteiro(c.campanhas_ativas), sub: "" }) + kpi({ rotulo: "Anúncios ativos", valor: inteiro(c.anuncios_ativos), sub: "" });
 }
+// ROAS, ROI e taxa de conversão aparecem como "—" quando nenhuma venda foi lançada no escopo
+// e o modo de vendas é "parcial". Sem esta linha o traço vira mistério: o gestor já foi
+// enganado uma vez por número que não existia, e ficar calado agora seria a mesma falha.
+export function avisoVendasNaoLancadas(linhas, oQue = "campanhas") {
+  const kk = (linhas || []).map((l) => (l && l.k) || l).filter(Boolean);
+  const afetadas = kk.filter((k) => k.vendas_medidas === false && (k.spend || 0) > 0).length;
+  if (!afetadas) return "";
+  return `<div class="aviso aviso-info"><b>ROAS, ROI e conversão aparecem como "—" em ${inteiro(afetadas)} ${esc(oQue)}.</b> Nenhuma venda foi lançada nesse período, e o sistema está configurado para "nem toda venda é lançada". Mostrar 0,00x de ROAS e −100% de ROI seria afirmar um prejuízo que ninguém mediu. Lance a venda e o número aparece — ou mude em <a href="#/config?aba=analise">Configurações → Análise</a>.</div>`;
+}
+
 export const KPIS_PRINCIPAIS = ["spend", "revenue", "gross_profit", "net_profit", "roas", "roi", "leads", "qualified", "sales", "conversion", "cpl", "cpl_qualificado", "cpa", "ticket", "ctr", "cpc", "cpm"];
 
 // Tabela de kpis em linha (para detalhes)

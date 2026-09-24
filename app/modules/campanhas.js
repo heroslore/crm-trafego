@@ -1,16 +1,16 @@
-import { db } from "../core/db.js?v=e38ac044";
-import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=e38ac044";
-import { situacaoCampanha } from "../core/rules.js?v=e38ac044";
-import { blocoAnalise } from "../core/analise/ui.js?v=e38ac044";
-import * as AcoesMeta from "../core/acoes-meta.js?v=e38ac044";
-import { listaDiagnostico, comparativoEtapas, ordenarAnalises } from "../core/analise/ui.js?v=e38ac044";
-import { analisarVarios } from "../core/analise/index.js?v=e38ac044";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=e38ac044";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=e38ac044";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=e38ac044";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=e38ac044";
-import { usuario } from "../core/auth.js?v=e38ac044";
-import { podeEditar } from "../core/auth.js?v=e38ac044";
+import { db } from "../core/db.js?v=edb6a568";
+import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=edb6a568";
+import { situacaoCampanha } from "../core/rules.js?v=edb6a568";
+import { blocoAnalise } from "../core/analise/ui.js?v=edb6a568";
+import * as AcoesMeta from "../core/acoes-meta.js?v=edb6a568";
+import { listaDiagnostico, comparativoEtapas, ordenarAnalises } from "../core/analise/ui.js?v=edb6a568";
+import { analisarVarios } from "../core/analise/index.js?v=edb6a568";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=edb6a568";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=edb6a568";
+import { bannerDemo, btnNovo, linhaNumeros, avisoVendasNaoLancadas } from "./comum.js?v=edb6a568";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=edb6a568";
+import { usuario } from "../core/auth.js?v=edb6a568";
+import { podeEditar } from "../core/auth.js?v=edb6a568";
 
 let filtroStatus = "ativa", filtroPlat = "";
 
@@ -22,6 +22,7 @@ function lista(root, ctx) {
   root.innerHTML = `${bannerDemo()}
     <div class="pagina-cab"><div><h1>Campanhas</h1><p class="sub">${todas.filter((x) => x.c.status === "ativa").length} ativa(s) de ${todas.length} · números do período selecionado</p></div><div class="pagina-acoes">${podeEditar() ? `<button class="btn" data-lancar>📝 Lançar métricas do dia</button><a class="btn" href="#/config?aba=importar">⬆️ Importar CSV/XLSX</a>` : ""}${AcoesMeta.ligado() ? `<button class="btn btn-verde" data-meta-nova="">🚀 Subir campanha na Meta</button>` : ""}${btnNovo("Nova campanha", 'data-novo="1"')}</div></div>
     ${AcoesMeta.dicaLista(lin)}
+    ${avisoVendasNaoLancadas(lin, "campanha(s)")}
     <div class="filtros-linha">${chips([["ativa", "Ativas"], ["pausada", "Pausadas"], ["planejada", "Planejadas"], ["producao", "Em produção"], ["finalizada", "Finalizadas"], ["todas", "Todas"]], filtroStatus, "data-fs")}<select data-fp><option value="">Todas as plataformas</option>${OPCOES.platform.map(([v, t]) => `<option value="${v}"${filtroPlat === v ? " selected" : ""}>${t}</option>`).join("")}</select></div>
     ${cartao("", tabela("campanhas", { colunas: [
       { key: "name", label: "Campanha", render: (l) => `<a href="#/campanhas/${l.id}">${esc(l.name)}</a><br><small>${esc(rotuloOpcao("platform", l.platform))} · ${esc(rotuloOpcao("objective", l.objective))}${l.product_id ? " · " + esc((db.get("products", l.product_id) || {}).name || "") : ""}</small>` },

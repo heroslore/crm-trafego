@@ -1,13 +1,13 @@
-import { db } from "../core/db.js?v=e38ac044";
-import { kpis, serieDiaria } from "../core/metrics.js?v=e38ac044";
-import { cartao, tabela, badge, badgeOpcao, chips, abas, abrirFormulario, vazio, graficoLinhas, itemLista } from "../core/ui.js?v=e38ac044";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=e38ac044";
-import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem, listaSemEntrega } from "../core/analise/ui.js?v=e38ac044";
-import { analisarVarios, janelaDeEntrega } from "../core/analise/index.js?v=e38ac044";
-import * as AcoesMeta from "../core/acoes-meta.js?v=e38ac044";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=e38ac044";
-import { rotulo as rotuloOpcao } from "../core/schema.js?v=e38ac044";
-import { podeEditar } from "../core/auth.js?v=e38ac044";
+import { db } from "../core/db.js?v=edb6a568";
+import { kpis, serieDiaria } from "../core/metrics.js?v=edb6a568";
+import { cartao, tabela, badge, badgeOpcao, chips, abas, abrirFormulario, vazio, graficoLinhas, itemLista } from "../core/ui.js?v=edb6a568";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=edb6a568";
+import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem, listaSemEntrega } from "../core/analise/ui.js?v=edb6a568";
+import { analisarVarios, janelaDeEntrega } from "../core/analise/index.js?v=edb6a568";
+import * as AcoesMeta from "../core/acoes-meta.js?v=edb6a568";
+import { bannerDemo, btnNovo, linhaNumeros, avisoVendasNaoLancadas } from "./comum.js?v=edb6a568";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=edb6a568";
+import { podeEditar } from "../core/auth.js?v=edb6a568";
 
 let filtro = "ativa", visao = "diagnostico", ordem = "gasto";
 function lista(root, ctx) {
@@ -17,6 +17,7 @@ function lista(root, ctx) {
   root.innerHTML = `${bannerDemo()}<div class="pagina-cab"><div><h1>Anúncios</h1><p class="sub">${lin.length} anúncio(s) · ${comGasto.filter((a) => !a.k.sales && !a.k.leads_base && a.k.spend >= 50).length} gastando sem resultado no período</p></div><div class="pagina-acoes">${btnNovo("Novo anúncio", 'data-novo="1"')}</div></div>
     ${abas([["diagnostico", "🧠 Diagnóstico"], ["tabela", "Tabela"]], visao)}
     ${chips([["ativa", "Ativos"], ["pausada", "Pausados"], ["todas", "Todos"]], filtro, "data-f")}<div style="height:10px"></div>
+    ${avisoVendasNaoLancadas(comGasto, "anúncio(s)")}
     ${visao === "diagnostico" ? diagnosticoHtml(lin, ctx) : cartao("", tabela("anuncios", { colunas: [
       { key: "name", label: "Anúncio", render: (a) => `${a.cr && a.cr.thumbnail ? `<img class="mini" src="${esc(a.cr.thumbnail)}" alt="">` : ""}<a href="#/anuncios/${a.id}">${esc(a.name)}</a><br><small>${a.camp ? esc(a.camp.name) : "—"}${a.cr ? " · " + esc(rotuloOpcao("creative_type", a.cr.type)) : ""}</small>` },
       { key: "objetivo", label: "Objetivo", valor: (a) => a.camp ? rotuloOpcao("objective", a.camp.objective) : "", render: (a) => badgeObjetivo(a.camp) || "<small>—</small>" },
