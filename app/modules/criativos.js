@@ -1,13 +1,13 @@
-import { db } from "../core/db.js?v=ebf7a3c7";
-import { kpis, serieDiaria, mediaCampanhas } from "../core/metrics.js?v=ebf7a3c7";
-import { classificarCriativo, CLASSES_CRIATIVO, diagnosticoVideo } from "../core/rules.js?v=ebf7a3c7";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista, abas, kpi, barrasH } from "../core/ui.js?v=ebf7a3c7";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=ebf7a3c7";
-import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem } from "../core/analise/ui.js?v=ebf7a3c7";
-import { analisarVarios } from "../core/analise/index.js?v=ebf7a3c7";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=ebf7a3c7";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=ebf7a3c7";
-import { podeEditar } from "../core/auth.js?v=ebf7a3c7";
+import { db } from "../core/db.js?v=bb300066";
+import { kpis, serieDiaria, mediaCampanhas } from "../core/metrics.js?v=bb300066";
+import { classificarCriativo, CLASSES_CRIATIVO, diagnosticoVideo } from "../core/rules.js?v=bb300066";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista, abas, kpi, barrasH } from "../core/ui.js?v=bb300066";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=bb300066";
+import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem } from "../core/analise/ui.js?v=bb300066";
+import { analisarVarios } from "../core/analise/index.js?v=bb300066";
+import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=bb300066";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=bb300066";
+import { podeEditar } from "../core/auth.js?v=bb300066";
 
 let visao = "diagnostico", filtroClasse = "", ordem = "gasto";
 function lista(root, ctx) {

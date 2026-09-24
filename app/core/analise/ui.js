@@ -1,10 +1,10 @@
 // Interface da Análise Inteligente. Só desenha: todo o julgamento já veio pronto do motor.
 // A ordem das seções é a do briefing: primeiro o que decide, depois o que explica, por último o detalhe.
-import { cartao, badge, vazio, funil as funilUi, barrasH, tabela, prioridadeBadge } from "../ui.js?v=ebf7a3c7";
-import { esc, brl, pct, dec, inteiro, dataCurta } from "../format.js?v=ebf7a3c7";
-import { valorTexto, NIVEIS } from "./regras.js?v=ebf7a3c7";
-import { MENOR_MELHOR as MENOR_EM_LISTA } from "./benchmarks.js?v=ebf7a3c7";
-import { analisar } from "./index.js?v=ebf7a3c7";
+import { cartao, badge, vazio, funil as funilUi, barrasH, tabela, prioridadeBadge } from "../ui.js?v=bb300066";
+import { esc, brl, pct, dec, inteiro, dataCurta } from "../format.js?v=bb300066";
+import { valorTexto, NIVEIS } from "./regras.js?v=bb300066";
+import { MENOR_MELHOR as MENOR_EM_LISTA } from "./benchmarks.js?v=bb300066";
+import { analisar } from "./index.js?v=bb300066";
 
 // Ponto de entrada usado pelas telas. Se algo falhar no motor, a tela continua de pé:
 // a análise é um complemento, não pode derrubar a página da campanha.
@@ -23,6 +23,18 @@ const pill = (nivel, texto) => {
 };
 const CONFIANCA_TXT = { insuficiente: "dados insuficientes", baixa: "confiança baixa", media: "confiança média", alta: "confiança alta" };
 const confPill = (c) => `<span class="an-conf an-conf-${c}">${esc(CONFIANCA_TXT[c] || c)}</span>`;
+
+// Aviso honesto quando as vendas ficam de fora: o que some da nota e o que volta a contar.
+function avisoVendas(a) {
+  if (a.vendasParciais) {
+    return `<div class="aviso aviso-info"><b>Vendas lançadas contam como piso.</b> Como nem toda venda é registrada, o faturamento e o ROAS aqui são o <b>mínimo confirmado</b> — podem ser maiores, nunca menores. Por isso a taxa de venda e o CPA aparecem como informação, mas não entram na nota: lançar uma venda de dez não pode piorar a avaliação do anúncio. Se você lança todas, mude para "Toda venda é lançada" em <a href="#/config?aba=analise">Configurações → Análise</a>.</div>`;
+  }
+  if (a.usarVendas !== false) return "";
+  const modo = a.modoVendas === "nunca"
+    ? "Você escolheu analisar só até o lead em <a href=\"#/config?aba=analise\">Configurações → Análise</a>."
+    : "Nenhuma venda foi lançada neste escopo, então o sistema não usa vendas aqui. Assim que você lançar a primeira, o faturamento passa a contar como piso.";
+  return `<div class="aviso aviso-info"><b>Analisando sem vendas.</b> Faturamento, ROAS, CPA e lucro estão fora da nota — o julgamento vai até o custo por lead. ${modo}</div>`;
+}
 
 // ---------------------------------------------------------------- 1. resumo em 10 segundos
 function resumoHtml(a) {
@@ -201,7 +213,7 @@ export function cartaoDiagnostico(a, { href, imagem = "", subtitulo = "" } = {})
     <div class="an-diag-nums">${numeros.map(([r2, v]) => `<span><i>${esc(r2)}</i>${esc(v)}</span>`).join("")}</div>
     <div class="an-diag-linha"><span>Gargalo</span><p>${g ? esc(g.titulo + ": " + g.texto) : esc(r.diagnostico)}</p></div>
     <div class="an-diag-linha an-diag-acao"><span>Fazer</span><p>${esc(r.proxima_acao)}</p></div>
-    <div class="an-diag-pe">${confPill(a.conf.nivel)}<a class="link" href="${esc(href)}">ver análise completa →</a></div>
+    <div class="an-diag-pe">${confPill(a.conf.nivel)}${a.usarVendas === false ? `<span class="an-conf" title="Nenhuma venda lançada aqui: faturamento, CPA e ROAS estão fora da nota">sem vendas lançadas</span>` : a.vendasParciais ? `<span class="an-conf" title="Faturamento e ROAS aqui são o mínimo confirmado; taxa de venda e CPA não entram na nota">vendas parciais</span>` : ""}<a class="link" href="${esc(href)}">ver análise completa →</a></div>
   </div>`;
 }
 
@@ -277,6 +289,7 @@ export function secaoAnalise(a) {
   return cartao(
     `🧠 Análise inteligente <small>período selecionado · ${esc(a.conf.rotulo.toLowerCase())}</small>`,
     `<div class="analise">
+      ${avisoVendas(a)}
       ${resumoHtml(a)}
       ${grupo("Diagnóstico por etapa", diagnosticoHtml(a))}
       ${grupo("Plano de ação", planoHtml(a))}

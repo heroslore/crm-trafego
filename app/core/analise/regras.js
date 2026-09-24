@@ -2,10 +2,10 @@
 // É aqui que o sistema "pensa como gestor de tráfego": nenhuma métrica é julgada sozinha,
 // sempre no contexto da etapa anterior e da seguinte. Regras determinísticas, sem IA:
 // mesmos números entram, mesmo diagnóstico sai.
-import { pct, brl, dec, inteiro } from "../format.js?v=ebf7a3c7";
-import { numeroOuNulo, temValor, razao } from "./metricas.js?v=ebf7a3c7";
-import { classificar } from "./benchmarks.js?v=ebf7a3c7";
-import { confiancaDe } from "./confianca.js?v=ebf7a3c7";
+import { pct, brl, dec, inteiro } from "../format.js?v=bb300066";
+import { numeroOuNulo, temValor, razao } from "./metricas.js?v=bb300066";
+import { classificar } from "./benchmarks.js?v=bb300066";
+import { confiancaDe } from "./confianca.js?v=bb300066";
 
 export const NIVEIS = { bom: ["🟢", "BOM", "verde"], medio: ["🟡", "MÉDIO", "amarelo"], ruim: ["🔴", "RUIM", "vermelho"], sem_dados: ["⚪", "DADOS INSUFICIENTES", "cinza"] };
 
@@ -98,6 +98,12 @@ export function fadiga(inicio, fim, minImpressoes = 800) {
 // ---------------------------------------------------------------- cartões por etapa
 export function cartoesEtapa(m, bmk, conf, ctx = {}) {
   const V = m.video, s = conf.suficiente;
+  // Vendas fora da conta: ou não há venda lançada neste escopo, ou a pessoa desligou o uso
+  // de vendas na análise. Nos dois casos o texto precisa dizer isso, nunca omitir em silêncio.
+  const semVendas = ctx.vendas_consideradas === false;
+  // Registro parcial: o que foi lançado é piso, não retrato. Taxa de venda e CPA ficam fora
+  // da nota, senão lançar uma venda de dez pioraria a avaliação do anúncio.
+  const parcial = ctx.vendas_parciais === true;
   const cartoes = [];
   const add = (c) => cartoes.push({ ...c, ...(NIVEIS[c.nivel] ? { icone: NIVEIS[c.nivel][0], rotuloNivel: NIVEIS[c.nivel][1], cor: NIVEIS[c.nivel][2] } : {}) });
 
@@ -144,13 +150,13 @@ export function cartoesEtapa(m, bmk, conf, ctx = {}) {
   // CONVERSÃO — clique virou conversa, conversa virou venda.
   {
     const cLead = classificar(m.taxa_lead.valor, bmk.taxa_lead), cConv = classificar(m.conversao.valor, bmk.conversao);
-    const nivel = !s.conversao ? "sem_dados" : piorNivel([cLead.nivel, cConv.nivel]);
+    const nivel = !s.conversao ? "sem_dados" : piorNivel(parcial ? [cLead.nivel] : [cLead.nivel, cConv.nivel]);
     add({
       chave: "conversao", titulo: "Conversão", nivel, chaveValor: "conversao", rotuloValor: "lead vira venda", valor: m.conversao.valor, valorTxt: valorTexto(m.conversao),
       metricas: [m.taxa_pagina, m.taxa_lead, m.conversao, m.cpl, m.custo_conversa, m.cpa], fonte: cConv.rotuloFonte,
       explicacao: !s.conversao
         ? `Com ${inteiro(conf.amostra.leads)} lead(s) e ${inteiro(conf.amostra.vendas)} venda(s) no período, as taxas de conversão ainda não são conclusivas.`
-        : `${m.taxa_lead.valor != null ? `${pct(m.taxa_lead.valor)} dos cliques viraram contato` : "Taxa de contato indisponível"}${m.conversao.valor != null ? ` e ${pct(m.conversao.valor)} dos leads viraram venda` : ""}. ${nivel === "bom" ? "O pós-clique está funcionando." : nivel === "medio" ? "Parte do caminho depois do clique está se perdendo." : "A perda maior está depois do clique: destino, oferta, preço ou atendimento."}`,
+        : `${m.taxa_lead.valor != null ? `${pct(m.taxa_lead.valor)} dos cliques viraram contato` : "Taxa de contato indisponível"}${m.conversao.valor != null ? ` e ${parcial ? "pelo menos " : ""}${pct(m.conversao.valor)} dos leads viraram venda` : ""}. ${semVendas ? "As vendas deste escopo não estão lançadas no CRM, então a etapa é avaliada só até o contato: o que vem depois o sistema não tem como saber. " : parcial ? "Como nem toda venda é lançada, a taxa de venda aparece como piso e não entra na nota: a etapa é avaliada até o contato. " : ""}${nivel === "bom" ? "O pós-clique está funcionando." : nivel === "medio" ? "Parte do caminho depois do clique está se perdendo." : semVendas || parcial ? "Até o contato, a perda já é grande: destino, oferta ou público desalinhados." : "A perda maior está depois do clique: destino, oferta, preço ou atendimento."}`,
     });
   }
 
@@ -163,7 +169,7 @@ export function cartoesEtapa(m, bmk, conf, ctx = {}) {
   // CUSTO — a métrica de custo que importa depende do objetivo da campanha.
   {
     const preferida = { vendas: "cpa", leads: "cpl", whatsapp: "custo_conversa", remarketing: "cpa", trafego: "cpc", engajamento: "cpm", reconhecimento: "cpm" }[ctx.objetivo] || "cpa";
-    const ordem = [preferida, "cpa", "cpl", "custo_conversa", "cpc", "cpm"];
+    const ordem = (parcial ? [preferida === "cpa" ? "cpl" : preferida, "cpl", "custo_conversa", "cpc", "cpm"] : [preferida, "cpa", "cpl", "custo_conversa", "cpc", "cpm"]);
     const escolhida = ordem.map((k) => m[k]).find((x) => x && x.valor != null) || m[preferida] || m.cpm;
     const c = classificar(escolhida.valor, bmk[escolhida.chave]);
     const meta = ctx.metas && ctx.metas[escolhida.chave];
@@ -186,12 +192,18 @@ export function cartoesEtapa(m, bmk, conf, ctx = {}) {
   {
     const c = classificar(m.roas.valor, bmk.roas);
     const lucro = numeroOuNulo(ctx.lucro_liquido);
-    const nivel = m.roas.valor == null ? "sem_dados" : !s.venda ? "sem_dados" : c.nivel;
+    const nivelBase = m.roas.valor == null ? "sem_dados" : !s.venda ? "sem_dados" : c.nivel;
+    // Piso confirmado acima da régua é conclusão válida; abaixo dela, não é.
+    const nivel = parcial ? (nivelBase === "bom" ? "bom" : "sem_dados") : nivelBase;
     add({
       chave: "faturamento", titulo: "Faturamento", nivel, chaveValor: "roas", rotuloValor: "ROAS", valor: m.roas.valor, valorTxt: valorTexto(m.roas),
       metricas: [m.roas, m.ticket, m.margem, m.lucro_por_lead], fonte: c.rotuloFonte,
-      explicacao: m.roas.valor == null
-        ? "Nenhuma venda atribuída a este escopo no período. Sem venda, ROAS e CPA não existem — pode ser ausência de resultado ou venda ainda não lançada no CRM."
+      explicacao: semVendas
+        ? "As vendas deste escopo não estão lançadas no CRM, então faturamento, ROAS e lucro ficam fora da nota. Não é que o anúncio não venda: é que o sistema não tem como saber. Enquanto isso, o CPL é o número que decide aqui."
+        : parcial
+          ? `Com as vendas lançadas até agora, este escopo já devolveu ${dec(m.roas.valor, 2)}x o investimento${ctx.lucro_liquido != null && ctx.lucro_liquido > 0 ? ` e ${brl(ctx.lucro_liquido)} de lucro` : ""}. Como nem toda venda é lançada, trate esse número como o mínimo confirmado: ele pode ser maior, nunca menor.${nivel === "bom" ? " Já é o bastante para dizer que o anúncio paga." : " Ainda abaixo da régua, mas com registro parcial isso não prova que o anúncio não paga — só que falta lançamento."}`
+        : m.roas.valor == null
+          ? "Nenhuma venda atribuída a este escopo no período. Sem venda, ROAS e CPA não existem — pode ser ausência de resultado ou venda ainda não lançada no CRM."
         : `ROAS ${dec(m.roas.valor, 2)}x (faturamento ÷ investimento)${lucro != null ? ` e ${lucro >= 0 ? "lucro" : "prejuízo"} de ${brl(Math.abs(lucro))} depois do investimento` : ""}, ${c.texto}.${!s.venda ? ` Com ${inteiro(conf.amostra.vendas)} venda(s), trate como sinal e não como conclusão.` : ""}`,
     });
   }
@@ -223,6 +235,18 @@ export const PADROES = [
     hipotese: () => "Qualquer variação vista aqui pode ser sorte, não desempenho.",
     acao: () => "Deixar rodar até atingir volume mínimo (cerca de 1.000 impressões e 30 cliques) antes de mexer. Não pausar por causa dos números atuais.",
     evidencias: (x) => x.conf.criterios.filter((c) => !c.ok).map((c) => `${c.rotulo}: ${c.dinheiro ? brl(c.valor) : inteiro(c.valor)} (mínimo ${c.dinheiro ? brl(c.minimo) : inteiro(c.minimo)})`),
+  },
+  {
+    id: "vendas_nao_lancadas", nome: "Vendas não lançadas", etapa: "faturamento", prioridade: "media", impacto: "alto",
+    quando: (x) => (x.ctx.vendas_consideradas === false || x.ctx.vendas_parciais === true) && x.ctx.modo_vendas !== "nunca" && ((x.b.leads || 0) >= 5 || (x.b.results || 0) >= 5),
+    diagnostico: (x) => x.ctx.vendas_parciais
+      ? `Este escopo gerou ${inteiro(x.b.leads || x.b.results)} contato(s) e ${inteiro(x.b.sales)} venda(s) lançada(s) — provavelmente menos do que as que aconteceram.`
+      : `Este escopo gerou ${inteiro(x.b.leads || x.b.results)} contato(s) no período e nenhuma venda foi lançada no CRM.`,
+    hipotese: (x) => x.ctx.vendas_parciais
+      ? "Com registro parcial, faturamento e ROAS valem como piso, mas taxa de venda e CPA ficam distorcidos e saem da nota."
+      : "Sem as vendas registradas não dá para calcular CPA, ROAS nem lucro — a análise para no custo por lead, que é só metade da história.",
+    acao: () => "Lançar as vendas que vierem desses leads, nem que seja pelo botão de venda na ficha do lead ou na conversa. A partir da primeira venda registrada, o sistema volta a medir CPA, ROAS e lucro deste escopo sozinho.",
+    evidencias: (x) => [`Contatos no período: ${inteiro(x.b.leads || x.b.results)}`, `Investimento: ${brl(x.b.spend)}`, x.m.cpl.valor != null ? `CPL: ${brl(x.m.cpl.valor)}` : ""],
   },
   {
     id: "gancho_fraco", nome: "O gancho não segura", etapa: "atencao", prioridade: "alta", impacto: "alto",
@@ -258,7 +282,7 @@ export const PADROES = [
   },
   {
     id: "leads_sem_venda", nome: "Muitos leads e poucas vendas", etapa: "conversao", prioridade: "urgente", impacto: "alto",
-    quando: (x) => (x.b.leads || 0) >= 10 && x.m.conversao.valor != null && x.m.conversao.valor < 0.08 && x.n.clique !== "ruim",
+    quando: (x) => x.ctx.vendas_consideradas !== false && x.ctx.vendas_parciais !== true && (x.b.leads || 0) >= 10 && x.m.conversao.valor != null && x.m.conversao.valor < 0.08 && x.n.clique !== "ruim",
     diagnostico: (x) => `${inteiro(x.b.leads)} leads no período e ${inteiro(x.b.sales)} venda(s): conversão de ${pct(x.m.conversao.valor)}.`,
     hipotese: () => "O anúncio está trazendo volume, mas o filtro ou o fechamento não acompanham: leads fora do perfil, atendimento lento ou objeção de preço não tratada.",
     acao: () => "Revisar qualificação e atendimento antes de mexer no criativo: tempo de primeira resposta, motivo de perda mais frequente e clareza de preço no anúncio.",
@@ -290,7 +314,7 @@ export const PADROES = [
   },
   {
     id: "gasto_sem_resultado", nome: "Investimento sem resultado", etapa: "conversao", prioridade: "urgente", impacto: "alto",
-    quando: (x) => x.conf.nivel !== "insuficiente" && (x.b.spend || 0) >= 100 && !(x.b.sales || 0) && !(x.b.leads || 0) && !(x.b.results || 0) && ["vendas", "leads", "whatsapp", "remarketing"].includes(x.ctx.objetivo),
+    quando: (x) => x.conf.nivel !== "insuficiente" && (x.b.spend || 0) >= 100 && !(x.b.leads || 0) && !(x.b.results || 0) && !(x.b.conversations || 0) && ["vendas", "leads", "whatsapp", "remarketing"].includes(x.ctx.objetivo),
     diagnostico: (x) => `${brl(x.b.spend)} investidos com amostra suficiente e nenhum lead ou venda registrado.`,
     hipotese: () => "Ou a oferta não tem demanda no público escolhido, ou os resultados estão acontecendo e não sendo registrados no CRM.",
     acao: () => "Conferir primeiro se leads e vendas estão sendo lançados. Confirmada a ausência, pausar e revisar oferta e público antes de investir mais.",

@@ -2,17 +2,17 @@
 // O caminho é sempre o mesmo, na ordem:
 //   DADOS BRUTOS → MÉTRICAS CALCULADAS → BENCHMARKS → REGRAS → SCORE → RECOMENDAÇÕES → (interface)
 // Nada aqui altera dados: a análise só lê.
-import { db } from "../db.js?v=ebf7a3c7";
-import { kpis, serieDiaria, porEntidade, atendimento, plataformaBase } from "../metrics.js?v=ebf7a3c7";
-import { anterior } from "../periods.js?v=ebf7a3c7";
-import { META } from "../sync.js?v=ebf7a3c7";
-import { num, hoje, somaDias, diasEntre, pct, brl, inteiro, dec } from "../format.js?v=ebf7a3c7";
-import { metricasCalculadas, contagemOuNulo, numeroOuNulo, razao } from "./metricas.js?v=ebf7a3c7";
-import { construirBenchmarks, mesclarReferencia, MENOR_MELHOR } from "./benchmarks.js?v=ebf7a3c7";
-import { confianca, MINIMOS } from "./confianca.js?v=ebf7a3c7";
-import { cartoesEtapa, diagnosticos, saudePublico, fadiga } from "./regras.js?v=ebf7a3c7";
-import { pontuar } from "./score.js?v=ebf7a3c7";
-import { plano, gargalos, pontosFortes, resumo10s } from "./recomendacoes.js?v=ebf7a3c7";
+import { db } from "../db.js?v=bb300066";
+import { kpis, serieDiaria, porEntidade, atendimento, plataformaBase } from "../metrics.js?v=bb300066";
+import { anterior } from "../periods.js?v=bb300066";
+import { META } from "../sync.js?v=bb300066";
+import { num, hoje, somaDias, diasEntre, pct, brl, inteiro, dec } from "../format.js?v=bb300066";
+import { metricasCalculadas, contagemOuNulo, numeroOuNulo, razao } from "./metricas.js?v=bb300066";
+import { construirBenchmarks, mesclarReferencia, MENOR_MELHOR } from "./benchmarks.js?v=bb300066";
+import { confianca, MINIMOS } from "./confianca.js?v=bb300066";
+import { cartoesEtapa, diagnosticos, saudePublico, fadiga } from "./regras.js?v=bb300066";
+import { pontuar } from "./score.js?v=bb300066";
+import { plano, gargalos, pontosFortes, resumo10s } from "./recomendacoes.js?v=bb300066";
 
 export const CHAVES_BENCH = ["ctr", "cpc", "cpm", "frequencia", "cpl", "custo_conversa", "cpa", "roas", "conversao", "taxa_lead", "taxa_pagina", "margem", "retencao_inicial", "retencao_metade", "retencao_fim", "taxa_thruplay"];
 const NIVEIS_FILTRO = { campanha: "campaign_id", conjunto: "ad_set_id", anuncio: "ad_id", criativo: "creative_id" };
@@ -21,7 +21,18 @@ const TIPO_ENTIDADE = { campanha: "campaign", conjunto: "ad_set", anuncio: "ad",
 // Converte o agregado do CRM no bruto que o motor entende.
 // Regra: contador de plataforma em zero é "não informado" (null); leads e vendas do CRM em zero
 // são zero de verdade, mas o zero nunca entra como denominador.
-export function brutoDe(k) {
+//
+// usarVendas = false significa "as vendas deste escopo não são lançadas no CRM". Nesse caso
+// faturamento, CPA, ROAS e lucro saem como indisponíveis em vez de zero — porque zero venda
+// registrada não é o mesmo que zero venda acontecida, e a diferença entre as duas coisas muda
+// completamente o diagnóstico de um anúncio.
+export function brutoDe(k, usarVendas = true) {
+  if (!usarVendas) {
+    return {
+      ...brutoDe(k, true),
+      sales: null, revenue: null, gross_profit: null, net_profit: null,
+    };
+  }
   return {
     spend: numeroOuNulo(k.spend), impressions: contagemOuNulo(k.impressions), reach: contagemOuNulo(k.reach),
     frequency: numeroOuNulo(k.frequency), clicks: contagemOuNulo(k.clicks), link_clicks: contagemOuNulo(k.link_clicks),
@@ -41,8 +52,8 @@ export function videoDe(k, duracao = null) {
   };
 }
 // Valores achatados (chave → número) de um escopo, para montar distribuições de benchmark.
-function valoresAnalise(k) {
-  const m = metricasCalculadas(brutoDe(k), videoDe(k));
+function valoresAnalise(k, usarVendas = true) {
+  const m = metricasCalculadas(brutoDe(k, usarVendas), videoDe(k));
   const out = {};
   for (const mt of m.lista) out[mt.chave] = mt.valor;
   for (const mt of m.video.lista) out[mt.chave] = mt.valor;
@@ -54,11 +65,40 @@ function valoresAnalise(k) {
 //
 // Levantar as entidades da conta é a parte cara (passa por todas as métricas de 90 dias),
 // então ela roda UMA vez e é reaproveitada quando a tela analisa uma lista inteira.
-export function entidadesDoNivel(nivel, ivRef) {
+export function entidadesDoNivel(nivel, ivRef, modoVendas = "auto") {
   const tipo = TIPO_ENTIDADE[nivel] || "campaign";
   return porEntidade(ivRef, tipo, true)
     .filter((x) => x.k.spend > 0 && x.k.impressions > 200)
-    .map((x) => ({ id: x.id, registro: x.registro, valores: valoresAnalise(x.k) }));
+    .map((x) => ({ id: x.id, registro: x.registro, valores: valoresAnalise(x.k, consideraVendas(modoVendas, x.k).usar) }));
+}
+
+// Como a análise trata as vendas, escolhido em Configurações → Análise.
+//
+// "parcial" é o padrão e existe porque na vida real a venda acontece no WhatsApp e nem sempre
+// dá tempo de lançar. Registro parcial tem uma consequência matemática: o faturamento lançado
+// é um PISO (o mínimo confirmado), enquanto a taxa de conversão e o CPA ficam distorcidos —
+// poucas vendas registradas empurram a taxa para baixo e o CPA para cima. Por isso, no modo
+// parcial, faturamento e ROAS entram como piso e as taxas de venda não entram na nota.
+// Sem isso, lançar a primeira venda pioraria a nota do anúncio, que é o oposto do certo.
+export const MODOS_VENDA = [
+  ["parcial", "Nem toda venda é lançada (recomendado)"],
+  ["completo", "Toda venda é lançada no CRM"],
+  ["nunca", "Não usar vendas na análise"],
+];
+export const MODO_VENDA_PADRAO = "parcial";
+export function normalizarModoVenda(modo) {
+  if (modo === "sempre") return "completo";      // nomes antigos
+  if (modo === "auto") return "parcial";
+  return ["parcial", "completo", "nunca"].includes(modo) ? modo : MODO_VENDA_PADRAO;
+}
+// usar    — faturamento, ROAS e lucro existem para este escopo
+// parcial — existem, mas como piso: taxas de venda e CPA ficam fora da nota
+export function consideraVendas(modo, k) {
+  const m = normalizarModoVenda(modo);
+  const temVenda = num(k && k.sales) > 0;
+  if (m === "nunca") return { usar: false, parcial: false };
+  if (m === "completo") return { usar: true, parcial: false };
+  return { usar: temVenda, parcial: temVenda };
 }
 function amostrasDe(nivel, registro, todos) {
   const tipo = TIPO_ENTIDADE[nivel] || "campaign";
@@ -84,7 +124,8 @@ export function baseCompartilhada(nivel, minimos = null) {
     referencia: mesclarReferencia(cfg.referencias),
     mins: { ...MINIMOS, ...(cfg.minimos_analise || {}), ...(minimos || {}) },
     minimoBenchmark: num(cfg.minimo_benchmark) || 4,
-    todos: entidadesDoNivel(nivel, ivRef),
+    modoVendas: normalizarModoVenda(cfg.vendas_analise),
+    todos: entidadesDoNivel(nivel, ivRef, normalizarModoVenda(cfg.vendas_analise)),
   };
 }
 
@@ -200,12 +241,13 @@ export function analisar({ nivel = "campanha", registro, iv, minimos = null, bas
   const k = kpis(iv, filtro);
   const kAnt = leve ? null : kpis(anterior(iv), filtro);
   const serie = leve ? [] : serieDiaria(iv, filtro);
-  const bruto = brutoDe(k);
-  const video = videoDe(k, criativo ? criativo.duration_seconds : null);
-  const m = metricasCalculadas(bruto, video);
 
   const b = base || baseCompartilhada(nivel, minimos);
   const { cfg, referencia, mins, h } = b;
+  const { usar: usarVendas, parcial: vendasParciais } = consideraVendas(b.modoVendas, k);
+  const bruto = brutoDe(k, usarVendas);
+  const video = videoDe(k, criativo ? criativo.duration_seconds : null);
+  const m = metricasCalculadas(bruto, video);
   const bmk = construirBenchmarks(CHAVES_BENCH, amostrasDe(nivel, registro, b.todos), referencia, b.minimoBenchmark);
 
   // Na análise leve o número de dias vem do próprio agregado, que já conta os dias distintos.
@@ -231,7 +273,8 @@ export function analisar({ nivel = "campanha", registro, iv, minimos = null, bas
   const ctx = {
     nivel, objetivo: (campanha && campanha.objective) || "vendas", bruto, metas: metasDoEscopo(campanha),
     alcance: k.reach, tamanho_publico: publicoReg ? publicoReg.size : null,
-    lucro_liquido: k.sales > 0 || k.spend > 0 ? k.net_profit : null,
+    vendas_consideradas: usarVendas, vendas_parciais: vendasParciais, modo_vendas: b.modoVendas,
+    lucro_liquido: usarVendas && (k.sales > 0 || k.spend > 0) ? k.net_profit : null,
     publico, fadiga: fad, sla_texto, perda_texto, atendimento: at,
     dias_rodando: campanha && campanha.start_date ? diasEntre(campanha.start_date, h) : null,
     dias_com_dados: diasComDados,
@@ -249,6 +292,7 @@ export function analisar({ nivel = "campanha", registro, iv, minimos = null, bas
     leve,
     filhos: leve ? [] : filhosDoEscopo(nivel, registro, iv),
     recortes: !leve && nivel === "campanha" ? recortesDaCampanha(registro.external_id) : null,
+    usarVendas, vendasParciais, modoVendas: b.modoVendas,
     nivel, registro, iv, filtro, k, kAnt, serie, bruto, video, m, bmk, conf, referencia,
     cartoes, achados, score, funil, gargalos: garg, fortes, plano: pl, resumo, ctx,
     contexto: { campanha, criativo, publico: publicoReg }, tendencia: blocos, fadiga: fad,

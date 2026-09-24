@@ -1,14 +1,14 @@
-import { db } from "../core/db.js?v=ebf7a3c7";
-import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=ebf7a3c7";
-import { situacaoCampanha } from "../core/rules.js?v=ebf7a3c7";
-import { blocoAnalise } from "../core/analise/ui.js?v=ebf7a3c7";
-import * as AcoesMeta from "../core/acoes-meta.js?v=ebf7a3c7";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=ebf7a3c7";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=ebf7a3c7";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=ebf7a3c7";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=ebf7a3c7";
-import { usuario } from "../core/auth.js?v=ebf7a3c7";
-import { podeEditar } from "../core/auth.js?v=ebf7a3c7";
+import { db } from "../core/db.js?v=bb300066";
+import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=bb300066";
+import { situacaoCampanha } from "../core/rules.js?v=bb300066";
+import { blocoAnalise } from "../core/analise/ui.js?v=bb300066";
+import * as AcoesMeta from "../core/acoes-meta.js?v=bb300066";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=bb300066";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=bb300066";
+import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=bb300066";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=bb300066";
+import { usuario } from "../core/auth.js?v=bb300066";
+import { podeEditar } from "../core/auth.js?v=bb300066";
 
 let filtroStatus = "ativa", filtroPlat = "";
 

@@ -3,7 +3,7 @@
 // vem de uma base explícita, em três níveis de prioridade (item 23):
 //   1. histórico da própria conta   2. campanhas parecidas   3. referência padrão editável
 // O nível usado aparece no texto, para o usuário saber contra o que está sendo comparado.
-import { numeroOuNulo, temValor } from "./metricas.js?v=ebf7a3c7";
+import { numeroOuNulo, temValor } from "./metricas.js?v=bb300066";
 
 export const MENOR_MELHOR = new Set(["cpc", "cpm", "cpl", "cpa", "custo_conversa", "custo_thruplay", "custo_3s", "frequencia"]);
 
