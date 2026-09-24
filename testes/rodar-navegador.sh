@@ -10,3 +10,4 @@ MOCK=$!
 sleep 2
 trap 'kill $SITE $MOCK 2>/dev/null || true' EXIT
 NODE_PATH="$(npm root -g)" node testes/navegador-meta.mjs
+NODE_PATH="$(npm root -g)" node testes/sync-remapeia.mjs

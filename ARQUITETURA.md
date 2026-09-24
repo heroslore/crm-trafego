@@ -169,3 +169,17 @@ nunca entra em `db.exportar()` nem na sincronização em nuvem.
 `testes/mock-meta.py` imita o Graph API e `testes/navegador-meta.mjs` roda o fluxo inteiro
 contra ele — pausar, reativar, orçamento, duplicar, criar, erro da Meta e o caso do controle
 desligado — sem encostar na conta real.
+
+
+## Importação da Meta e a versão do mapa
+
+`carregarMeta()` evita retrabalho pulando a importação quando `dados/meta.json` não mudou.
+Isso tem uma armadilha: quando o **mapeamento** do arquivo para as tabelas melhora (um campo
+novo passa a ser gravado), quem já importou aquele arquivo nunca receberia a melhoria — os
+registros antigos ficariam para sempre sem os campos novos, sem nenhum sinal na tela.
+
+Por isso existe `VERSAO_MAPA` em `core/sync.js`. Ela **sobe junto com qualquer mudança em
+`aplicarMeta()` que grave um campo novo**, e a importação é refeita quando a versão guardada
+no banco é menor que a do código, mesmo com o arquivo igual. `testes/sync-remapeia.mjs`
+simula um banco importado por uma versão antiga e verifica que os campos voltam sozinhos,
+sem duplicar linhas.
