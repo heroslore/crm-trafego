@@ -175,7 +175,7 @@ async function iniciar() {
   // aparecem depois que a permissão de gestão for confirmada.
   if (MetaApi.configurado()) MetaApi.verificar().then(() => render()).catch(() => {});
   const r = await carregarMeta();
-  if (r.ok && r.novo) { toast("Dados da Meta atualizados."); verificarSemResposta(); render(); atualizarNotificacoes(); }
+  if (r.ok && r.novo) { toast(r.remapeado ? "Dados da Meta reimportados com os campos novos." : "Dados da Meta atualizados."); verificarSemResposta(); render(); atualizarNotificacoes(); }
   if (nuvemLigada()) { await sincronizar("abrir"); iniciarPoll(); render(); }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { carregarMeta().then((x) => { if (x.novo) render(); }); if (nuvemLigada()) sincronizar("voltar"); } });
   window.addEventListener("online", () => { if (nuvemLigada()) sincronizar("online"); });

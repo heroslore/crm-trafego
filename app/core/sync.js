@@ -4,6 +4,12 @@ import { agora, horaCurta, b64utf8, utf8b64, semAcento } from "./format.js";
 
 export let META = null; // arquivo bruto, usado pelos recortes de público
 
+// Versão do mapeamento de dados/meta.json para as tabelas do CRM.
+// SOBE sempre que aplicarMeta() passar a gravar um campo novo. Sem isso, a trava de
+// "arquivo não mudou" faria a melhoria nunca alcançar quem já tinha importado aquele
+// arquivo: os registros antigos ficariam para sempre sem os campos novos.
+export const VERSAO_MAPA = 3;
+
 const STATUS_META = { ACTIVE: "ativa", PAUSED: "pausada", CAMPAIGN_PAUSED: "pausada", ADSET_PAUSED: "pausada", ARCHIVED: "finalizada", DELETED: "finalizada", IN_PROCESS: "producao", PENDING_REVIEW: "producao", WITH_ISSUES: "pausada", DISAPPROVED: "pausada" };
 const OBJETIVO_META = { OUTCOME_SALES: "vendas", CONVERSIONS: "vendas", OUTCOME_LEADS: "leads", LEAD_GENERATION: "leads", MESSAGES: "whatsapp", OUTCOME_ENGAGEMENT: "whatsapp", OUTCOME_AWARENESS: "reconhecimento", BRAND_AWARENESS: "reconhecimento", REACH: "reconhecimento", OUTCOME_TRAFFIC: "trafego", LINK_CLICKS: "trafego", VIDEO_VIEWS: "engajamento", POST_ENGAGEMENT: "engajamento" };
 const TIPO_CRIATIVO = { VIDEO: "video", PHOTO: "foto", SHARE: "foto", STATUS: "foto", LINK: "foto", ALBUM: "carrossel" };
@@ -23,11 +29,14 @@ export async function carregarMeta({ forcar = false } = {}) {
   if (!dados) { try { dados = JSON.parse(localStorage.getItem("crm-trafego-meta") || "null"); } catch {} if (!dados) return { ok: false }; }
   else { try { localStorage.setItem("crm-trafego-meta", JSON.stringify(dados)); } catch {} }
   META = dados;
-  const ultimo = db.settings().meta_gerado_em;
-  if (!forcar && ultimo === dados.gerado_em && db.settings().meta_importado) return { ok: true, novo: false };
+  const cfg = db.settings();
+  const mesmoArquivo = cfg.meta_gerado_em === dados.gerado_em && cfg.meta_importado;
+  const mapaAtual = Number(cfg.meta_mapa_versao) || 0;
+  if (!forcar && mesmoArquivo && mapaAtual >= VERSAO_MAPA) return { ok: true, novo: false };
+  const remapeando = mesmoArquivo && mapaAtual < VERSAO_MAPA;
   aplicarMeta(dados);
-  db.setSettings({ meta_gerado_em: dados.gerado_em, meta_importado: true, meta_conta: dados.conta, meta_periodo: dados.periodo });
-  return { ok: true, novo: true };
+  db.setSettings({ meta_gerado_em: dados.gerado_em, meta_importado: true, meta_mapa_versao: VERSAO_MAPA, meta_conta: dados.conta, meta_periodo: dados.periodo });
+  return { ok: true, novo: true, remapeado: remapeando };
 }
 
 export function aplicarMeta(d) {
