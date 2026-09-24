@@ -47,7 +47,7 @@ export function confianca(amostra = {}, minimos = MINIMOS) {
   const aprendizado = dias < mi.dias || gasto < mi.gasto;
   const faltando = criterios.filter((c) => !c.ok).map((c) => c.rotulo.toLowerCase());
   const texto = nivel === "insuficiente"
-    ? `Amostra pequena para concluir: ${faltando.join(", ")} ainda abaixo do mínimo. Os números aparecem, mas não sustentam diagnóstico.`
+    ? `Os números estão todos aqui e podem ser lidos — o que ainda não dá é concluir a partir deles: ${faltando.join(", ")} abaixo do mínimo. Com um pouco mais de entrega, as mesmas taxas viram diagnóstico.`
     : nivel === "baixa"
       ? `A amostra já mostra tendência, mas ainda oscila. Trate como sinal, não como conclusão${faltando.length ? ` (${faltando.join(", ")} abaixo do mínimo)` : ""}.`
       : nivel === "media" ? "Amostra suficiente para as leituras de entrega e clique. Conversão e venda pedem mais volume para virarem conclusão."
