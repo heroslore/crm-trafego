@@ -192,9 +192,30 @@ def coletar_conta():
     }
 
 
+def problemas_de(registro):
+    """Motivos pelos quais a Meta não está entregando este objeto.
+
+    A Meta devolve isso em issues_info. Sem ler esse campo, um anúncio reprovado chega ao CRM
+    apenas como "pausado" — e quem olha acha que foi a própria equipe que pausou, quando na
+    verdade a entrega está travada e ninguém foi avisado. O texto vem pronto em português.
+    """
+    saida = []
+    for i in registro.get("issues_info") or []:
+        resumo = (i.get("error_summary") or "").strip()
+        mensagem = (i.get("error_message") or "").strip()
+        # A Meta às vezes repete o resumo dentro da mensagem ("Analise 1 erro: Analise 1 erro: ...").
+        if mensagem.startswith(resumo + ":"):
+            mensagem = mensagem[len(resumo) + 1:].strip()
+        saida.append({
+            "nivel": i.get("level") or "", "codigo": i.get("error_code"),
+            "tipo": i.get("error_type") or "", "resumo": resumo, "mensagem": mensagem,
+        })
+    return saida
+
+
 def coletar_campanhas():
     linhas = meta_lista(f"{conta_id()}/campaigns",
-                        fields="name,objective,status,effective_status,daily_budget,lifetime_budget,created_time,start_time,stop_time,updated_time")
+                        fields="name,objective,status,effective_status,issues_info,daily_budget,lifetime_budget,created_time,start_time,stop_time,updated_time")
     saida = []
     for c in linhas:
         saida.append({
@@ -203,7 +224,7 @@ def coletar_campanhas():
             "orcamento_diario": arred(num(c.get("daily_budget")) / 100) if c.get("daily_budget") else None,
             "orcamento_total": arred(num(c.get("lifetime_budget")) / 100) if c.get("lifetime_budget") else None,
             "criado_em": (c.get("created_time") or "")[:10], "inicio": (c.get("start_time") or "")[:10],
-            "fim": (c.get("stop_time") or "")[:10] or None,
+            "fim": (c.get("stop_time") or "")[:10] or None, "problemas": problemas_de(c),
         })
     saida.sort(key=lambda c: c["criado_em"], reverse=True)
     return saida
@@ -211,7 +232,7 @@ def coletar_campanhas():
 
 def coletar_conjuntos():
     linhas = meta_lista(f"{conta_id()}/adsets",
-                        fields="name,campaign_id,effective_status,daily_budget,optimization_goal,targeting{age_min,age_max,genders,geo_locations}")
+                        fields="name,campaign_id,effective_status,issues_info,daily_budget,optimization_goal,targeting{age_min,age_max,genders,geo_locations}")
     saida = []
     for a in linhas:
         alvo = a.get("targeting") or {}
@@ -232,14 +253,14 @@ def coletar_conjuntos():
             "status": a.get("effective_status") or "", "otimizacao": a.get("optimization_goal") or "",
             "orcamento_diario": arred(num(a.get("daily_budget")) / 100) if a.get("daily_budget") else None,
             "idade": f"{alvo.get('age_min', '')}-{alvo.get('age_max', '')}" if alvo.get("age_min") else "",
-            "genero": genero, "locais": locais[:8],
+            "genero": genero, "locais": locais[:8], "problemas": problemas_de(a),
         })
     return saida
 
 
 def coletar_anuncios():
     linhas = meta_lista(f"{conta_id()}/ads",
-                        fields="name,status,effective_status,campaign_id,adset_id,created_time,"
+                        fields="name,status,effective_status,issues_info,campaign_id,adset_id,created_time,"
                                "creative{thumbnail_url,body,title,object_type,instagram_permalink_url,effective_object_story_id}")
     saida = []
     for a in linhas:
@@ -251,6 +272,7 @@ def coletar_anuncios():
             "criado_em": (a.get("created_time") or "")[:10],
             "miniatura": cr.get("thumbnail_url") or "", "tipo": cr.get("object_type") or "",
             "texto": texto[:240], "link_instagram": cr.get("instagram_permalink_url") or "",
+            "problemas": problemas_de(a),
         })
     return saida
 
@@ -329,9 +351,22 @@ def coletar_publico(desde, ate):
 OBJETIVOS_SEM_MENSAGEM = ("OUTCOME_AWARENESS", "BRAND_AWARENESS", "REACH", "VIDEO_VIEWS", "OUTCOME_TRAFFIC", "LINK_CLICKS")
 
 
-def calcular_alertas(dia, diario_campanha, campanhas, limite_custo_msg=15.0):
+def calcular_alertas(dia, diario_campanha, campanhas, limite_custo_msg=15.0, anuncios=None, conjuntos=None):
     por_id = {c["id"]: c for c in campanhas}
     avisos = []
+    # Entrega travada pela Meta vem primeiro: é o único alerta em que o anúncio não está
+    # gastando errado, está simplesmente não rodando — e sem isto aqui ele chega ao CRM como
+    # "pausado", indistinguível de uma pausa que a própria equipe deu.
+    for nivel, lista in (("anúncio", anuncios or []), ("conjunto", conjuntos or []), ("campanha", campanhas)):
+        for r in lista:
+            for pr in r.get("problemas") or []:
+                nome = r.get("nome") or r["id"]
+                avisos.append({
+                    "tipo": "entrega_bloqueada", "nivel": nivel, "objeto_id": r["id"], "objeto": nome,
+                    "campanha_id": r.get("campanha_id") or (r["id"] if nivel == "campanha" else ""),
+                    "codigo": pr.get("codigo"), "grave": pr.get("tipo") == "HARD_ERROR",
+                    "texto": f"A Meta bloqueou a entrega do {nivel} '{nome}': {pr.get('mensagem') or pr.get('resumo') or 'motivo não informado'}",
+                })
     for l in diario_campanha:
         if l["data"] != dia.isoformat() or l["gasto"] <= 0:
             continue
@@ -423,7 +458,7 @@ def coletar(args):
     print(f"Recortes de público dos últimos {DIAS_PUBLICO} dias…")
     publico = coletar_publico(ontem - dt.timedelta(days=DIAS_PUBLICO - 1), ontem)
 
-    alertas = calcular_alertas(ontem, diario_campanha, campanhas)
+    alertas = calcular_alertas(ontem, diario_campanha, campanhas, anuncios=anuncios, conjuntos=conjuntos)
     datas = [l["data"] for l in diario_campanha]
 
     dados = {

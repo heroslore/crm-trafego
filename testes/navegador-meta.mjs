@@ -311,6 +311,43 @@ ok(/META_ACCESS_TOKEN/.test(aviso.velho), "diz exatamente qual segredo conferir"
 ok(aviso.novo === "", "cala a boca quando a coleta está em dia");
 
 
+console.log("\n[13] Anúncio bloqueado pela Meta não se disfarça de pausado");
+const MOTIVO = "Este anúncio não pode ser publicado porque BYL STORE não está em conformidade";
+// Pelo db, não pelo localStorage: o aplicativo já está carregado em memória e escrever no
+// armazenamento por baixo dele não mudaria nada na tela — o teste passaria a testar nada.
+await p.evaluate(async (motivo) => {
+  const { db } = await import("./app/core/db.js");
+  db.update("ads", "ad-meta", { status: "pausada", meta_status: "WITH_ISSUES", meta_bloqueio: "Analise 1 erro: " + motivo });
+}, MOTIVO);
+await p.goto(BASE + "#/anuncios", { waitUntil: "networkidle" });
+await p.waitForTimeout(1500);
+// O filtro abre em "Ativos" e este anúncio consta como pausado — que é justamente o disfarce
+// que o bloqueio cria. Em "Todos" ele aparece, e é lá que a marca precisa estar visível.
+await p.locator('[data-f="todas"]').click();
+await p.waitForTimeout(900);
+const listaAnuncios = await p.locator("main").innerText();
+ok(/bloqueado na Meta/.test(listaAnuncios), "a lista marca o anúncio como bloqueado, não só pausado");
+
+await p.goto(BASE + "#/anuncios/ad-meta", { waitUntil: "networkidle" });
+await p.waitForTimeout(1500);
+const det = await p.locator("main").innerText();
+ok(/A Meta bloqueou a entrega/.test(det), "a tela do anúncio explica o bloqueio");
+ok(det.includes("BYL STORE"), "mostra o motivo que a Meta escreveu, por inteiro");
+ok(/pausar ou reativar pelo CRM não resolve/.test(det), "diz que o botão do CRM não resolve isso");
+await p.screenshot({ path: `${SAIDA}/anuncio-bloqueado.png`, fullPage: true });
+
+const alerta = await p.evaluate(async () => {
+  const { alertas } = await import("./app/core/rules.js");
+  const { intervalo } = await import("./app/core/periods.js");
+  return alertas(intervalo({ tipo: "30d" })).filter((a) => a.categoria === "Bloqueio na Meta");
+});
+// Mais de um é o esperado: o dados/meta.json real já traz um anúncio bloqueado de verdade.
+const meu = alerta.find((a) => a.key === "bloq:ads:ad-meta");
+ok(!!meu, "vira alerta sozinho, sem depender de abrir a tela certa");
+ok(meu && meu.prioridade === "urgente", "e entra como urgente");
+ok(meu && meu.texto.includes("BYL STORE"), "o alerta carrega o motivo, não só o aviso");
+
+
 console.log("\nERROS DE JS:", erros.length);
 for (const e of erros.slice(0, 10)) console.log(" -", e);
 console.log(falhas ? `\n${falhas} verificação(ões) falharam.` : "\nTodas as verificações passaram.");
