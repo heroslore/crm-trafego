@@ -29,10 +29,14 @@ class H(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(corpo)))
         self.cors(); self.end_headers(); self.wfile.write(corpo)
 
-    def erro(self, msg, code=100, user_msg=None):
-        e = {"message": msg, "type": "OAuthException", "code": code}
+    def erro(self, msg, code=100, user_msg=None, subcode=None, user_title=None):
+        e = {"message": msg, "type": "OAuthException", "code": code, "fbtrace_id": "TESTE123"}
         if user_msg:
             e["error_user_msg"] = user_msg
+        if subcode:
+            e["error_subcode"] = subcode
+        if user_title:
+            e["error_user_title"] = user_title
         self.responder({"error": e}, 400)
 
     def do_GET(self):
@@ -84,6 +88,14 @@ class H(BaseHTTPRequestHandler):
             return self.responder({"images": {"imagem.jpg": {"hash": "hash-de-teste", "url": "http://exemplo/img.jpg"}}})
         if "explode" in caminho:
             return self.erro("Invalid parameter", 100, "O orçamento é menor que o mínimo permitido para esta conta.")
+        # Anúncio com o número de WhatsApp desconectado da Página: a Meta revalida o anúncio
+        # inteiro a cada escrita, então até PAUSAR é recusado. Erro real da conta, código 100
+        # subcódigo 2446880, reproduzido aqui para o CRM ser testado contra ele.
+        if "wpp-solto" in caminho:
+            return self.erro(
+                "Invalid parameter", 100,
+                "Reconecte seu número do WhatsApp à sua Página do Facebook ou conta do Instagram para veicular esse anúncio.",
+                subcode=2446880, user_title="O número do WhatsApp é obrigatório")
         if caminho.endswith("/copies"):
             SEQ[0] += 1
             return self.responder({"copied_campaign_id": f"120299000000{SEQ[0]:03d}", "ad_object_ids": []})
