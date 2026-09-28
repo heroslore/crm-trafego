@@ -1,9 +1,10 @@
 // Pedaços compartilhados pelos módulos.
-import { db } from "../core/db.js?v=69d4abde";
-import { kpi, badge, badgeOpcao, cartao, vazio, itemLista, prioridadeBadge, fmtMetrica } from "../core/ui.js?v=69d4abde";
-import { avaliar, serieDiaria, contagensAtivas, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=69d4abde";
-import { esc, brl, inteiro, pct, mult, dataBR, hoje, diasEntre, dec } from "../core/format.js?v=69d4abde";
-import { usuario, podeEditar } from "../core/auth.js?v=69d4abde";
+import { db } from "../core/db.js?v=cb6be18a";
+import { kpi, badge, badgeOpcao, cartao, vazio, itemLista, prioridadeBadge, fmtMetrica, tabela } from "../core/ui.js?v=cb6be18a";
+import { avaliar, serieDiaria, contagensAtivas, porEntidade, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=cb6be18a";
+import { porEtapa, ROTULO_ETAPA, CORES_ETAPA, METRICA_DA_ETAPA } from "../core/funil.js?v=cb6be18a";
+import { esc, brl, inteiro, pct, mult, dataBR, hoje, diasEntre, dec } from "../core/format.js?v=cb6be18a";
+import { usuario, podeEditar } from "../core/auth.js?v=cb6be18a";
 
 export const bannerDemo = () => db.temDemo() ? `<div class="demo-banner"><span>🧪 Há dados de demonstração (marcados com <b>[DEMO]</b> / "(demo)") para você conhecer o sistema. Eles não são dados reais da empresa.</span><a href="#/config?aba=dados" class="btn btn-pq">Remover dados de demonstração</a></div>` : "";
 export const btnNovo = (texto, attr) => podeEditar() ? `<button class="btn btn-primario" ${attr}>➕ ${texto}</button>` : "";
@@ -46,6 +47,41 @@ export function avisoBloqueio(reg, oQue = "anúncio") {
     <div style="margin-top:6px">${esc(reg.meta_bloqueio)}</div>
     <p class="sub" style="margin:8px 0 0">Resolva no <a href="https://adsmanager.facebook.com/" target="_blank" rel="noopener">Gerenciador de Anúncios</a> ou na Central de Qualidade da Conta. Assim que a Meta liberar, a próxima coleta limpa este aviso sozinha.</p>
   </div>`;
+}
+
+// ---------------------------------------------------------------- investimento por etapa do funil
+// Campanha de topo e campanha de fundo fazem trabalhos diferentes. Somar as duas numa linha só
+// esconde a decisão mais importante do mês: quanto foi para encher a base e quanto foi para
+// colher. E cada uma aparece com a SUA régua — o topo com o custo por pessoa na base, não com
+// um custo por conversa que ele nunca teve a obrigação de produzir.
+export function blocoFunil(iv, { titulo = "Investimento por etapa do funil" } = {}) {
+  const itens = porEntidade(iv, "campaign").filter((c) => c.k.spend > 0).map((c) => ({ registro: c.registro, k: c.k }));
+  if (!itens.length) return cartao(titulo, vazio("Nenhuma campanha com investimento no período."));
+  const linhas = porEtapa(itens).filter((g) => g.n > 0 || g.spend > 0);
+  const total = linhas.reduce((t, g) => t + g.spend, 0);
+  const celula = (g) => {
+    const m = METRICA_DA_ETAPA[g.etapa];
+    const v = g[m.chave];
+    return v == null
+      ? `<span class="sub">— <small>${esc(m.ajuda)}</small></span>`
+      : `<b>${brl(v)}</b><br><small class="sub">${esc(m.rotulo.toLowerCase())}</small>`;
+  };
+  const corpo = `<div class="barras" style="margin-bottom:12px">${linhas.map((g) => `
+      <div class="barra"><div class="barra-nome">${badge(ROTULO_ETAPA[g.etapa].split(" — ")[0], CORES_ETAPA[g.etapa])} ${esc(ROTULO_ETAPA[g.etapa].split(" — ")[1] || "")}</div>
+      <div class="barra-trilho"><i style="width:${total ? 100 * g.spend / total : 0}%;background:var(--${CORES_ETAPA[g.etapa] === "ciano" ? "ciano" : CORES_ETAPA[g.etapa] === "amarelo" ? "amarelo" : "verde"})"></i></div>
+      <div class="barra-valor"><b>${brl(g.spend)}</b> <small>${pct(g.fatia)}</small></div></div>`).join("")}</div>
+    ${tabela("funil-etapas", { colunas: [
+      { key: "rotulo", label: "Etapa", render: (g) => `${badge(ROTULO_ETAPA[g.etapa].split(" — ")[0], CORES_ETAPA[g.etapa])}<br><small class="sub">${esc(ROTULO_ETAPA[g.etapa].split(" — ")[1] || "")}</small>` },
+      { key: "n", label: "Campanhas", tipo: "num", fmt: inteiro },
+      { key: "spend", label: "Investido", tipo: "num", fmt: brl },
+      { key: "fatia", label: "% da verba", tipo: "num", fmt: (v) => pct(v) },
+      { key: "reach", label: "Alcance", tipo: "num", fmt: inteiro },
+      { key: "video_p50", label: "Viram 50% do vídeo", tipo: "num", fmt: inteiro },
+      { key: "conversations", label: "Conversas", tipo: "num", fmt: inteiro },
+      { key: "metrica", label: "Régua desta etapa", render: celula },
+    ], linhas, ordem: "spend", vazioTxt: "Sem campanhas no período." })}
+    <p class="sub" style="margin-top:10px">Cada etapa é julgada pelo que ela existe para fazer. O topo enche a base de público que o meio e o fundo reaproveitam depois — cobrar conversa dele é cobrar pelo trabalho errado. A etapa sai do objetivo e do nome da campanha, e pode ser corrigida no campo <b>Etapa do funil</b> ao editar a campanha.</p>`;
+  return cartao(titulo, corpo);
 }
 
 export const KPIS_PRINCIPAIS = ["spend", "revenue", "gross_profit", "net_profit", "roas", "roi", "leads", "qualified", "sales", "conversion", "cpl", "cpl_qualificado", "cpa", "ticket", "ctr", "cpc", "cpm"];

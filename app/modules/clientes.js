@@ -1,10 +1,10 @@
 // Clientes e LTV: quem já comprou, quanto vale ao longo do tempo e qual campanha o trouxe.
-import { db } from "../core/db.js?v=69d4abde";
-import { clientes, ltvPorCampanha, liquidoDaVenda } from "../core/metrics.js?v=69d4abde";
-import { cartao, tabela, badge, vazio, kpi, abas, itemLista, barrasH } from "../core/ui.js?v=69d4abde";
-import { esc, brl, inteiro, pct, dataBR, waLink, semAcento, diasEntre, hoje, dec } from "../core/format.js?v=69d4abde";
-import { bannerDemo } from "./comum.js?v=69d4abde";
-import { rotulo as rotuloOpcao } from "../core/schema.js?v=69d4abde";
+import { db } from "../core/db.js?v=cb6be18a";
+import { clientes, ltvPorCampanha, liquidoDaVenda } from "../core/metrics.js?v=cb6be18a";
+import { cartao, tabela, badge, vazio, kpi, abas, itemLista, barrasH } from "../core/ui.js?v=cb6be18a";
+import { esc, brl, inteiro, pct, dataBR, waLink, semAcento, diasEntre, hoje, dec } from "../core/format.js?v=cb6be18a";
+import { bannerDemo } from "./comum.js?v=cb6be18a";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=cb6be18a";
 
 let aba = "lista", busca = "", filtro = "todos";
 

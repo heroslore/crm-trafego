@@ -1,13 +1,13 @@
-import { db } from "../core/db.js?v=69d4abde";
-import { kpis, serieDiaria } from "../core/metrics.js?v=69d4abde";
-import { cartao, tabela, badge, badgeOpcao, chips, abas, abrirFormulario, vazio, graficoLinhas, itemLista } from "../core/ui.js?v=69d4abde";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=69d4abde";
-import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem, listaSemEntrega } from "../core/analise/ui.js?v=69d4abde";
-import { analisarVarios, janelaDeEntrega } from "../core/analise/index.js?v=69d4abde";
-import * as AcoesMeta from "../core/acoes-meta.js?v=69d4abde";
-import { bannerDemo, btnNovo, linhaNumeros, avisoVendasNaoLancadas, badgeBloqueio, avisoBloqueio, bloqueado } from "./comum.js?v=69d4abde";
-import { rotulo as rotuloOpcao } from "../core/schema.js?v=69d4abde";
-import { podeEditar } from "../core/auth.js?v=69d4abde";
+import { db } from "../core/db.js?v=cb6be18a";
+import { kpis, serieDiaria } from "../core/metrics.js?v=cb6be18a";
+import { cartao, tabela, badge, badgeOpcao, chips, abas, abrirFormulario, vazio, graficoLinhas, itemLista } from "../core/ui.js?v=cb6be18a";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=cb6be18a";
+import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem, listaSemEntrega } from "../core/analise/ui.js?v=cb6be18a";
+import { analisarVarios, janelaDeEntrega } from "../core/analise/index.js?v=cb6be18a";
+import * as AcoesMeta from "../core/acoes-meta.js?v=cb6be18a";
+import { bannerDemo, btnNovo, linhaNumeros, avisoVendasNaoLancadas, badgeBloqueio, avisoBloqueio, bloqueado } from "./comum.js?v=cb6be18a";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=cb6be18a";
+import { podeEditar } from "../core/auth.js?v=cb6be18a";
 
 let filtro = "ativa", visao = "diagnostico", ordem = "gasto";
 function lista(root, ctx) {

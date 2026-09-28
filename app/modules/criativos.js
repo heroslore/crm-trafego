@@ -1,14 +1,14 @@
-import { db } from "../core/db.js?v=69d4abde";
-import { kpis, serieDiaria, mediaCampanhas } from "../core/metrics.js?v=69d4abde";
-import { classificarCriativo, CLASSES_CRIATIVO, diagnosticoVideo } from "../core/rules.js?v=69d4abde";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista, abas, kpi, barrasH } from "../core/ui.js?v=69d4abde";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=69d4abde";
-import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem, listaSemEntrega } from "../core/analise/ui.js?v=69d4abde";
-import { analisarVarios, janelaDeEntrega } from "../core/analise/index.js?v=69d4abde";
-import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=69d4abde";
-import { badgeObjetivo } from "./anuncios.js?v=69d4abde";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=69d4abde";
-import { podeEditar } from "../core/auth.js?v=69d4abde";
+import { db } from "../core/db.js?v=cb6be18a";
+import { kpis, serieDiaria, mediaCampanhas } from "../core/metrics.js?v=cb6be18a";
+import { classificarCriativo, CLASSES_CRIATIVO, diagnosticoVideo } from "../core/rules.js?v=cb6be18a";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, graficoLinhas, itemLista, abas, kpi, barrasH } from "../core/ui.js?v=cb6be18a";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta } from "../core/format.js?v=cb6be18a";
+import { blocoAnalise, listaDiagnostico, comparativoEtapas, ordenarAnalises, chipsOrdem, listaSemEntrega } from "../core/analise/ui.js?v=cb6be18a";
+import { analisarVarios, janelaDeEntrega } from "../core/analise/index.js?v=cb6be18a";
+import { bannerDemo, btnNovo, linhaNumeros } from "./comum.js?v=cb6be18a";
+import { badgeObjetivo } from "./anuncios.js?v=cb6be18a";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=cb6be18a";
+import { podeEditar } from "../core/auth.js?v=cb6be18a";
 
 let visao = "diagnostico", filtroClasse = "", ordem = "gasto";
 function lista(root, ctx) {

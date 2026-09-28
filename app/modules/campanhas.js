@@ -1,18 +1,19 @@
-import { db } from "../core/db.js?v=69d4abde";
-import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=69d4abde";
-import { situacaoCampanha } from "../core/rules.js?v=69d4abde";
-import { blocoAnalise } from "../core/analise/ui.js?v=69d4abde";
-import { blocoPublico } from "../core/analise/publico-ui.js?v=69d4abde";
-import { META } from "../core/sync.js?v=69d4abde";
-import * as AcoesMeta from "../core/acoes-meta.js?v=69d4abde";
-import { listaDiagnostico, comparativoEtapas, ordenarAnalises } from "../core/analise/ui.js?v=69d4abde";
-import { analisarVarios } from "../core/analise/index.js?v=69d4abde";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=69d4abde";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=69d4abde";
-import { bannerDemo, btnNovo, linhaNumeros, avisoVendasNaoLancadas, badgeBloqueio, avisoBloqueio } from "./comum.js?v=69d4abde";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=69d4abde";
-import { usuario } from "../core/auth.js?v=69d4abde";
-import { podeEditar } from "../core/auth.js?v=69d4abde";
+import { db } from "../core/db.js?v=cb6be18a";
+import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=cb6be18a";
+import { situacaoCampanha } from "../core/rules.js?v=cb6be18a";
+import { blocoAnalise } from "../core/analise/ui.js?v=cb6be18a";
+import { blocoPublico } from "../core/analise/publico-ui.js?v=cb6be18a";
+import { etapaDe, ROTULO_ETAPA, CORES_ETAPA, METRICA_DA_ETAPA } from "../core/funil.js?v=cb6be18a";
+import { META } from "../core/sync.js?v=cb6be18a";
+import * as AcoesMeta from "../core/acoes-meta.js?v=cb6be18a";
+import { listaDiagnostico, comparativoEtapas, ordenarAnalises } from "../core/analise/ui.js?v=cb6be18a";
+import { analisarVarios } from "../core/analise/index.js?v=cb6be18a";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=cb6be18a";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=cb6be18a";
+import { bannerDemo, btnNovo, linhaNumeros, avisoVendasNaoLancadas, badgeBloqueio, avisoBloqueio } from "./comum.js?v=cb6be18a";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=cb6be18a";
+import { usuario } from "../core/auth.js?v=cb6be18a";
+import { podeEditar } from "../core/auth.js?v=cb6be18a";
 
 let filtroStatus = "ativa", filtroPlat = "";
 
@@ -27,7 +28,7 @@ function lista(root, ctx) {
     ${avisoVendasNaoLancadas(lin, "campanha(s)")}
     <div class="filtros-linha">${chips([["ativa", "Ativas"], ["pausada", "Pausadas"], ["planejada", "Planejadas"], ["producao", "Em produção"], ["finalizada", "Finalizadas"], ["todas", "Todas"]], filtroStatus, "data-fs")}<select data-fp><option value="">Todas as plataformas</option>${OPCOES.platform.map(([v, t]) => `<option value="${v}"${filtroPlat === v ? " selected" : ""}>${t}</option>`).join("")}</select></div>
     ${cartao("", tabela("campanhas", { colunas: [
-      { key: "name", label: "Campanha", render: (l) => `<a href="#/campanhas/${l.id}">${esc(l.name)}</a><br><small>${esc(rotuloOpcao("platform", l.platform))} · ${esc(rotuloOpcao("objective", l.objective))}${l.product_id ? " · " + esc((db.get("products", l.product_id) || {}).name || "") : ""}</small>` },
+      { key: "name", label: "Campanha", render: (l) => `<a href="#/campanhas/${l.id}">${esc(l.name)}</a> ${badge(ROTULO_ETAPA[etapaDe(l)].split(" — ")[0], CORES_ETAPA[etapaDe(l)])}<br><small>${esc(rotuloOpcao("platform", l.platform))} · ${esc(rotuloOpcao("objective", l.objective))}${l.product_id ? " · " + esc((db.get("products", l.product_id) || {}).name || "") : ""}</small>` },
       { key: "status", label: "Status", render: (l) => badgeOpcao("campaign_status", l.status) + badgeBloqueio(l) + (l.s.situacao === "ruim" ? " " + badge("ruim", "vermelho") : l.s.situacao === "atencao" ? " " + badge("atenção", "amarelo") : l.s.situacao === "boa" ? " " + badge("boa", "verde") : "") },
       { key: "daily_budget", label: "Orç./dia", tipo: "num", fmt: brl },
       { key: "spend", label: "Gasto", tipo: "num", valor: (l) => l.k.spend, fmt: brl }, { key: "revenue", label: "Faturamento", tipo: "num", valor: (l) => l.k.revenue, fmt: brl },
@@ -35,6 +36,12 @@ function lista(root, ctx) {
       { key: "cpl", label: "CPL", tipo: "num", valor: (l) => l.k.cpl, fmt: brl }, { key: "cpl_qualificado", label: "CPL qualif.", tipo: "num", valor: (l) => l.k.cpl_qualificado, fmt: brl }, { key: "cpa", label: "CPA", tipo: "num", valor: (l) => l.k.cpa, fmt: brl },
       { key: "ctr", label: "CTR", tipo: "num", valor: (l) => l.k.ctr, fmt: (v) => pct(v) }, { key: "cpc", label: "CPC", tipo: "num", valor: (l) => l.k.cpc, fmt: brl }, { key: "cpm", label: "CPM", tipo: "num", valor: (l) => l.k.cpm, fmt: brl },
       { key: "roas", label: "ROAS", tipo: "num", valor: (l) => l.k.roas, fmt: mult }, { key: "roi", label: "ROI", tipo: "num", valor: (l) => l.k.roi, fmt: (v) => pct(v) }, { key: "ticket", label: "Ticket", tipo: "num", valor: (l) => l.k.ticket, fmt: brl },
+      // Cada campanha comparada com o número que faz sentido para a ETAPA dela. Antes a tabela
+      // mostrava CPL de uma campanha de topo, que não existe para gerar lead: número sem sentido
+      // ao lado de número com sentido, na mesma coluna.
+      { key: "regua", label: "Régua da etapa", tipo: "num", valor: (l) => l.k[METRICA_DA_ETAPA[etapaDe(l)].chave],
+        render: (l) => { const m = METRICA_DA_ETAPA[etapaDe(l)], v = l.k[m.chave];
+          return v == null ? `<small class="sub" title="${esc(m.ajuda)}">—</small>` : `${brl(v)}<br><small class="sub">${esc(m.rotulo.toLowerCase())}</small>`; } },
       { key: "meta", label: "Na Meta", render: (l) => AcoesMeta.botaoStatus("campanha", l) || "<small>—</small>" },
       { key: "decision", label: "Decisão", render: (l) => l.decision ? badge(rotuloOpcao("decision", l.decision), { escalar: "verde", pausar: "vermelho", encerrar: "vermelho", reduzir: "amarelo", manter: "ciano" }[l.decision] || "roxo") : "<small>—</small>" },
     ], linhas: lin, ordem: "spend", vazioTxt: "Nenhuma campanha neste filtro." }))}`;
@@ -123,7 +130,7 @@ function detalhe(root, ctx, c) {
   const metricas = db.where("campaign_metrics", (m) => m.campaign_id === c.id && m.date >= iv.inicio && m.date <= iv.fim).sort((a, b) => b.date.localeCompare(a.date));
   const prod = db.get("products", c.product_id);
   const gastoTotal = kpis({ inicio: "2000-01-01", fim: "2999-12-31" }, { campaign_id: c.id }).spend;
-  root.innerHTML = `<div class="pagina-cab"><div><a href="#/campanhas" class="link">← Campanhas</a><h1>${esc(c.name)} ${badgeOpcao("campaign_status", c.status)}${badgeBloqueio(c)}</h1><p class="sub">${esc(rotuloOpcao("platform", c.platform))} · ${esc(rotuloOpcao("objective", c.objective))}${prod ? ` · <a href="#/produtos/${prod.id}">${esc(prod.name)}</a>` : ""}${c.category ? " · " + esc(c.category) : ""} · ${c.start_date ? "início " + dataBR(c.start_date) : ""}${c.end_date ? " · término " + dataBR(c.end_date) : ""}${c.source === "meta" ? " · " + badge("dados automáticos da Meta", "acento") : ""}</p></div>
+  root.innerHTML = `<div class="pagina-cab"><div><a href="#/campanhas" class="link">← Campanhas</a><h1>${esc(c.name)} ${badgeOpcao("campaign_status", c.status)} ${badge(ROTULO_ETAPA[etapaDe(c)], CORES_ETAPA[etapaDe(c)])}${badgeBloqueio(c)}</h1><p class="sub">${esc(rotuloOpcao("platform", c.platform))} · ${esc(rotuloOpcao("objective", c.objective))}${prod ? ` · <a href="#/produtos/${prod.id}">${esc(prod.name)}</a>` : ""}${c.category ? " · " + esc(c.category) : ""} · ${c.start_date ? "início " + dataBR(c.start_date) : ""}${c.end_date ? " · término " + dataBR(c.end_date) : ""}${c.source === "meta" ? " · " + badge("dados automáticos da Meta", "acento") : ""}</p></div>
     <div class="pagina-acoes">${AcoesMeta.botoes("campanha", c)}${podeEditar() ? `<button class="btn" data-lancar>📝 Lançar métricas</button><a class="btn" href="#/leads?novo=1&campanha=${c.id}">➕ Lead</a><a class="btn btn-verde" href="#/vendas?novo=1&campanha=${c.id}">💰 Venda</a><button class="btn btn-primario" data-editar>✏️ Editar</button>` : ""}</div></div>
     ${avisoBloqueio(c, "campanha")}
     ${AcoesMeta.dicaDesligada(c)}

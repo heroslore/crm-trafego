@@ -1,8 +1,8 @@
 // Todos os indicadores do sistema são calculados aqui a partir de campaign_metrics, sales e leads.
-import { db } from "./db.js?v=69d4abde";
-import { dentro, dias as diasDe, anterior } from "./periods.js?v=69d4abde";
-import { num, variacao, somaDias, hoje, diasEntre } from "./format.js?v=69d4abde";
-import { consideraVendas } from "./vendas-modo.js?v=69d4abde";
+import { db } from "./db.js?v=cb6be18a";
+import { dentro, dias as diasDe, anterior } from "./periods.js?v=cb6be18a";
+import { num, variacao, somaDias, hoje, diasEntre } from "./format.js?v=cb6be18a";
+import { consideraVendas } from "./vendas-modo.js?v=cb6be18a";
 
 // ---------------------------------------------------------------- filtros
 // filtro: { campaign_id, ad_set_id, ad_id, creative_id, product_id, audience_id, seller_user_id, platform, lojaFn }
@@ -126,6 +126,9 @@ export function agregar({ metricas = [], vendas = [], leads = [], extras = [] })
   k.ctr = k.impressions > 0 ? cliquesBase / k.impressions : null;
   k.cpc = cliquesBase > 0 ? k.spend / cliquesBase : null;
   k.cpm = k.impressions > 0 ? k.spend / k.impressions * 1000 : null;
+  // Régua do topo de funil: quanto custa colocar UMA pessoa na base de remarketing.
+  // Metade do vídeo é o limiar que a conta já usa nos públicos personalizados.
+  k.custo_base = k.video_p50 > 0 ? k.spend / k.video_p50 : null;
   k.margin = k.revenue > 0 ? k.gross_profit / k.revenue : null;
   k.ticket_liquido = k.sales ? k.gross_profit / k.sales : null;
   k.lucro_por_lead = k.leads_base > 0 ? k.net_profit / k.leads_base : null;
@@ -359,7 +362,7 @@ export function ltvPorCampanha() {
 // ---------------------------------------------------------------- metas e avaliação
 export const METRICAS_ROTULOS = {
   spend: "Investimento", revenue: "Faturamento", gross_sales: "Vendas brutas", discount: "Descontos", fees: "Taxas", shipping: "Frete", cost: "Custo dos produtos",
-  gross_profit: "Lucro bruto", net_profit: "Lucro após anúncios", roas: "ROAS", roi: "ROI", leads: "Leads", qualified: "Leads qualificados", sales: "Vendas", canceled: "Vendas canceladas",
+  gross_profit: "Lucro bruto", net_profit: "Lucro após anúncios", roas: "ROAS", roi: "ROI", custo_base: "Custo por pessoa na base", leads: "Leads", qualified: "Leads qualificados", sales: "Vendas", canceled: "Vendas canceladas",
   conversion: "Conversão", taxa_qualificacao: "Taxa de qualificação", cpl: "CPL", cpl_qualificado: "CPL qualificado", cpa: "CPA", ticket: "Ticket médio", ticket_liquido: "Lucro por venda",
   lucro_por_lead: "Lucro por lead", ctr: "CTR", cpc: "CPC", cpm: "CPM", impressions: "Impressões", reach: "Alcance", link_clicks: "Cliques", results: "Resultados",
   conversations: "Conversas iniciadas", custo_conversa: "Custo por conversa", outbound_clicks: "Cliques de saída", landing_page_views: "Visitas à página", taxa_pagina: "Cliques que chegaram na página",

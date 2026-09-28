@@ -1,12 +1,13 @@
-import { db } from "../core/db.js?v=69d4abde";
-import { kpis, serieDiaria, porEntidade, custosExtrasNoPeriodo, pacing } from "../core/metrics.js?v=69d4abde";
-import { intervalo } from "../core/periods.js?v=69d4abde";
-import { progresso, badge, toast } from "../core/ui.js?v=69d4abde";
-import { cartao, tabela, abrirFormulario, vazio, kpi, abas, graficoLinhas, barrasH } from "../core/ui.js?v=69d4abde";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje } from "../core/format.js?v=69d4abde";
-import { bannerDemo, btnNovo } from "./comum.js?v=69d4abde";
-import { rotulo as rotuloOpcao } from "../core/schema.js?v=69d4abde";
-import { podeEditar } from "../core/auth.js?v=69d4abde";
+import { db } from "../core/db.js?v=cb6be18a";
+import { kpis, serieDiaria, porEntidade, custosExtrasNoPeriodo, pacing } from "../core/metrics.js?v=cb6be18a";
+import { intervalo } from "../core/periods.js?v=cb6be18a";
+import { progresso, badge, toast } from "../core/ui.js?v=cb6be18a";
+import { cartao, tabela, abrirFormulario, vazio, kpi, abas, graficoLinhas, barrasH } from "../core/ui.js?v=cb6be18a";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje } from "../core/format.js?v=cb6be18a";
+import { bannerDemo, btnNovo } from "./comum.js?v=cb6be18a";
+import { blocoFunil } from "./comum.js?v=cb6be18a";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=cb6be18a";
+import { podeEditar } from "../core/auth.js?v=cb6be18a";
 
 let aba = "investimento";
 
@@ -46,7 +47,8 @@ function abaInvestimento(ctx) {
   const ivSem = intervalo({ tipo: "semana" });
   const camps = porEntidade(ivMes, "campaign").filter((c) => c.k.spend > 0).sort((a, b) => b.k.spend - a.k.spend);
   const totalMes = camps.reduce((t, c) => t + c.k.spend, 0);
-  return `${blocoPacing("Investimento do mês", "investimento_mes", "Planejado para este mês (R$)", ivMes)}
+  return `${blocoFunil(ivMes, { titulo: "Investimento do mês por etapa do funil" })}
+    ${blocoPacing("Investimento do mês", "investimento_mes", "Planejado para este mês (R$)", ivMes)}
     ${blocoPacing("Investimento da semana", "investimento_semana", "Planejado para esta semana (R$)", ivSem)}
     ${cartao("Para onde o dinheiro do mês está indo",
       camps.length
