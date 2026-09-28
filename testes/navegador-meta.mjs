@@ -348,6 +348,68 @@ ok(meu && meu.prioridade === "urgente", "e entra como urgente");
 ok(meu && meu.texto.includes("BYL STORE"), "o alerta carrega o motivo, não só o aviso");
 
 
+console.log("\n[14] Anúncio que a Meta não deixa nem pausar oferece o degrau acima");
+esperandoErro = true;
+// Erro real da conta: número de WhatsApp desconectado da Página. A Meta revalida o anúncio
+// inteiro a cada escrita, então nem pausar passa. O CRM tem de oferecer a saída que funciona.
+await p.evaluate(async () => {
+  const { db } = await import("./app/core/db.js");
+  db.insert("ads", { id: "ad-wpp", name: "Anúncio do WhatsApp solto", campaign_id: "camp-meta",
+    ad_set_id: "set-meta", status: "ativa", external_id: "wpp-solto-1" });
+  db.insert("ads", { id: "ad-irmao", name: "Irmão no mesmo conjunto", campaign_id: "camp-meta",
+    ad_set_id: "set-meta", status: "ativa", external_id: "120600000000778" });
+});
+await p.goto(BASE + "#/anuncios/ad-wpp", { waitUntil: "networkidle" });
+await p.waitForTimeout(1400);
+await p.locator('[data-meta-acao="pausar"]').first().click();
+await p.waitForTimeout(400);
+await p.locator("#modal [data-ok]").click();
+await p.waitForTimeout(1100);
+const errWpp = await p.locator("#modal").innerText();
+ok(/O número do WhatsApp é obrigatório/.test(errWpp), "usa o título que a Meta mandou");
+ok(/Reconecte seu número do WhatsApp/.test(errWpp), "mostra a mensagem da Meta");
+ok(/não é a conexão de Conversas do CRM/.test(errWpp), "separa do WhatsApp das Conversas");
+ok(/2446880/.test(errWpp), "mostra o subcódigo, que é o que identifica a causa");
+ok(/inclusive pausar/.test(errWpp), "explica que insistir no anúncio não vai adiantar");
+ok(/Pausar o conjunto inteiro/.test(errWpp), "oferece pausar o conjunto");
+ok(/também para 2 outro\(s\) anúncio\(s\)/.test(errWpp) || /também para \d+ outro/.test(errWpp),
+   "avisa quantos outros anúncios param junto");
+await p.locator("#modal").screenshot({ path: `${SAIDA}/meta-wpp-solto.png` });
+
+await p.locator("#modal [data-saida]").click();
+await p.waitForTimeout(500);
+const conf = await p.locator("#modal").innerText();
+ok(/Pausar conjunto na Meta/.test(conf), "o degrau acima ainda pede confirmação");
+await p.locator("#modal [data-ok]").click();
+await p.waitForTimeout(1100);
+esperandoErro = false;
+const setDepois = await p.evaluate(async () => (await import("./app/core/db.js")).db.get("ad_sets", "set-meta").status);
+ok(setDepois === "pausada", "o conjunto pausou de verdade, que é o que faz parar de gastar");
+const anuncioDepois = await p.evaluate(async () => (await import("./app/core/db.js")).db.get("ads", "ad-wpp").status);
+ok(anuncioDepois === "ativa", "e o anúncio quebrado continua marcado como está na Meta, sem mentir");
+
+// Reativar nunca pode oferecer o degrau acima: ligaria o que ninguém pediu, gastando.
+await p.evaluate(async () => {
+  const { db } = await import("./app/core/db.js");
+  db.update("ads", "ad-wpp", { status: "pausada" });
+});
+esperandoErro = true;
+// Sem reload: a gravação do banco é adiada alguns instantes, e recarregar aqui perderia a
+// alteração recém-feita. Sair da tela e voltar redesenha usando o mesmo banco em memória.
+await p.goto(BASE + "#/anuncios", { waitUntil: "networkidle" });
+await p.waitForTimeout(700);
+await p.goto(BASE + "#/anuncios/ad-wpp", { waitUntil: "networkidle" });
+await p.waitForTimeout(1400);
+await p.locator('[data-meta-acao="ativar"]').first().click();
+await p.waitForTimeout(400);
+await p.locator("#modal [data-ok]").click();
+await p.waitForTimeout(1100);
+const errAtivar = await p.locator("#modal").innerText();
+ok(!/Pausar o conjunto/.test(errAtivar), "ao reativar, o CRM não oferece mexer no conjunto");
+await p.locator("#modal [data-fechar-modal]").first().click();
+esperandoErro = false;
+
+
 console.log("\nERROS DE JS:", erros.length);
 for (const e of erros.slice(0, 10)) console.log(" -", e);
 console.log(falhas ? `\n${falhas} verificação(ões) falharam.` : "\nTodas as verificações passaram.");
