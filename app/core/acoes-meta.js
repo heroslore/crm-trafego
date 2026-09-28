@@ -4,11 +4,11 @@
 //   2. Depois de dar certo, o CRM se atualiza e a ação entra no histórico de decisões —
 //      é o mesmo histórico que mede o antes e o depois de cada mudança.
 //   3. Campanha nova e cópia nascem PAUSADAS. Quem liga o dinheiro é a pessoa.
-import { db } from "./db.js?v=167f952e";
-import * as M from "./meta.js?v=167f952e";
-import { modal, fecharModal, toast, badge } from "./ui.js?v=167f952e";
-import { esc, brl, agora, num } from "./format.js?v=167f952e";
-import { usuario, podeEditar } from "./auth.js?v=167f952e";
+import { db } from "./db.js?v=69d4abde";
+import * as M from "./meta.js?v=69d4abde";
+import { modal, fecharModal, toast, badge } from "./ui.js?v=69d4abde";
+import { esc, brl, agora, num } from "./format.js?v=69d4abde";
+import { usuario, podeEditar } from "./auth.js?v=69d4abde";
 
 const TABELA = { campanha: "campaigns", conjunto: "ad_sets", anuncio: "ads" };
 const NOME_TIPO = { campanha: "campanha", conjunto: "conjunto", anuncio: "anúncio" };
@@ -38,10 +38,41 @@ const aviso = (txt) => `<div class="aviso aviso-alerta">${txt}</div>`;
 const caixaConta = () => `<p class="sub">Conta de anúncios: <b>${esc((M.estado.conta && M.estado.conta.name) || M.cfg.conta)}</b>. A mudança vale na Meta na hora.</p>`;
 
 // ---------------------------------------------------------------- comandos
-async function comFalha(fn, alternativa = null) {
+
+// Links para o lugar exato onde o problema se resolve. Quando a Meta recusa por causa do
+// objeto, quase nunca dá para consertar pelo CRM — o conserto é lá. Mandar a pessoa "procurar
+// nas configurações do negócio" é o mesmo que não dizer nada: são dezenas de telas.
+//
+// A ordem importa e custou uma ida em falso. O erro do número de WhatsApp fala de DUAS ligações
+// diferentes com o mesmo nome:
+//   1. número → conta do WhatsApp (Gerenciador do WhatsApp). Costuma estar "Conectado" e não é
+//      esta que o anúncio reclama;
+//   2. número → PÁGINA do Facebook / conta do Instagram. É esta que o anúncio exige, e é outra
+//      tela, em outro lugar.
+// Quem abre a primeira vê tudo verde e conclui que o CRM está errado. Por isso a página vem
+// antes, e o Gerenciador do WhatsApp vem com a ressalva escrita.
+const NIVEL_META = { anuncio: ["ads", "selected_ad_ids"], conjunto: ["adsets", "selected_adset_ids"], campanha: ["campaigns", "selected_campaign_ids"] };
+function linksMeta(tipo, reg) {
+  const conta = String(M.cfg.conta || "").replace(/^act_/, "");
+  if (!conta) return "";
+  const [nivel, sel] = NIVEL_META[tipo] || NIVEL_META.anuncio;
+  const ger = `https://adsmanager.facebook.com/adsmanager/manage/${nivel}?act=${esc(conta)}` +
+    (reg && reg.external_id ? `&${sel}=${esc(reg.external_id)}` : "");
+  const negocio = M.estado.conta && M.estado.conta.business && M.estado.conta.business.id;
+  const linha = (href, txt, dica) => `<li style="margin-bottom:8px"><a href="${href}" target="_blank" rel="noopener">${txt}</a><br><small class="sub">${esc(dica)}</small></li>`;
+  return `<div class="aviso aviso-info" style="margin-top:10px"><b>Onde resolver isto:</b>
+    <ul style="margin:8px 0 0;padding-left:18px">
+      ${linha(ger, "1. Abrir no Gerenciador de Anúncios", "Clique em Editar: a Meta mostra o mesmo erro com o botão de corrigir do lado. É o caminho com menos cliques e o único que sabe qual ligação está faltando.")}
+      ${negocio ? linha(`https://business.facebook.com/settings/pages?business_id=${esc(negocio)}`, "2. Páginas do portfólio", "Abra a Página usada no anúncio e confira o WhatsApp ligado a ela. É esta ligação que o anúncio exige.") : ""}
+      ${negocio ? linha(`https://business.facebook.com/latest/whatsapp_manager/phone_numbers?business_id=${esc(negocio)}`, "3. Gerenciador do WhatsApp (provavelmente já está certo)", "Aqui o número aparece \u201cConectado\u201d mesmo quando o anúncio reclama: é a ligação do número com a conta do WhatsApp, não com a Página. Se estiver verde, o problema é o item 2.") : ""}
+    </ul></div>`;
+}
+async function comFalha(fn, alvo = null) {
   try { return await fn(); } catch (e) {
     console.error("Meta:", e);
-    const saida = (e.objetoInvalido && alternativa) ? alternativa(e) : null;
+    const culpaDoObjeto = e.objetoInvalido && alvo;
+    const saida = (culpaDoObjeto && alvo.permitirPai) ? saidaPausarPai(alvo.tipo, alvo.reg, alvo.ctx) : null;
+    const links = culpaDoObjeto ? linksMeta(alvo.tipo, alvo.reg) : "";
     // O detalhe técnico fica guardado e copiável: sem o código e a mensagem original da Meta,
     // não há como saber se foi permissão, conta bloqueada ou problema do anúncio — e a pessoa
     // fica repetindo o clique achando que é o CRM.
@@ -56,6 +87,7 @@ async function comFalha(fn, alternativa = null) {
       ${e.codigo ? `<p class="sub">Código ${esc(e.codigo)}${e.subcodigo ? " · subcódigo " + esc(e.subcodigo) : ""}.</p>` : ""}
       ${detalhe ? `<details style="margin:8px 0"><summary class="sub" style="cursor:pointer">Detalhe técnico (para mandar a quem for ajudar)</summary><pre style="white-space:pre-wrap;font-size:.75rem;margin:6px 0">${esc(detalhe)}</pre><button class="btn btn-pq" data-copiar-erro>📋 Copiar detalhe</button></details>` : ""}
       ${e.parcial ? `<div class="aviso aviso-alerta">Parte da estrutura chegou a ser criada e ficou <b>pausada</b>: ${(e.passos || []).map((p) => esc(p.etapa)).join(", ")}. Confira no Gerenciador de Anúncios antes de tentar de novo, para não duplicar.</div>` : ""}
+      ${links}
       ${saida ? `<div class="aviso aviso-alerta" style="margin-top:10px"><b>${esc(saida.titulo)}</b><div style="margin-top:4px">${esc(saida.texto)}</div>
         <button class="btn btn-perigo btn-pq" data-saida style="margin-top:10px">${esc(saida.botao)}</button></div>` : ""}
       <p class="sub">Nada foi alterado no CRM.</p>`, { titulo: "Não deu certo" });
@@ -124,7 +156,7 @@ export async function pausarOuAtivar(tipo, reg, ativar, ctx) {
     return true;
     // A saída pelo degrau acima só vale para PAUSAR. Reativar o conjunto ou a campanha por
     // causa de um anúncio quebrado ligaria coisa que ninguém pediu — e ainda gastando.
-  }, ativar ? null : () => saidaPausarPai(tipo, reg, ctx));
+  }, { tipo, reg, ctx, permitirPai: !ativar });
 }
 
 export async function ajustarOrcamento(tipo, reg, ctx) {

@@ -5,8 +5,8 @@
 // A chave de acesso NÃO fica no banco, no backup nem na nuvem: mora só neste
 // aparelho (localStorage), porque quem tem essa chave gasta o dinheiro da conta.
 // Todo comando é confirmado antes e vira registro no histórico de decisões.
-import { db } from "./db.js?v=167f952e";
-import { num } from "./format.js?v=167f952e";
+import { db } from "./db.js?v=69d4abde";
+import { num } from "./format.js?v=69d4abde";
 
 // Atenção: "crm-trafego-meta" já é usada pelo sync.js para guardar o meta.json da coleta.
 // Esta configuração mora numa chave própria.
@@ -156,7 +156,7 @@ export async function verificar() {
     if (estado.chave && estado.chave.escopos.length) {
       for (const e of estado.chave.escopos) if (!estado.permissoes.includes(e)) estado.permissoes.push(e);
     }
-    const conta = await get(cfg.conta, "name,currency,account_status,min_daily_budget,amount_spent,business_name,timezone_name");
+    const conta = await get(cfg.conta, "name,currency,account_status,min_daily_budget,amount_spent,business_name,timezone_name,business{id,name}");
     estado.perfil = eu; estado.conta = conta;
     estado.moeda = conta.currency || "BRL";
     estado.minimoDiario = num(conta.min_daily_budget) / 100;
