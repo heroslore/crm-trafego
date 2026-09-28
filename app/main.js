@@ -3,7 +3,7 @@ import { db, garantirBase, inserirDemonstracao } from "./core/db.js";
 import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js";
 import { esc, hoje, somaDias, semAcento } from "./core/format.js";
 import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js";
-import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem } from "./core/sync.js";
+import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem, avisoColeta } from "./core/sync.js";
 import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js";
 import { alertas } from "./core/rules.js";
 import * as W from "./core/wame.js";
@@ -77,6 +77,9 @@ function render() {
   if (!pode(m.id)) { root.innerHTML = `<div class="cartao"><div class="cartao-corpo"><h1>Sem acesso</h1><p class="sub">Seu perfil (${esc(rotuloOpcao("role", usuario()?.role))}) não tem acesso a "${esc(m.titulo)}". Troque de usuário no canto inferior do menu.</p></div></div>`; return; }
   document.title = `${m.titulo} · CRM de Tráfego`;
   try { m.render(root, ctx()); } catch (e) { console.error(e); root.innerHTML = `<div class="aviso aviso-erro">Erro ao montar a tela "${esc(m.titulo)}": ${esc(e.message)}</div>`; }
+  // Coleta parada vale em qualquer tela: o número velho engana igual no Dashboard e na campanha.
+  const av = avisoColeta();
+  if (av) root.insertAdjacentHTML("afterbegin", av);
   document.querySelectorAll("#menu a").forEach((a) => a.classList.toggle("ativa", a.dataset.modulo === m.id));
   document.body.classList.remove("menu-aberto");
   window.scrollTo(0, 0);

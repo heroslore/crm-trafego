@@ -112,6 +112,9 @@ main.pagina { padding:18px 20px 40px; max-width:1400px; width:100%; }
 .barra-nome { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .barra-nome a { color:var(--texto); }
 .barra-trilho { background:var(--card2); border-radius:6px; height:12px; overflow:hidden; } .barra-trilho i { display:block; height:100%; border-radius:6px; min-width:2px; }
 .barra-valor { font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right; } .barra-valor small { color:var(--mudo); }
+/* Em tela estreita o valor não cabe ao lado da barra e empurrava a página inteira para o lado.
+   Vira uma segunda linha, alinhada à esquerda, em vez de rasgar o layout. */
+@media (max-width:640px){ .barra { grid-template-columns:1fr auto; grid-template-areas:"nome valor" "trilho trilho"; row-gap:4px; } .barra-nome { grid-area:nome; } .barra-trilho { grid-area:trilho; } .barra-valor { grid-area:valor; white-space:normal; } .barra-valor small { display:block; } }
 .funil { display:flex; flex-direction:column; gap:8px; }
 .funil-etapa { display:grid; grid-template-columns:minmax(120px,30%) 1fr auto; gap:10px; align-items:center; font-size:.86rem; }
 .funil-trilho { background:var(--card2); border-radius:6px; height:14px; overflow:hidden; } .funil-trilho i { display:block; height:100%; border-radius:6px; min-width:2px; }

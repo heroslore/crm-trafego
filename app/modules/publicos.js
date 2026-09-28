@@ -4,9 +4,10 @@ import { META } from "../core/sync.js";
 import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, barrasH, abas, itemLista } from "../core/ui.js";
 import { esc, brl, inteiro, pct, mult, dataBR } from "../core/format.js";
 import { bannerDemo, btnNovo } from "./comum.js";
+import { blocoPublico } from "../core/analise/publico-ui.js";
 import { rotulo as rotuloOpcao } from "../core/schema.js";
 
-let aba = "biblioteca";
+let aba = "diagnostico";
 export default {
   id: "publicos", titulo: "Públicos", icone: "👥",
   render(root, ctx) {
@@ -20,8 +21,9 @@ export default {
       { key: "acao", label: "", render: (a) => `<button class="btn btn-pq" data-editar="${a.id}">✏️</button>` },
     ], linhas: lin, ordem: "sales", vazioTxt: "Nenhum público cadastrado. Cadastre os públicos usados nas campanhas e ligue-os aos conjuntos de anúncios." }));
     else if (aba === "ranking") corpo = cartao("Ranking dos públicos (vendas, depois ROAS)", ranking.length ? `<div class="lista">${ranking.map((a, i) => itemLista({ titulo: `<span class="ranking-pos ${i < 3 ? "p" + (i + 1) : ""}">${i + 1}</span>${esc(a.name)}`, sub: `${rotuloOpcao("audience_type", a.type)} · ${brl(a.k.spend)} investidos · ${inteiro(a.k.leads_base)} lead(s) · CPA ${brl(a.k.cpa)}`, direita: `<b>${inteiro(a.k.sales)} venda(s)</b><br>ROAS ${mult(a.k.roas)}` })).join("")}</div>` : vazio("Sem dados de público no período. Ligue públicos aos conjuntos de anúncios e registre leads/vendas."));
-    else corpo = recortesMeta();
-    root.innerHTML = `${bannerDemo()}<div class="pagina-cab"><div><h1>Públicos</h1><p class="sub">Biblioteca de públicos, ranking por resultado e recortes de quem responde aos anúncios</p></div><div class="pagina-acoes">${btnNovo("Novo público", 'data-novo="1"')}</div></div>${abas([["biblioteca", "Biblioteca"], ["ranking", "Ranking"], ["meta", "Recortes da Meta (30 dias)"]], aba)}${corpo}`;
+    else if (aba === "meta") corpo = recortesMeta();
+    else corpo = blocoPublico(META && META.publico);
+    root.innerHTML = `${bannerDemo()}<div class="pagina-cab"><div><h1>Públicos</h1><p class="sub">Se o dinheiro está indo para quem responde, e o que mudar se não estiver</p></div><div class="pagina-acoes">${btnNovo("Novo público", 'data-novo="1"')}</div></div>${abas([["diagnostico", "🧠 Diagnóstico"], ["biblioteca", "Biblioteca"], ["ranking", "Ranking"], ["meta", "Recortes da Meta (30 dias)"]], aba)}${corpo}`;
     root.querySelectorAll("[data-aba]").forEach((b) => b.addEventListener("click", () => { aba = b.dataset.aba; ctx.rerender(); }));
     const n = root.querySelector("[data-novo]"); if (n) n.addEventListener("click", () => abrirFormulario("audiences", null, { onSave: ctx.rerender }));
     root.querySelectorAll("[data-editar]").forEach((b) => b.addEventListener("click", () => abrirFormulario("audiences", b.dataset.editar, { onSave: ctx.rerender, onDelete: ctx.rerender })));

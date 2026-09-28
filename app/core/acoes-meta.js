@@ -41,10 +41,26 @@ const caixaConta = () => `<p class="sub">Conta de anúncios: <b>${esc((M.estado.
 async function comFalha(fn, ctx) {
   try { return await fn(); } catch (e) {
     console.error("Meta:", e);
-    modal(`<div class="aviso aviso-erro"><b>A Meta recusou o comando.</b><br>${esc(e.message)}</div>
+    // O detalhe técnico fica guardado e copiável: sem o código e a mensagem original da Meta,
+    // não há como saber se foi permissão, conta bloqueada ou problema do anúncio — e a pessoa
+    // fica repetindo o clique achando que é o CRM.
+    const bruto = (e.bruto && e.bruto.message) || "";
+    const detalhe = [
+      e.titulo ? `Título: ${e.titulo}` : "",
+      e.codigo ? `Código: ${e.codigo}${e.subcodigo ? " / subcódigo " + e.subcodigo : ""}` : "",
+      bruto ? `Mensagem original: ${bruto}` : "",
+      e.bruto && e.bruto.fbtrace_id ? `fbtrace_id: ${e.bruto.fbtrace_id}` : "",
+    ].filter(Boolean).join("\n");
+    modal(`<div class="aviso aviso-erro"><b>${esc(e.titulo || "A Meta recusou o comando.")}</b><br>${esc(e.message).replace(/\n/g, "<br>")}</div>
       ${e.codigo ? `<p class="sub">Código ${esc(e.codigo)}${e.subcodigo ? " · subcódigo " + esc(e.subcodigo) : ""}.</p>` : ""}
+      ${detalhe ? `<details style="margin:8px 0"><summary class="sub" style="cursor:pointer">Detalhe técnico (para mandar a quem for ajudar)</summary><pre style="white-space:pre-wrap;font-size:.75rem;margin:6px 0">${esc(detalhe)}</pre><button class="btn btn-pq" data-copiar-erro>📋 Copiar detalhe</button></details>` : ""}
       ${e.parcial ? `<div class="aviso aviso-alerta">Parte da estrutura chegou a ser criada e ficou <b>pausada</b>: ${(e.passos || []).map((p) => esc(p.etapa)).join(", ")}. Confira no Gerenciador de Anúncios antes de tentar de novo, para não duplicar.</div>` : ""}
       <p class="sub">Nada foi alterado no CRM.</p>`, { titulo: "Não deu certo" });
+    const cp = document.querySelector("#modal [data-copiar-erro]");
+    if (cp) cp.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(detalhe); toast("Detalhe copiado."); }
+      catch { toast("Não consegui copiar. Selecione o texto e copie na mão.", "erro"); }
+    });
     return null;
   }
 }
