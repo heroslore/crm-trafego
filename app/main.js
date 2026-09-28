@@ -1,39 +1,39 @@
 // Casca do aplicativo: menu, topo, período global, roteador, busca, notificações, perfil.
-import { db, garantirBase, inserirDemonstracao } from "./core/db.js?v=edb6a568";
-import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js?v=edb6a568";
-import { esc, hoje, somaDias, semAcento } from "./core/format.js?v=edb6a568";
-import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js?v=edb6a568";
-import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem } from "./core/sync.js?v=edb6a568";
-import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js?v=edb6a568";
-import { alertas } from "./core/rules.js?v=edb6a568";
-import * as W from "./core/wame.js?v=edb6a568";
-import * as MetaApi from "./core/meta.js?v=edb6a568";
-import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js?v=edb6a568";
-import { rotulo as rotuloOpcao } from "./core/schema.js?v=edb6a568";
+import { db, garantirBase, inserirDemonstracao } from "./core/db.js?v=311527ce";
+import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js?v=311527ce";
+import { esc, hoje, somaDias, semAcento } from "./core/format.js?v=311527ce";
+import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js?v=311527ce";
+import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem, avisoColeta } from "./core/sync.js?v=311527ce";
+import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js?v=311527ce";
+import { alertas } from "./core/rules.js?v=311527ce";
+import * as W from "./core/wame.js?v=311527ce";
+import * as MetaApi from "./core/meta.js?v=311527ce";
+import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js?v=311527ce";
+import { rotulo as rotuloOpcao } from "./core/schema.js?v=311527ce";
 
-import dashboard from "./modules/dashboard.js?v=edb6a568";
-import hoje_ from "./modules/hoje.js?v=edb6a568";
-import inbox from "./modules/inbox.js?v=edb6a568";
-import decisoes from "./modules/decisoes.js?v=edb6a568";
-import campanhas from "./modules/campanhas.js?v=edb6a568";
-import anuncios from "./modules/anuncios.js?v=edb6a568";
-import criativos from "./modules/criativos.js?v=edb6a568";
-import produtos from "./modules/produtos.js?v=edb6a568";
-import publicos from "./modules/publicos.js?v=edb6a568";
-import leads from "./modules/leads.js?v=edb6a568";
-import vendas from "./modules/vendas.js?v=edb6a568";
-import clientes from "./modules/clientes.js?v=edb6a568";
-import financeiro from "./modules/financeiro.js?v=edb6a568";
-import testes from "./modules/testes.js?v=edb6a568";
-import planejamento from "./modules/planejamento.js?v=edb6a568";
-import tarefas from "./modules/tarefas.js?v=edb6a568";
-import calendario from "./modules/calendario.js?v=edb6a568";
-import briefings from "./modules/briefings.js?v=edb6a568";
-import ideias from "./modules/ideias.js?v=edb6a568";
-import relatorios from "./modules/relatorios.js?v=edb6a568";
-import calculadoras from "./modules/calculadoras.js?v=edb6a568";
-import concorrentes from "./modules/concorrentes.js?v=edb6a568";
-import config from "./modules/config.js?v=edb6a568";
+import dashboard from "./modules/dashboard.js?v=311527ce";
+import hoje_ from "./modules/hoje.js?v=311527ce";
+import inbox from "./modules/inbox.js?v=311527ce";
+import decisoes from "./modules/decisoes.js?v=311527ce";
+import campanhas from "./modules/campanhas.js?v=311527ce";
+import anuncios from "./modules/anuncios.js?v=311527ce";
+import criativos from "./modules/criativos.js?v=311527ce";
+import produtos from "./modules/produtos.js?v=311527ce";
+import publicos from "./modules/publicos.js?v=311527ce";
+import leads from "./modules/leads.js?v=311527ce";
+import vendas from "./modules/vendas.js?v=311527ce";
+import clientes from "./modules/clientes.js?v=311527ce";
+import financeiro from "./modules/financeiro.js?v=311527ce";
+import testes from "./modules/testes.js?v=311527ce";
+import planejamento from "./modules/planejamento.js?v=311527ce";
+import tarefas from "./modules/tarefas.js?v=311527ce";
+import calendario from "./modules/calendario.js?v=311527ce";
+import briefings from "./modules/briefings.js?v=311527ce";
+import ideias from "./modules/ideias.js?v=311527ce";
+import relatorios from "./modules/relatorios.js?v=311527ce";
+import calculadoras from "./modules/calculadoras.js?v=311527ce";
+import concorrentes from "./modules/concorrentes.js?v=311527ce";
+import config from "./modules/config.js?v=311527ce";
 
 export const MODULOS = [dashboard, hoje_, inbox, decisoes, campanhas, anuncios, criativos, produtos, publicos, leads, vendas, clientes, financeiro, testes, planejamento, tarefas, calendario, briefings, ideias, relatorios, calculadoras, concorrentes, config];
 const SECOES = [
@@ -77,6 +77,9 @@ function render() {
   if (!pode(m.id)) { root.innerHTML = `<div class="cartao"><div class="cartao-corpo"><h1>Sem acesso</h1><p class="sub">Seu perfil (${esc(rotuloOpcao("role", usuario()?.role))}) não tem acesso a "${esc(m.titulo)}". Troque de usuário no canto inferior do menu.</p></div></div>`; return; }
   document.title = `${m.titulo} · CRM de Tráfego`;
   try { m.render(root, ctx()); } catch (e) { console.error(e); root.innerHTML = `<div class="aviso aviso-erro">Erro ao montar a tela "${esc(m.titulo)}": ${esc(e.message)}</div>`; }
+  // Coleta parada vale em qualquer tela: o número velho engana igual no Dashboard e na campanha.
+  const av = avisoColeta();
+  if (av) root.insertAdjacentHTML("afterbegin", av);
   document.querySelectorAll("#menu a").forEach((a) => a.classList.toggle("ativa", a.dataset.modulo === m.id));
   document.body.classList.remove("menu-aberto");
   window.scrollTo(0, 0);

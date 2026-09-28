@@ -1,6 +1,6 @@
 // Integrações: dados da Meta (dados/meta.json) e nuvem no GitHub (crm.json em repositório privado).
-import { db } from "./db.js?v=edb6a568";
-import { agora, horaCurta, b64utf8, utf8b64, semAcento } from "./format.js?v=edb6a568";
+import { db } from "./db.js?v=311527ce";
+import { agora, horaCurta, b64utf8, utf8b64, semAcento, hoje, diasEntre, dataBR } from "./format.js?v=311527ce";
 
 export let META = null; // arquivo bruto, usado pelos recortes de público
 
@@ -9,6 +9,31 @@ export let META = null; // arquivo bruto, usado pelos recortes de público
 // "arquivo não mudou" faria a melhoria nunca alcançar quem já tinha importado aquele
 // arquivo: os registros antigos ficariam para sempre sem os campos novos.
 export const VERSAO_MAPA = 3;
+
+// ---------------------------------------------------------------- a coleta está viva?
+// A coleta diária ficou seis dias parada por falta do segredo META_ACCESS_TOKEN no GitHub, e
+// ninguém percebeu: a tela continuou mostrando número velho com cara de número novo, o que é
+// pior do que não mostrar nada — decisão de pausar campanha foi tomada em cima disso.
+export const DIAS_ATRASO_AVISO = 2;
+export function estadoDaColeta(meta = META) {
+  if (!meta || !meta.gerado_em) return null;
+  const dia = String(meta.gerado_em).slice(0, 10);
+  const dias = diasEntre(dia, hoje());
+  return {
+    gerado_em: meta.gerado_em, dia, dias,
+    ultimo_dado: (meta.periodo && meta.periodo.fim) || "",
+    parada: dias >= DIAS_ATRASO_AVISO,
+    texto: dias <= 0 ? "atualizada hoje" : dias === 1 ? "atualizada ontem" : `parada há ${dias} dias`,
+  };
+}
+export function avisoColeta(meta = META) {
+  const c = estadoDaColeta(meta);
+  if (!c || !c.parada) return "";
+  return `<div class="aviso aviso-alerta" style="margin-bottom:12px"><b>⚠️ Os números estão velhos: a coleta da Meta está ${c.texto}.</b>
+    O último dado é de ${dataBR(c.ultimo_dado || c.dia)}. Tudo nesta tela ignora o que aconteceu depois disso — inclusive gasto e mensagens de hoje.
+    A coleta roda sozinha todo dia pelo GitHub e só falha por falta da chave: confira o segredo <code>META_ACCESS_TOKEN</code> em
+    <a href="https://github.com/heroslore/crm-trafego/settings/secrets/actions" target="_blank" rel="noopener">Settings → Secrets → Actions</a>.</div>`;
+}
 
 const STATUS_META = { ACTIVE: "ativa", PAUSED: "pausada", CAMPAIGN_PAUSED: "pausada", ADSET_PAUSED: "pausada", ARCHIVED: "finalizada", DELETED: "finalizada", IN_PROCESS: "producao", PENDING_REVIEW: "producao", WITH_ISSUES: "pausada", DISAPPROVED: "pausada" };
 const OBJETIVO_META = { OUTCOME_SALES: "vendas", CONVERSIONS: "vendas", OUTCOME_LEADS: "leads", LEAD_GENERATION: "leads", MESSAGES: "whatsapp", OUTCOME_ENGAGEMENT: "whatsapp", OUTCOME_AWARENESS: "reconhecimento", BRAND_AWARENESS: "reconhecimento", REACH: "reconhecimento", OUTCOME_TRAFFIC: "trafego", LINK_CLICKS: "trafego", VIDEO_VIEWS: "engajamento", POST_ENGAGEMENT: "engajamento" };

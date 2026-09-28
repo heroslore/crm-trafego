@@ -1,16 +1,18 @@
-import { db } from "../core/db.js?v=edb6a568";
-import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=edb6a568";
-import { situacaoCampanha } from "../core/rules.js?v=edb6a568";
-import { blocoAnalise } from "../core/analise/ui.js?v=edb6a568";
-import * as AcoesMeta from "../core/acoes-meta.js?v=edb6a568";
-import { listaDiagnostico, comparativoEtapas, ordenarAnalises } from "../core/analise/ui.js?v=edb6a568";
-import { analisarVarios } from "../core/analise/index.js?v=edb6a568";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=edb6a568";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=edb6a568";
-import { bannerDemo, btnNovo, linhaNumeros, avisoVendasNaoLancadas } from "./comum.js?v=edb6a568";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=edb6a568";
-import { usuario } from "../core/auth.js?v=edb6a568";
-import { podeEditar } from "../core/auth.js?v=edb6a568";
+import { db } from "../core/db.js?v=311527ce";
+import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=311527ce";
+import { situacaoCampanha } from "../core/rules.js?v=311527ce";
+import { blocoAnalise } from "../core/analise/ui.js?v=311527ce";
+import { blocoPublico } from "../core/analise/publico-ui.js?v=311527ce";
+import { META } from "../core/sync.js?v=311527ce";
+import * as AcoesMeta from "../core/acoes-meta.js?v=311527ce";
+import { listaDiagnostico, comparativoEtapas, ordenarAnalises } from "../core/analise/ui.js?v=311527ce";
+import { analisarVarios } from "../core/analise/index.js?v=311527ce";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=311527ce";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=311527ce";
+import { bannerDemo, btnNovo, linhaNumeros, avisoVendasNaoLancadas } from "./comum.js?v=311527ce";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=311527ce";
+import { usuario } from "../core/auth.js?v=311527ce";
+import { podeEditar } from "../core/auth.js?v=311527ce";
 
 let filtroStatus = "ativa", filtroPlat = "";
 
@@ -132,6 +134,7 @@ function detalhe(root, ctx, c) {
       ${cartao("Público", sets.length ? `<div class="lista">${sets.map((a) => itemLista({ titulo: esc(a.name), sub: esc(a.targeting || "") + (a.audience_id ? " · " + esc((db.get("audiences", a.audience_id) || {}).name || "") : ""), badges: badgeOpcao("campaign_status", a.status), direita: (a.daily_budget ? brl(a.daily_budget) + "/dia " : "") + AcoesMeta.botaoStatus("conjunto", a) })).join("")}</div>` : (c.audience_id ? itemLista({ titulo: esc((db.get("audiences", c.audience_id) || {}).name || ""), sub: "público principal" }) : vazio("Sem conjuntos cadastrados.")), podeEditar() ? `<button class="btn btn-pq" data-novo-conjunto>➕ Conjunto</button>` : "")}
     </div>
     ${cartao("Resultados no período", linhaNumeros(k, ["spend", "revenue", "gross_profit", "roas", "roi", "leads", "sales", "conversion", "cpl", "cpa", "ticket", "ctr", "cpc", "cpm", "impressions", "reach"]) + graficoLinhas({ rotulos: serie.map((d) => dataCurta(d.date)), series: [{ nome: "Investimento", cor: "var(--acento)", valores: serie.map((d) => d.spend), barras: true }, { nome: "Faturamento", cor: "var(--verde)", valores: serie.map((d) => d.revenue) }], formato: "money", altura: 200 }))}
+    ${c.external_id && META && META.publico ? cartao("👥 Público desta campanha", blocoPublico(META.publico, { campanhaId: c.external_id, compacto: true })) : ""}
     ${comparativoDaCampanha(c, iv)}
     ${cartaoDecisoes(c)}
     <div class="grid2">

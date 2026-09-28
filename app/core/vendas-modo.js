@@ -10,7 +10,7 @@
 // Mora fora de analise/ porque metrics.js também precisa: é ele que decide se ROAS e ROI
 // são número medido ou desconhecido, e metrics.js não pode importar a análise (a análise
 // importa metrics.js, e o ciclo quebraria o carregamento dos módulos).
-import { num } from "./format.js?v=edb6a568";
+import { num } from "./format.js?v=311527ce";
 
 export const MODOS_VENDA = [
   ["parcial", "Nem toda venda é lançada (recomendado)"],

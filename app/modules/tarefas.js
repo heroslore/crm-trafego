@@ -1,9 +1,9 @@
-import { db } from "../core/db.js?v=edb6a568";
-import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, kanban, abas, prioridadeBadge, toast } from "../core/ui.js?v=edb6a568";
-import { esc, dataBR, hoje, somaDias, agora, uid } from "../core/format.js?v=edb6a568";
-import { bannerDemo, btnNovo } from "./comum.js?v=edb6a568";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=edb6a568";
-import { podeEditar, usuario } from "../core/auth.js?v=edb6a568";
+import { db } from "../core/db.js?v=311527ce";
+import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, kanban, abas, prioridadeBadge, toast } from "../core/ui.js?v=311527ce";
+import { esc, dataBR, hoje, somaDias, agora, uid } from "../core/format.js?v=311527ce";
+import { bannerDemo, btnNovo } from "./comum.js?v=311527ce";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=311527ce";
+import { podeEditar, usuario } from "../core/auth.js?v=311527ce";
 
 let visao = "kanban", fOwner = "";
 const proximaData = (data, rec) => { const base = data || hoje(); return { diaria: somaDias(base, 1), semanal: somaDias(base, 7), quinzenal: somaDias(base, 15), mensal: somaDias(base, 30) }[rec] || null; };

@@ -1,9 +1,9 @@
 // Pedaços compartilhados pelos módulos.
-import { db } from "../core/db.js?v=edb6a568";
-import { kpi, badge, badgeOpcao, cartao, vazio, itemLista, prioridadeBadge, fmtMetrica } from "../core/ui.js?v=edb6a568";
-import { avaliar, serieDiaria, contagensAtivas, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=edb6a568";
-import { esc, brl, inteiro, pct, mult, dataBR, hoje, diasEntre, dec } from "../core/format.js?v=edb6a568";
-import { usuario, podeEditar } from "../core/auth.js?v=edb6a568";
+import { db } from "../core/db.js?v=311527ce";
+import { kpi, badge, badgeOpcao, cartao, vazio, itemLista, prioridadeBadge, fmtMetrica } from "../core/ui.js?v=311527ce";
+import { avaliar, serieDiaria, contagensAtivas, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=311527ce";
+import { esc, brl, inteiro, pct, mult, dataBR, hoje, diasEntre, dec } from "../core/format.js?v=311527ce";
+import { usuario, podeEditar } from "../core/auth.js?v=311527ce";
 
 export const bannerDemo = () => db.temDemo() ? `<div class="demo-banner"><span>🧪 Há dados de demonstração (marcados com <b>[DEMO]</b> / "(demo)") para você conhecer o sistema. Eles não são dados reais da empresa.</span><a href="#/config?aba=dados" class="btn btn-pq">Remover dados de demonstração</a></div>` : "";
 export const btnNovo = (texto, attr) => podeEditar() ? `<button class="btn btn-primario" ${attr}>➕ ${texto}</button>` : "";
