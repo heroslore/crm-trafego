@@ -5,8 +5,8 @@
 // A chave de acesso NÃO fica no banco, no backup nem na nuvem: mora só neste
 // aparelho (localStorage), porque quem tem essa chave gasta o dinheiro da conta.
 // Todo comando é confirmado antes e vira registro no histórico de decisões.
-import { db } from "./db.js?v=5f8ebfac";
-import { num } from "./format.js?v=5f8ebfac";
+import { db } from "./db.js?v=167f952e";
+import { num } from "./format.js?v=167f952e";
 
 // Atenção: "crm-trafego-meta" já é usada pelo sync.js para guardar o meta.json da coleta.
 // Esta configuração mora numa chave própria.
@@ -56,6 +56,19 @@ export class ErroMeta extends Error {
   constructor(msg, extra = {}) { super(msg); this.name = "ErroMeta"; Object.assign(this, extra); }
 }
 // Mensagens da Meta traduzidas para o que a pessoa precisa fazer a respeito.
+
+// A Meta revalida o objeto inteiro a cada escrita, mesmo quando só o status muda. Se o anúncio
+// tem algum problema de configuração — número de WhatsApp desconectado da Página, criativo
+// inválido —, PAUSAR também é recusado. É um beco sem saída neste nível: nenhuma tentativa de
+// escrever no anúncio vai passar enquanto o problema existir. Marcar esse caso permite ao CRM
+// oferecer o degrau acima, que é o que realmente resolve o que a pessoa queria: parar de gastar.
+const SUBCODIGOS_OBJETO = new Set([2446880]);   // número do WhatsApp obrigatório / desconectado
+function objetoInvalido(e) {
+  if (SUBCODIGOS_OBJETO.has(Number(e.error_subcode))) return true;
+  if (Number(e.code) !== 100) return false;
+  const txt = `${e.error_user_title || ""} ${e.error_user_msg || ""}`;
+  return /whatsapp|reconecte|página do facebook|p[áa]gina do facebook|criativo|obrigat[óo]rio/i.test(txt);
+}
 function amigavel(e) {
   const cod = e.code, sub = e.error_subcode;
   if (e.error_user_msg) {
@@ -64,7 +77,7 @@ function amigavel(e) {
     // deste CRM. São duas coisas diferentes com o mesmo nome, e confundir as duas faz a
     // pessoa mexer no lugar errado — foi exatamente o que aconteceu ao tentar pausar.
     if (/whatsapp/i.test(e.error_user_msg)) {
-      return `${e.error_user_msg}\n\nIsto é da Meta, sobre a conta de WhatsApp ligada ao anúncio — não é a conexão de Conversas do CRM. Resolva em business.facebook.com → Configurações do negócio → Contas do WhatsApp. Enquanto não resolver, pause esse anúncio direto no Gerenciador de Anúncios.`;
+      return `${e.error_user_msg}\n\nIsto é da Meta, sobre o número de WhatsApp ligado ao ANÚNCIO — não é a conexão de Conversas do CRM. Religue o número em business.facebook.com → Configurações do negócio → Contas do WhatsApp, ou na própria Página do Facebook em Configurações → WhatsApp.`;
     }
     return e.error_user_msg;
   }
@@ -106,7 +119,7 @@ async function chamar(caminho, { metodo = "GET", dados = null, campos = null, co
   try { j = await r.json(); } catch { j = null; }
   if (!r.ok || (j && j.error)) {
     const e = (j && j.error) || { message: `Erro ${r.status}` };
-    throw new ErroMeta(amigavel(e), { codigo: e.code, subcodigo: e.error_subcode, titulo: e.error_user_title, bruto: e });
+    throw new ErroMeta(amigavel(e), { codigo: e.code, subcodigo: e.error_subcode, titulo: e.error_user_title, bruto: e, objetoInvalido: objetoInvalido(e) });
   }
   return j;
 }

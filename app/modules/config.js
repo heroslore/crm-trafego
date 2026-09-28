@@ -1,15 +1,15 @@
-import { db, inserirDemonstracao } from "../core/db.js?v=5f8ebfac";
-import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, abas, toast, modal, fecharModal, kpi } from "../core/ui.js?v=5f8ebfac";
-import { esc, dataBR, horaCurta, brl, inteiro } from "../core/format.js?v=5f8ebfac";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=5f8ebfac";
-import { PERMISSOES, ehAdmin, podeEditar, usuario } from "../core/auth.js?v=5f8ebfac";
-import { nuvem, nuvemLigada, conectar, desconectar, sincronizar, carregarMeta, META } from "../core/sync.js?v=5f8ebfac";
-import { lerCSV, lerXLSX, mapearColunas, importar, CAMPOS_IMPORT } from "../core/importer.js?v=5f8ebfac";
-import * as W from "../core/wame.js?v=5f8ebfac";
-import { REFERENCIA_PADRAO, mesclarReferencia, MENOR_MELHOR } from "../core/analise/benchmarks.js?v=5f8ebfac";
-import { MINIMOS } from "../core/analise/confianca.js?v=5f8ebfac";
-import * as MetaApi from "../core/meta.js?v=5f8ebfac";
-import { MODOS_VENDA, MODO_VENDA_PADRAO, normalizarModoVenda } from "../core/analise/index.js?v=5f8ebfac";
+import { db, inserirDemonstracao } from "../core/db.js?v=167f952e";
+import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, abas, toast, modal, fecharModal, kpi } from "../core/ui.js?v=167f952e";
+import { esc, dataBR, horaCurta, brl, inteiro } from "../core/format.js?v=167f952e";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=167f952e";
+import { PERMISSOES, ehAdmin, podeEditar, usuario } from "../core/auth.js?v=167f952e";
+import { nuvem, nuvemLigada, conectar, desconectar, sincronizar, carregarMeta, META } from "../core/sync.js?v=167f952e";
+import { lerCSV, lerXLSX, mapearColunas, importar, CAMPOS_IMPORT } from "../core/importer.js?v=167f952e";
+import * as W from "../core/wame.js?v=167f952e";
+import { REFERENCIA_PADRAO, mesclarReferencia, MENOR_MELHOR } from "../core/analise/benchmarks.js?v=167f952e";
+import { MINIMOS } from "../core/analise/confianca.js?v=167f952e";
+import * as MetaApi from "../core/meta.js?v=167f952e";
+import { MODOS_VENDA, MODO_VENDA_PADRAO, normalizarModoVenda } from "../core/analise/index.js?v=167f952e";
 
 let aba = "empresa", importState = null;
 const METAS = [["faturamento_mes", "Meta de faturamento mensal (R$)"], ["faturamento_semana", "Meta de faturamento semanal (R$)"], ["vendas_mes", "Meta de vendas no mês"], ["leads_mes", "Meta de leads no mês"], ["roas_min", "ROAS mínimo"], ["cpa_max", "CPA máximo (R$)"], ["cpl_max", "CPL máximo (R$)"], ["ticket_medio", "Ticket médio desejado (R$)"], ["investimento_mes", "Investimento planejado do mês (R$)"], ["investimento_semana", "Investimento planejado da semana (R$)"], ["investimento_max_mes", "Investimento máximo mensal (R$)"], ["ctr_min", "CTR mínimo (%)"], ["sla_minutos", "Tempo máximo para o primeiro atendimento (minutos)"], ["taxa_contato_min", "Taxa mínima de leads atendidos (%)"], ["ltv_meta", "LTV desejado por cliente (R$)"]];

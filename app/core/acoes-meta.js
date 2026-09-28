@@ -4,11 +4,11 @@
 //   2. Depois de dar certo, o CRM se atualiza e a ação entra no histórico de decisões —
 //      é o mesmo histórico que mede o antes e o depois de cada mudança.
 //   3. Campanha nova e cópia nascem PAUSADAS. Quem liga o dinheiro é a pessoa.
-import { db } from "./db.js?v=5f8ebfac";
-import * as M from "./meta.js?v=5f8ebfac";
-import { modal, fecharModal, toast, badge } from "./ui.js?v=5f8ebfac";
-import { esc, brl, agora, num } from "./format.js?v=5f8ebfac";
-import { usuario, podeEditar } from "./auth.js?v=5f8ebfac";
+import { db } from "./db.js?v=167f952e";
+import * as M from "./meta.js?v=167f952e";
+import { modal, fecharModal, toast, badge } from "./ui.js?v=167f952e";
+import { esc, brl, agora, num } from "./format.js?v=167f952e";
+import { usuario, podeEditar } from "./auth.js?v=167f952e";
 
 const TABELA = { campanha: "campaigns", conjunto: "ad_sets", anuncio: "ads" };
 const NOME_TIPO = { campanha: "campanha", conjunto: "conjunto", anuncio: "anúncio" };
@@ -38,9 +38,10 @@ const aviso = (txt) => `<div class="aviso aviso-alerta">${txt}</div>`;
 const caixaConta = () => `<p class="sub">Conta de anúncios: <b>${esc((M.estado.conta && M.estado.conta.name) || M.cfg.conta)}</b>. A mudança vale na Meta na hora.</p>`;
 
 // ---------------------------------------------------------------- comandos
-async function comFalha(fn, ctx) {
+async function comFalha(fn, alternativa = null) {
   try { return await fn(); } catch (e) {
     console.error("Meta:", e);
+    const saida = (e.objetoInvalido && alternativa) ? alternativa(e) : null;
     // O detalhe técnico fica guardado e copiável: sem o código e a mensagem original da Meta,
     // não há como saber se foi permissão, conta bloqueada ou problema do anúncio — e a pessoa
     // fica repetindo o clique achando que é o CRM.
@@ -55,7 +56,11 @@ async function comFalha(fn, ctx) {
       ${e.codigo ? `<p class="sub">Código ${esc(e.codigo)}${e.subcodigo ? " · subcódigo " + esc(e.subcodigo) : ""}.</p>` : ""}
       ${detalhe ? `<details style="margin:8px 0"><summary class="sub" style="cursor:pointer">Detalhe técnico (para mandar a quem for ajudar)</summary><pre style="white-space:pre-wrap;font-size:.75rem;margin:6px 0">${esc(detalhe)}</pre><button class="btn btn-pq" data-copiar-erro>📋 Copiar detalhe</button></details>` : ""}
       ${e.parcial ? `<div class="aviso aviso-alerta">Parte da estrutura chegou a ser criada e ficou <b>pausada</b>: ${(e.passos || []).map((p) => esc(p.etapa)).join(", ")}. Confira no Gerenciador de Anúncios antes de tentar de novo, para não duplicar.</div>` : ""}
+      ${saida ? `<div class="aviso aviso-alerta" style="margin-top:10px"><b>${esc(saida.titulo)}</b><div style="margin-top:4px">${esc(saida.texto)}</div>
+        <button class="btn btn-perigo btn-pq" data-saida style="margin-top:10px">${esc(saida.botao)}</button></div>` : ""}
       <p class="sub">Nada foi alterado no CRM.</p>`, { titulo: "Não deu certo" });
+    const alt = document.querySelector("#modal [data-saida]");
+    if (alt) alt.addEventListener("click", () => { fecharModal(); saida.agir(); });
     const cp = document.querySelector("#modal [data-copiar-erro]");
     if (cp) cp.addEventListener("click", async () => {
       try { await navigator.clipboard.writeText(detalhe); toast("Detalhe copiado."); }
@@ -65,6 +70,36 @@ async function comFalha(fn, ctx) {
   }
 }
 
+
+// Um degrau acima do que falhou. Pausar o conjunto (ou a campanha) não encosta no criativo do
+// anúncio, então passa mesmo quando o anúncio está inválido. Em troca, para os irmãos junto —
+// e é por isso que o número de irmãos vai escrito no botão: ninguém pode ser surpreendido
+// tendo parado três anúncios achando que parou um.
+const PAI = { anuncio: "conjunto", conjunto: "campanha" };
+function paiDe(tipo, reg) {
+  const acima = PAI[tipo];
+  if (!acima) return null;
+  const pai = acima === "conjunto"
+    ? (reg.ad_set_id ? db.get("ad_sets", reg.ad_set_id) : null)
+    : (reg.campaign_id ? db.get("campaigns", reg.campaign_id) : null);
+  if (!pai || !pai.external_id) return null;
+  const irmaos = acima === "conjunto"
+    ? db.where("ads", (a) => a.ad_set_id === pai.id && a.id !== reg.id && a.status === "ativa").length
+    : db.where("ad_sets", (x) => x.campaign_id === pai.id && x.id !== reg.id && x.status === "ativa").length;
+  return { tipo: acima, reg: pai, irmaos };
+}
+function saidaPausarPai(tipo, reg, ctx) {
+  const p = paiDe(tipo, reg);
+  if (!p) return null;
+  const filhos = p.tipo === "conjunto" ? "anúncio(s)" : "conjunto(s)";
+  return {
+    titulo: `A Meta não deixa mexer neste ${NOME_TIPO[tipo]} enquanto o problema existir.`,
+    texto: `Qualquer alteração no ${NOME_TIPO[tipo]} — inclusive pausar — passa pela mesma conferência e vai ser recusada igual. Para parar de gastar agora, dá para pausar o ${p.tipo} "${p.reg.name}", que não depende dessa conferência.` +
+      (p.irmaos ? ` Atenção: isso também para ${p.irmaos} outro(s) ${filhos} ativo(s) dentro dele.` : " Não há outro ativo dentro dele, então o efeito é o mesmo."),
+    botao: p.irmaos ? `⏸️ Pausar o ${p.tipo} inteiro (${p.irmaos + 1} ${filhos})` : `⏸️ Pausar o ${p.tipo}`,
+    agir: () => pausarOuAtivar(p.tipo, p.reg, false, ctx),
+  };
+}
 export async function pausarOuAtivar(tipo, reg, ativar, ctx) {
   const nome = reg.name || NOME_TIPO[tipo];
   const ok = await confirmar({
@@ -87,7 +122,9 @@ export async function pausarOuAtivar(tipo, reg, ativar, ctx) {
     toast(ativar ? "Reativado na Meta." : "Pausado na Meta.");
     if (ctx) ctx.rerender();
     return true;
-  });
+    // A saída pelo degrau acima só vale para PAUSAR. Reativar o conjunto ou a campanha por
+    // causa de um anúncio quebrado ligaria coisa que ninguém pediu — e ainda gastando.
+  }, ativar ? null : () => saidaPausarPai(tipo, reg, ctx));
 }
 
 export async function ajustarOrcamento(tipo, reg, ctx) {

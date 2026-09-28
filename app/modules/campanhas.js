@@ -1,18 +1,18 @@
-import { db } from "../core/db.js?v=5f8ebfac";
-import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=5f8ebfac";
-import { situacaoCampanha } from "../core/rules.js?v=5f8ebfac";
-import { blocoAnalise } from "../core/analise/ui.js?v=5f8ebfac";
-import { blocoPublico } from "../core/analise/publico-ui.js?v=5f8ebfac";
-import { META } from "../core/sync.js?v=5f8ebfac";
-import * as AcoesMeta from "../core/acoes-meta.js?v=5f8ebfac";
-import { listaDiagnostico, comparativoEtapas, ordenarAnalises } from "../core/analise/ui.js?v=5f8ebfac";
-import { analisarVarios } from "../core/analise/index.js?v=5f8ebfac";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=5f8ebfac";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=5f8ebfac";
-import { bannerDemo, btnNovo, linhaNumeros, avisoVendasNaoLancadas, badgeBloqueio, avisoBloqueio } from "./comum.js?v=5f8ebfac";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=5f8ebfac";
-import { usuario } from "../core/auth.js?v=5f8ebfac";
-import { podeEditar } from "../core/auth.js?v=5f8ebfac";
+import { db } from "../core/db.js?v=167f952e";
+import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=167f952e";
+import { situacaoCampanha } from "../core/rules.js?v=167f952e";
+import { blocoAnalise } from "../core/analise/ui.js?v=167f952e";
+import { blocoPublico } from "../core/analise/publico-ui.js?v=167f952e";
+import { META } from "../core/sync.js?v=167f952e";
+import * as AcoesMeta from "../core/acoes-meta.js?v=167f952e";
+import { listaDiagnostico, comparativoEtapas, ordenarAnalises } from "../core/analise/ui.js?v=167f952e";
+import { analisarVarios } from "../core/analise/index.js?v=167f952e";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=167f952e";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=167f952e";
+import { bannerDemo, btnNovo, linhaNumeros, avisoVendasNaoLancadas, badgeBloqueio, avisoBloqueio } from "./comum.js?v=167f952e";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=167f952e";
+import { usuario } from "../core/auth.js?v=167f952e";
+import { podeEditar } from "../core/auth.js?v=167f952e";
 
 let filtroStatus = "ativa", filtroPlat = "";
 
