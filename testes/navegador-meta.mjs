@@ -269,6 +269,48 @@ ok(kCompleto.roas === 0, "no modo \"toda venda é lançada\", ROAS 0 volta a apa
 ok(kCompleto.roi === -1, "no modo \"toda venda é lançada\", ROI -100% volta a aparecer");
 
 
+console.log("\n[11] Diagnóstico de público");
+await p.goto(BASE + "#/publicos", { waitUntil: "networkidle" });
+await p.waitForTimeout(1800);
+const pub = await p.locator("main").innerText();
+ok(/Diagnóstico/.test(pub), "a aba de diagnóstico é a primeira e abre sozinha");
+ok(/público está adequado|dinheiro está no lugar errado|dá para melhorar|não dá para concluir/.test(pub),
+   "dá um veredito claro sobre o público");
+ok(/média .*\/msg|custo médio|msg/.test(pub), "mostra o custo por mensagem que sustenta o veredito");
+ok(!/NaN|undefined|Infinity/.test(pub), "nenhum número quebrado na tela");
+await p.screenshot({ path: `${SAIDA}/publico-diagnostico.png`, fullPage: true });
+
+// A tela de público é a mais cheia de número do CRM: se alguma vai rasgar o celular, é ela.
+await p.setViewportSize({ width: 390, height: 844 });
+await p.waitForTimeout(600);
+const overPub = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+ok(overPub === 0, `diagnóstico de público sem transbordo no celular (${overPub}px)`);
+await p.screenshot({ path: `${SAIDA}/publico-celular.png`, fullPage: false });
+await p.setViewportSize({ width: 1400, height: 1000 });
+await p.waitForTimeout(400);
+
+// O veredito precisa bater com o motor: tela e motor não podem discordar.
+const motor = await p.evaluate(async () => {
+  const { analisarPublico } = await import("./app/core/analise/publico.js");
+  const r = await fetch("./dados/meta.json"); const d = await r.json();
+  const a = analisarPublico(d.publico);
+  return { nivel: a.veredito.nivel, titulo: a.veredito.titulo, acoes: a.acoes.length };
+});
+ok(pub.includes(motor.titulo), `a tela mostra o mesmo veredito do motor ("${motor.titulo}")`);
+
+console.log("\n[12] Coleta parada avisa em qualquer tela");
+const aviso = await p.evaluate(async () => {
+  const { avisoColeta, estadoDaColeta } = await import("./app/core/sync.js");
+  const velho = { gerado_em: "2020-01-01T00:00:00+00:00", periodo: { fim: "2019-12-31" } };
+  const novo = { gerado_em: new Date().toISOString().slice(0, 19) + "+00:00", periodo: { fim: new Date().toISOString().slice(0, 10) } };
+  return { velho: avisoColeta(velho), novo: avisoColeta(novo), dias: estadoDaColeta(velho).dias };
+});
+ok(aviso.dias > 1000, "conta há quantos dias a coleta parou");
+ok(/números estão velhos/.test(aviso.velho), "avisa quando a coleta está parada");
+ok(/META_ACCESS_TOKEN/.test(aviso.velho), "diz exatamente qual segredo conferir");
+ok(aviso.novo === "", "cala a boca quando a coleta está em dia");
+
+
 console.log("\nERROS DE JS:", erros.length);
 for (const e of erros.slice(0, 10)) console.log(" -", e);
 console.log(falhas ? `\n${falhas} verificação(ões) falharam.` : "\nTodas as verificações passaram.");

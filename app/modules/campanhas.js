@@ -2,6 +2,8 @@ import { db } from "../core/db.js";
 import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js";
 import { situacaoCampanha } from "../core/rules.js";
 import { blocoAnalise } from "../core/analise/ui.js";
+import { blocoPublico } from "../core/analise/publico-ui.js";
+import { META } from "../core/sync.js";
 import * as AcoesMeta from "../core/acoes-meta.js";
 import { listaDiagnostico, comparativoEtapas, ordenarAnalises } from "../core/analise/ui.js";
 import { analisarVarios } from "../core/analise/index.js";
@@ -132,6 +134,7 @@ function detalhe(root, ctx, c) {
       ${cartao("Público", sets.length ? `<div class="lista">${sets.map((a) => itemLista({ titulo: esc(a.name), sub: esc(a.targeting || "") + (a.audience_id ? " · " + esc((db.get("audiences", a.audience_id) || {}).name || "") : ""), badges: badgeOpcao("campaign_status", a.status), direita: (a.daily_budget ? brl(a.daily_budget) + "/dia " : "") + AcoesMeta.botaoStatus("conjunto", a) })).join("")}</div>` : (c.audience_id ? itemLista({ titulo: esc((db.get("audiences", c.audience_id) || {}).name || ""), sub: "público principal" }) : vazio("Sem conjuntos cadastrados.")), podeEditar() ? `<button class="btn btn-pq" data-novo-conjunto>➕ Conjunto</button>` : "")}
     </div>
     ${cartao("Resultados no período", linhaNumeros(k, ["spend", "revenue", "gross_profit", "roas", "roi", "leads", "sales", "conversion", "cpl", "cpa", "ticket", "ctr", "cpc", "cpm", "impressions", "reach"]) + graficoLinhas({ rotulos: serie.map((d) => dataCurta(d.date)), series: [{ nome: "Investimento", cor: "var(--acento)", valores: serie.map((d) => d.spend), barras: true }, { nome: "Faturamento", cor: "var(--verde)", valores: serie.map((d) => d.revenue) }], formato: "money", altura: 200 }))}
+    ${c.external_id && META && META.publico ? cartao("👥 Público desta campanha", blocoPublico(META.publico, { campanhaId: c.external_id, compacto: true })) : ""}
     ${comparativoDaCampanha(c, iv)}
     ${cartaoDecisoes(c)}
     <div class="grid2">

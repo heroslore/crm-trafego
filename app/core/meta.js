@@ -58,7 +58,16 @@ export class ErroMeta extends Error {
 // Mensagens da Meta traduzidas para o que a pessoa precisa fazer a respeito.
 function amigavel(e) {
   const cod = e.code, sub = e.error_subcode;
-  if (e.error_user_msg) return e.error_user_msg;
+  if (e.error_user_msg) {
+    // Quando a Meta fala em reconectar o WhatsApp, ela está falando do WhatsApp LIGADO AO
+    // ANÚNCIO (a conta do WhatsApp Business do portfólio), não da integração de Conversas
+    // deste CRM. São duas coisas diferentes com o mesmo nome, e confundir as duas faz a
+    // pessoa mexer no lugar errado — foi exatamente o que aconteceu ao tentar pausar.
+    if (/whatsapp/i.test(e.error_user_msg)) {
+      return `${e.error_user_msg}\n\nIsto é da Meta, sobre a conta de WhatsApp ligada ao anúncio — não é a conexão de Conversas do CRM. Resolva em business.facebook.com → Configurações do negócio → Contas do WhatsApp. Enquanto não resolver, pause esse anúncio direto no Gerenciador de Anúncios.`;
+    }
+    return e.error_user_msg;
+  }
   if (cod === 190) return "A chave de acesso expirou ou foi revogada. Gere outra e cole de novo em Configurações → Meta.";
   if (cod === 200 || cod === 10 || cod === 299) return "Esta chave não tem permissão para alterar campanhas. Falta a permissão ads_management na conta de anúncios.";
   if (cod === 17 || cod === 613 || sub === 2446079) return "A Meta limitou a quantidade de chamadas por agora. Espere alguns minutos e tente de novo.";
