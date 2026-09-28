@@ -374,6 +374,14 @@ ok(/inclusive pausar/.test(errWpp), "explica que insistir no anúncio não vai a
 ok(/Pausar o conjunto inteiro/.test(errWpp), "oferece pausar o conjunto");
 ok(/também para 2 outro\(s\) anúncio\(s\)/.test(errWpp) || /também para \d+ outro/.test(errWpp),
    "avisa quantos outros anúncios param junto");
+ok(/Onde resolver isto/.test(errWpp), "aponta onde o problema se resolve, que não é aqui");
+const hrefs = await p.locator("#modal a").evaluateAll((as) => as.map((a) => a.href));
+ok(hrefs.some((h) => /adsmanager\.facebook\.com.*selected_ad_ids=wpp-solto-1/.test(h)),
+   "o link do Gerenciador já abre neste anúncio, não na conta inteira");
+ok(hrefs.some((h) => /settings\/pages\?business_id=1899000000000001/.test(h)),
+   "e manda para a Página, que é a ligação que o anúncio exige");
+ok(/provavelmente já está certo/.test(errWpp),
+   "avisa que o Gerenciador do WhatsApp aparece verde mesmo com o anúncio quebrado");
 await p.locator("#modal").screenshot({ path: `${SAIDA}/meta-wpp-solto.png` });
 
 await p.locator("#modal [data-saida]").click();
