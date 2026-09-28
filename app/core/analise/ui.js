@@ -271,12 +271,19 @@ export function comparativoEtapas(analises, montarLink) {
 // joga o período da tela para aquela janela.
 export function listaSemEntrega(itens, titulo = "Sem entrega no período") {
   if (!itens.length) return "";
-  const comHistorico = itens.filter((x) => x.janela).sort((a, b) => b.janela.fim.localeCompare(a.janela.fim));
-  const nunca = itens.filter((x) => !x.janela);
+  // Quem a Meta bloqueou sai do agrupamento normal e fica no topo, sempre visível: um anúncio
+  // bloqueado quase nunca tem entrega, então cairia dentro do "sem nenhuma entrega" fechado —
+  // enterrado justamente no cartão que existe para dizer que não há nada de errado com ele.
+  const bloqueados = itens.filter((x) => x.registro.meta_bloqueio);
+  const resto = itens.filter((x) => !x.registro.meta_bloqueio);
+  const comHistorico = resto.filter((x) => x.janela).sort((a, b) => b.janela.fim.localeCompare(a.janela.fim));
+  const nunca = resto.filter((x) => !x.janela);
   const linha = (x) => `<div class="an-fora">
       ${x.imagem ? `<img src="${esc(x.imagem)}" alt="" loading="lazy" onerror="this.remove()">` : `<span class="an-fora-ico">🎬</span>`}
       <div class="an-fora-txt">
         <a href="${esc(x.href)}"><b>${esc(x.registro.name || "(sem nome)")}</b></a>
+        ${x.registro.meta_bloqueio ? ` ${badge("⛔ bloqueado na Meta", "vermelho")}` : ""}
+        ${x.registro.meta_bloqueio ? `<div class="sub" style="color:var(--vermelho)">${esc(x.registro.meta_bloqueio)}</div>` : ""}
         ${x.janela
           ? `<div class="sub">rodou de ${dataBR(x.janela.inicio)} a ${dataBR(x.janela.fim)} · ${inteiro(x.janela.dias)} dia(s) · ${brl(x.janela.gasto)} · ${inteiro(x.janela.impressoes)} impressões</div>`
           : `<div class="sub">nunca teve entrega registrada</div>`}
@@ -284,7 +291,8 @@ export function listaSemEntrega(itens, titulo = "Sem entrega no período") {
       ${x.janela ? `<button class="btn btn-pq" data-ir-periodo data-inicio="${esc(x.janela.inicio)}" data-fim="${esc(x.janela.fim)}">📅 Analisar esse período</button>` : ""}
     </div>`;
   return cartao(`${esc(titulo)} <small>${itens.length}</small>`,
-    `<p class="sub" style="margin-bottom:10px">Estes não tiveram entrega no período selecionado, então não há o que analisar aqui — não é que tenham ido mal. Use o botão para levar a tela até a janela em que cada um rodou, ou troque o período no topo para <b>Todo o histórico</b>.</p>
+    `<p class="sub" style="margin-bottom:10px">Estes não tiveram entrega no período selecionado, então não há o que analisar aqui — não é que tenham ido mal. <b>Menos os marcados em vermelho: esses a Meta bloqueou, e é por isso que não entregaram.</b> Use o botão para levar a tela até a janela em que cada um rodou, ou troque o período no topo para <b>Todo o histórico</b>.</p>
+     ${bloqueados.map(linha).join("")}
      ${comHistorico.map(linha).join("")}
      ${nunca.length ? `<details style="margin-top:8px"><summary class="sub">${nunca.length} sem nenhuma entrega registrada</summary>${nunca.map(linha).join("")}</details>` : ""}`);
 }

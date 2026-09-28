@@ -84,5 +84,39 @@ class TestAlertas(unittest.TestCase):
         self.assertEqual(tipos, ["custo_alto", "frequencia"])
 
 
+class TestProblemas(unittest.TestCase):
+    def test_le_o_motivo_do_bloqueio(self):
+        r = {"issues_info": [{"level": "AD", "error_code": 3867089, "error_type": "HARD_ERROR",
+                              "error_summary": "Analise 1 erro",
+                              "error_message": "Analise 1 erro: Este anúncio não pode ser publicado."}]}
+        p = coletar.problemas_de(r)[0]
+        self.assertEqual(p["codigo"], 3867089)
+        self.assertEqual(p["tipo"], "HARD_ERROR")
+        # a Meta repete o resumo dentro da mensagem; guardar duas vezes só polui a tela
+        self.assertEqual(p["mensagem"], "Este anúncio não pode ser publicado.")
+
+    def test_sem_problema_vira_lista_vazia(self):
+        self.assertEqual(coletar.problemas_de({}), [])
+        self.assertEqual(coletar.problemas_de({"issues_info": None}), [])
+
+    def test_entrega_bloqueada_vira_alerta_com_nivel(self):
+        dia = dt.date(2026, 9, 20)
+        anuncios = [{"id": "a1", "nome": "android", "campanha_id": "c1",
+                     "problemas": [{"nivel": "AD", "codigo": 3867089, "tipo": "HARD_ERROR",
+                                    "resumo": "Analise 1 erro", "mensagem": "Loja fora dos requisitos."}]}]
+        av = coletar.calcular_alertas(dia, [], TestAlertas.campanhas, anuncios=anuncios)
+        self.assertEqual(len(av), 1)
+        self.assertEqual(av[0]["tipo"], "entrega_bloqueada")
+        self.assertEqual(av[0]["nivel"], "anúncio")
+        self.assertEqual(av[0]["campanha_id"], "c1")
+        self.assertTrue(av[0]["grave"])
+        self.assertIn("Loja fora dos requisitos.", av[0]["texto"])
+
+    def test_anuncio_sem_problema_nao_gera_alerta(self):
+        av = coletar.calcular_alertas(dt.date(2026, 9, 20), [], TestAlertas.campanhas,
+                                      anuncios=[{"id": "a1", "nome": "ok", "problemas": []}])
+        self.assertEqual(av, [])
+
+
 if __name__ == "__main__":
     unittest.main()

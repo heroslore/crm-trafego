@@ -44,12 +44,15 @@ await p.reload({ waitUntil: "networkidle" });
 await p.waitForTimeout(3500);
 const depois = await p.evaluate(() => {
   const db = window.CRM.db;
-  return { metricas: db.count("campaign_metrics"), comVideo: db.where("campaign_metrics", (m) => m.video_3s > 0).length, mapa: db.settings().meta_mapa_versao };
+  return { metricas: db.count("campaign_metrics"), comVideo: db.where("campaign_metrics", (m) => m.video_3s > 0).length, mapa: db.settings().meta_mapa_versao, bloqueados: db.where("ads", (a) => a.meta_bloqueio).length };
 });
 ok(depois.comVideo > 0, `reimportou sozinho: ${depois.comVideo} linha(s) com vídeo de volta`);
 ok(depois.comVideo === antes.comVideo, `mesmo total de antes (${antes.comVideo})`);
 ok(depois.metricas === antes.metricas, "não duplicou linhas");
-ok(Number(depois.mapa) >= 3, `gravou a versão do mapa (${depois.mapa})`);
+ok(Number(depois.mapa) >= 4, `gravou a versão do mapa (${depois.mapa})`);
+// O bloqueio da Meta só chega a quem já tinha importado por causa desta reimportação:
+// sem subir a versão do mapa, um anúncio reprovado ficaria para sempre como "pausado".
+ok(depois.bloqueados >= 1, `trouxe o motivo do bloqueio para ${depois.bloqueados} anúncio(s)`);
 
 console.log("\n[3] Com o mapa já na versão certa, não refaz o trabalho à toa");
 const chamadas = [];
