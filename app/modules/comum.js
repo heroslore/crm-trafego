@@ -1,9 +1,9 @@
 // Pedaços compartilhados pelos módulos.
-import { db } from "../core/db.js?v=311527ce";
-import { kpi, badge, badgeOpcao, cartao, vazio, itemLista, prioridadeBadge, fmtMetrica } from "../core/ui.js?v=311527ce";
-import { avaliar, serieDiaria, contagensAtivas, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=311527ce";
-import { esc, brl, inteiro, pct, mult, dataBR, hoje, diasEntre, dec } from "../core/format.js?v=311527ce";
-import { usuario, podeEditar } from "../core/auth.js?v=311527ce";
+import { db } from "../core/db.js?v=5f8ebfac";
+import { kpi, badge, badgeOpcao, cartao, vazio, itemLista, prioridadeBadge, fmtMetrica } from "../core/ui.js?v=5f8ebfac";
+import { avaliar, serieDiaria, contagensAtivas, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=5f8ebfac";
+import { esc, brl, inteiro, pct, mult, dataBR, hoje, diasEntre, dec } from "../core/format.js?v=5f8ebfac";
+import { usuario, podeEditar } from "../core/auth.js?v=5f8ebfac";
 
 export const bannerDemo = () => db.temDemo() ? `<div class="demo-banner"><span>🧪 Há dados de demonstração (marcados com <b>[DEMO]</b> / "(demo)") para você conhecer o sistema. Eles não são dados reais da empresa.</span><a href="#/config?aba=dados" class="btn btn-pq">Remover dados de demonstração</a></div>` : "";
 export const btnNovo = (texto, attr) => podeEditar() ? `<button class="btn btn-primario" ${attr}>➕ ${texto}</button>` : "";
@@ -29,6 +29,23 @@ export function avisoVendasNaoLancadas(linhas, oQue = "campanhas") {
   const afetadas = kk.filter((k) => k.vendas_medidas === false && (k.spend || 0) > 0).length;
   if (!afetadas) return "";
   return `<div class="aviso aviso-info"><b>ROAS, ROI e conversão aparecem como "—" em ${inteiro(afetadas)} ${esc(oQue)}.</b> Nenhuma venda foi lançada nesse período, e o sistema está configurado para "nem toda venda é lançada". Mostrar 0,00x de ROAS e −100% de ROI seria afirmar um prejuízo que ninguém mediu. Lance a venda e o número aparece — ou mude em <a href="#/config?aba=analise">Configurações → Análise</a>.</div>`;
+}
+
+// ---------------------------------------------------------------- entrega bloqueada pela Meta
+// Anúncio reprovado chegava como "pausado", indistinguível de uma pausa que a equipe deu. O
+// dinheiro não está sendo gasto errado: não está rodando, e ninguém foi avisado. Por isso o
+// aviso é vermelho e traz o texto da Meta inteiro — é ele que diz o que precisa ser resolvido.
+export const bloqueado = (reg) => !!(reg && reg.meta_bloqueio);
+export function badgeBloqueio(reg) {
+  return bloqueado(reg) ? badge("⛔ bloqueado na Meta", "vermelho") : "";
+}
+export function avisoBloqueio(reg, oQue = "anúncio") {
+  if (!bloqueado(reg)) return "";
+  return `<div class="aviso aviso-erro" style="margin-bottom:12px">
+    <b>⛔ A Meta bloqueou a entrega deste ${esc(oQue)}.</b> Ele não está rodando nem gastando, e pausar ou reativar pelo CRM não resolve — quem libera é a Meta.
+    <div style="margin-top:6px">${esc(reg.meta_bloqueio)}</div>
+    <p class="sub" style="margin:8px 0 0">Resolva no <a href="https://adsmanager.facebook.com/" target="_blank" rel="noopener">Gerenciador de Anúncios</a> ou na Central de Qualidade da Conta. Assim que a Meta liberar, a próxima coleta limpa este aviso sozinha.</p>
+  </div>`;
 }
 
 export const KPIS_PRINCIPAIS = ["spend", "revenue", "gross_profit", "net_profit", "roas", "roi", "leads", "qualified", "sales", "conversion", "cpl", "cpl_qualificado", "cpa", "ticket", "ctr", "cpc", "cpm"];

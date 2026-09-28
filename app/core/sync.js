@@ -1,6 +1,6 @@
 // Integrações: dados da Meta (dados/meta.json) e nuvem no GitHub (crm.json em repositório privado).
-import { db } from "./db.js?v=311527ce";
-import { agora, horaCurta, b64utf8, utf8b64, semAcento, hoje, diasEntre, dataBR } from "./format.js?v=311527ce";
+import { db } from "./db.js?v=5f8ebfac";
+import { agora, horaCurta, b64utf8, utf8b64, semAcento, hoje, diasEntre, dataBR } from "./format.js?v=5f8ebfac";
 
 export let META = null; // arquivo bruto, usado pelos recortes de público
 
@@ -8,7 +8,7 @@ export let META = null; // arquivo bruto, usado pelos recortes de público
 // SOBE sempre que aplicarMeta() passar a gravar um campo novo. Sem isso, a trava de
 // "arquivo não mudou" faria a melhoria nunca alcançar quem já tinha importado aquele
 // arquivo: os registros antigos ficariam para sempre sem os campos novos.
-export const VERSAO_MAPA = 3;
+export const VERSAO_MAPA = 4;
 
 // ---------------------------------------------------------------- a coleta está viva?
 // A coleta diária ficou seis dias parada por falta do segredo META_ACCESS_TOKEN no GitHub, e
@@ -75,19 +75,30 @@ export function aplicarMeta(d) {
     if (Object.keys(patch).length) { delete a.deleted_at; db.update(t, a.id, patch); }
     return a;
   };
+// Motivo do bloqueio, do jeito que a Meta escreveu. Um anúncio reprovado chegava ao CRM só
+// como "pausado" — igualzinho a uma pausa que a equipe deu de propósito. Guardar o status
+// cru e o texto separa as duas coisas.
+const bloqueioDe = (x) => {
+  const ps = (x && x.problemas) || [];
+  if (!ps.length) return { meta_status: (x && x.status) || "", meta_bloqueio: "" };
+  return {
+    meta_status: (x && x.status) || "",
+    meta_bloqueio: ps.map((p) => [p.resumo, p.mensagem].filter(Boolean).join(": ")).join(" | "),
+  };
+};
   for (const c of d.campanhas || []) {
-    const r = up("campaigns", camps, c.id, { name: c.nome, platform: "meta", objective: OBJETIVO_META[c.objetivo] || "engajamento", start_date: c.inicio || c.criado_em, end_date: c.fim || "", status: STATUS_META[c.status] || "pausada", daily_budget: c.orcamento_diario, total_budget: c.orcamento_total, source: "meta", company_id: empresaPorNome(c.nome) }, ["name", "status", "daily_budget", "total_budget", "start_date", "end_date"]);
+    const r = up("campaigns", camps, c.id, { name: c.nome, platform: "meta", objective: OBJETIVO_META[c.objetivo] || "engajamento", start_date: c.inicio || c.criado_em, end_date: c.fim || "", status: STATUS_META[c.status] || "pausada", daily_budget: c.orcamento_diario, total_budget: c.orcamento_total, source: "meta", company_id: empresaPorNome(c.nome), ...bloqueioDe(c) }, ["name", "status", "daily_budget", "total_budget", "start_date", "end_date", "meta_status", "meta_bloqueio"]);
     if (!r.company_id) { const e = empresaPorNome(c.nome); if (e) db.update("campaigns", r.id, { company_id: e }); }
     idCamp[c.id] = r.id;
   }
   for (const s of d.conjuntos || []) {
-    const r = up("ad_sets", sets, s.id, { name: s.nome, campaign_id: idCamp[s.campanha_id] || "", status: STATUS_META[s.status] || "pausada", daily_budget: s.orcamento_diario, targeting: [s.idade ? "idade " + s.idade : "", s.genero, (s.locais || []).join(", "), s.otimizacao ? "otimiza " + s.otimizacao.toLowerCase().replace(/_/g, " ") : ""].filter(Boolean).join(" · ") }, ["name", "campaign_id", "status", "daily_budget", "targeting"]);
+    const r = up("ad_sets", sets, s.id, { name: s.nome, campaign_id: idCamp[s.campanha_id] || "", status: STATUS_META[s.status] || "pausada", daily_budget: s.orcamento_diario, targeting: [s.idade ? "idade " + s.idade : "", s.genero, (s.locais || []).join(", "), s.otimizacao ? "otimiza " + s.otimizacao.toLowerCase().replace(/_/g, " ") : ""].filter(Boolean).join(" · "), ...bloqueioDe(s) }, ["name", "campaign_id", "status", "daily_budget", "targeting", "meta_status", "meta_bloqueio"]);
     idSet[s.id] = r.id;
   }
   for (const a of d.anuncios || []) {
     const cr = up("creatives", crs, "cr:" + a.id, { name: a.nome, type: TIPO_CRIATIVO[a.tipo] || "foto", campaign_id: idCamp[a.campanha_id] || "", thumbnail: a.miniatura || "", copy: a.texto || "", link: a.link_instagram || "", published_at: a.criado_em || "", created_at_date: a.criado_em || "" }, ["name", "thumbnail", "copy", "link", "campaign_id"]);
     idCr[a.id] = cr.id;
-    const r = up("ads", ads, a.id, { name: a.nome, campaign_id: idCamp[a.campanha_id] || "", ad_set_id: idSet[a.conjunto_id] || "", creative_id: cr.id, status: STATUS_META[a.status] || "pausada" }, ["name", "campaign_id", "ad_set_id", "creative_id", "status"]);
+    const r = up("ads", ads, a.id, { name: a.nome, campaign_id: idCamp[a.campanha_id] || "", ad_set_id: idSet[a.conjunto_id] || "", creative_id: cr.id, status: STATUS_META[a.status] || "pausada", ...bloqueioDe(a) }, ["name", "campaign_id", "ad_set_id", "creative_id", "status", "meta_status", "meta_bloqueio"]);
     idAd[a.id] = r.id;
   }
   // produto do criativo herda o produto da campanha, se ainda não tiver

@@ -1,11 +1,11 @@
-import { db } from "../core/db.js?v=311527ce";
-import { kpis, porEntidade } from "../core/metrics.js?v=311527ce";
-import { META } from "../core/sync.js?v=311527ce";
-import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, barrasH, abas, itemLista } from "../core/ui.js?v=311527ce";
-import { esc, brl, inteiro, pct, mult, dataBR } from "../core/format.js?v=311527ce";
-import { bannerDemo, btnNovo } from "./comum.js?v=311527ce";
-import { blocoPublico } from "../core/analise/publico-ui.js?v=311527ce";
-import { rotulo as rotuloOpcao } from "../core/schema.js?v=311527ce";
+import { db } from "../core/db.js?v=5f8ebfac";
+import { kpis, porEntidade } from "../core/metrics.js?v=5f8ebfac";
+import { META } from "../core/sync.js?v=5f8ebfac";
+import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, barrasH, abas, itemLista } from "../core/ui.js?v=5f8ebfac";
+import { esc, brl, inteiro, pct, mult, dataBR } from "../core/format.js?v=5f8ebfac";
+import { bannerDemo, btnNovo } from "./comum.js?v=5f8ebfac";
+import { blocoPublico } from "../core/analise/publico-ui.js?v=5f8ebfac";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=5f8ebfac";
 
 let aba = "diagnostico";
 export default {

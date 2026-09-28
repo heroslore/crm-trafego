@@ -1,8 +1,8 @@
 // Tela do diagnóstico de público. Ordem: veredito primeiro, ação depois, número por último —
 // quem abre quer saber se está certo ou errado, não conferir tabela.
-import { analisarPublico, NIVEIS } from "./publico.js?v=311527ce";
-import { cartao, barrasH, vazio, badge } from "../ui.js?v=311527ce";
-import { esc, brl, pct, inteiro, dataBR } from "../format.js?v=311527ce";
+import { analisarPublico, NIVEIS } from "./publico.js?v=5f8ebfac";
+import { cartao, barrasH, vazio, badge } from "../ui.js?v=5f8ebfac";
+import { esc, brl, pct, inteiro, dataBR } from "../format.js?v=5f8ebfac";
 
 const CLASSE = { bom: "aviso-ok", medio: "aviso-alerta", ruim: "aviso-erro", sem_dados: "aviso-info" };
 

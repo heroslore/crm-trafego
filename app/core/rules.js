@@ -1,9 +1,9 @@
 // Classificações automáticas, alertas, oportunidades, central de decisões e textos do analista.
 // Nada aqui altera dados: só lê e sugere.
-import { db } from "./db.js?v=311527ce";
-import { kpis, comparar, porEntidade, resumoProduto, mediaCampanhas, avaliar, serieDiaria, leadsNoPeriodo, atendimento, filaDeAtendimento, pacing, minutosEsperando } from "./metrics.js?v=311527ce";
-import { intervalo, anterior } from "./periods.js?v=311527ce";
-import { brl, pct, mult, dec, inteiro, hoje, somaDias, diasEntre, dataBR, variacao, num } from "./format.js?v=311527ce";
+import { db } from "./db.js?v=5f8ebfac";
+import { kpis, comparar, porEntidade, resumoProduto, mediaCampanhas, avaliar, serieDiaria, leadsNoPeriodo, atendimento, filaDeAtendimento, pacing, minutosEsperando } from "./metrics.js?v=5f8ebfac";
+import { intervalo, anterior } from "./periods.js?v=5f8ebfac";
+import { brl, pct, mult, dec, inteiro, hoje, somaDias, diasEntre, dataBR, variacao, num } from "./format.js?v=5f8ebfac";
 
 const cfg = () => db.settings();
 
@@ -96,6 +96,14 @@ export function alertas(iv) {
   const h = hoje();
   const descartados = new Set(db.all("alerts").map((a) => a.key));
   const add = (key, prioridade, categoria, texto, link) => { if (!descartados.has(key)) lista.push({ key, prioridade, categoria, texto, link }); };
+  // Entrega bloqueada pela Meta vem antes de tudo: não é gasto errado, é anúncio que não roda.
+  // Fica como urgente porque o dinheiro do dia está indo para os que sobraram sem ninguém saber.
+  for (const [tabela, oQue, rota] of [["ads", "anúncio", "anuncios"], ["ad_sets", "conjunto", "campanhas"], ["campaigns", "campanha", "campanhas"]]) {
+    for (const r of db.where(tabela, (x) => x.meta_bloqueio)) {
+      const link = tabela === "ad_sets" ? `#/campanhas/${r.campaign_id || ""}` : `#/${rota}/${r.id}`;
+      add(`bloq:${tabela}:${r.id}`, "urgente", "Bloqueio na Meta", `A Meta bloqueou a entrega do ${oQue} "${r.name}": ${r.meta_bloqueio}`, link);
+    }
+  }
   for (const c of db.where("campaigns", (c) => c.status === "ativa")) {
     const s = situacaoCampanha(c, iv, media);
     for (const sn of s.sinais) add(`camp:${c.id}:${sn.texto.slice(0, 30)}`, sn.prioridade, sn.tipo === "boa" ? "Campanha boa" : "Campanha", `${c.name}: ${sn.texto}.`, `#/campanhas/${c.id}`);
