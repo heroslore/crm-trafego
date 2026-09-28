@@ -418,6 +418,42 @@ await p.locator("#modal [data-fechar-modal]").first().click();
 esperandoErro = false;
 
 
+console.log("\n[15] Topo e fundo de funil deixam de ser somados na mesma linha");
+await p.goto(BASE + "#/financeiro?aba=investimento", { waitUntil: "networkidle" });
+await p.waitForTimeout(1800);
+const fin = await p.locator("main").innerText();
+ok(/etapa do funil/i.test(fin), "o Financeiro separa o investimento por etapa");
+ok(/Topo/.test(fin) && /Fundo/.test(fin), "as etapas aparecem nomeadas");
+ok(/cobrar conversa dele é cobrar pelo trabalho errado/.test(fin), "explica por que as réguas são diferentes");
+await p.screenshot({ path: `${SAIDA}/funil-investimento.png`, fullPage: true });
+
+// A régua de cada etapa tem de ser diferente: é o ponto inteiro da mudança.
+const reguas = await p.evaluate(async () => {
+  const { etapaDe, METRICA_DA_ETAPA, porEtapa } = await import("./app/core/funil.js");
+  const topo = { name: "Nova campanha de Reconhecimento", objective: "reconhecimento" };
+  const fundo = { name: "Iphone fundo Funil", objective: "whatsapp" };
+  const linhas = porEtapa([
+    { registro: topo, k: { spend: 269, video_p50: 702, conversations: 2 } },
+    { registro: fundo, k: { spend: 235, video_p50: 871, conversations: 149 } },
+  ]);
+  return {
+    etapaTopo: etapaDe(topo), etapaFundo: etapaDe(fundo),
+    chaveTopo: METRICA_DA_ETAPA[etapaDe(topo)].chave, chaveFundo: METRICA_DA_ETAPA[etapaDe(fundo)].chave,
+    custoBaseTopo: linhas.find((g) => g.etapa === "topo").custo_base,
+    custoConversaFundo: linhas.find((g) => g.etapa === "fundo").custo_conversa,
+  };
+});
+ok(reguas.etapaTopo === "topo" && reguas.etapaFundo === "fundo", "as campanhas reais caem nas etapas certas");
+ok(reguas.chaveTopo === "custo_base" && reguas.chaveFundo === "custo_conversa", "e cada etapa usa a régua dela");
+ok(Math.abs(reguas.custoBaseTopo - 269 / 702) < 0.001, "custo por pessoa na base confere");
+ok(Math.abs(reguas.custoConversaFundo - 235 / 149) < 0.001, "custo por conversa confere");
+
+await p.goto(BASE + "#/campanhas", { waitUntil: "networkidle" });
+await p.waitForTimeout(1500);
+const lista = await p.locator("main").innerText();
+ok(/régua da etapa/i.test(lista), "a lista de campanhas mostra a régua da etapa");
+
+
 console.log("\nERROS DE JS:", erros.length);
 for (const e of erros.slice(0, 10)) console.log(" -", e);
 console.log(falhas ? `\n${falhas} verificação(ões) falharam.` : "\nTodas as verificações passaram.");

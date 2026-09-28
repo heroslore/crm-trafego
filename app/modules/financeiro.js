@@ -5,6 +5,7 @@ import { progresso, badge, toast } from "../core/ui.js";
 import { cartao, tabela, abrirFormulario, vazio, kpi, abas, graficoLinhas, barrasH } from "../core/ui.js";
 import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje } from "../core/format.js";
 import { bannerDemo, btnNovo } from "./comum.js";
+import { blocoFunil } from "./comum.js";
 import { rotulo as rotuloOpcao } from "../core/schema.js";
 import { podeEditar } from "../core/auth.js";
 
@@ -46,7 +47,8 @@ function abaInvestimento(ctx) {
   const ivSem = intervalo({ tipo: "semana" });
   const camps = porEntidade(ivMes, "campaign").filter((c) => c.k.spend > 0).sort((a, b) => b.k.spend - a.k.spend);
   const totalMes = camps.reduce((t, c) => t + c.k.spend, 0);
-  return `${blocoPacing("Investimento do mês", "investimento_mes", "Planejado para este mês (R$)", ivMes)}
+  return `${blocoFunil(ivMes, { titulo: "Investimento do mês por etapa do funil" })}
+    ${blocoPacing("Investimento do mês", "investimento_mes", "Planejado para este mês (R$)", ivMes)}
     ${blocoPacing("Investimento da semana", "investimento_semana", "Planejado para esta semana (R$)", ivSem)}
     ${cartao("Para onde o dinheiro do mês está indo",
       camps.length

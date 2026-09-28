@@ -5,6 +5,7 @@
 export const OPCOES = {
   platform: [["meta", "Meta Ads"], ["instagram", "Instagram"], ["facebook", "Facebook"], ["google", "Google Ads"], ["tiktok", "TikTok Ads"], ["outra", "Outra"]],
   objective: [["vendas", "Vendas"], ["leads", "Leads"], ["whatsapp", "WhatsApp"], ["reconhecimento", "Reconhecimento"], ["engajamento", "Engajamento"], ["trafego", "Tráfego"], ["remarketing", "Remarketing"]],
+  funnel_stage: [["topo", "Topo — encher a base"], ["meio", "Meio — aquecer quem já viu"], ["fundo", "Fundo — gerar conversa"]],
   campaign_status: [["planejada", "Planejada"], ["producao", "Em produção"], ["ativa", "Ativa"], ["pausada", "Pausada"], ["finalizada", "Finalizada"]],
   decision: [["", "— sem decisão —"], ["manter", "Manter"], ["escalar", "Escalar"], ["reduzir", "Reduzir orçamento"], ["trocar_criativo", "Trocar criativo"], ["trocar_publico", "Trocar público"], ["revisar_oferta", "Revisar oferta"], ["pausar", "Pausar"], ["encerrar", "Encerrar"]],
   creative_type: [["video", "Vídeo"], ["foto", "Foto"], ["carrossel", "Carrossel"], ["story", "Story"], ["reels", "Reels"]],
@@ -84,6 +85,7 @@ export const TABELAS = {
       f("company_id", "Empresa / loja", "rel", { rel: "companies" }),
       f("platform", "Plataforma", "select", { options: "platform", default: "meta", list: true }),
       f("objective", "Objetivo", "select", { options: "objective", default: "vendas", list: true }),
+      f("funnel_stage", "Etapa do funil", "select", { options: "funnel_stage", list: true, ajuda: "Vazio: o CRM deduz pelo objetivo e pelo nome da campanha." }),
       f("product_id", "Produto anunciado", "rel", { rel: "products", list: true }),
       f("category", "Categoria", "text"),
       f("audience_id", "Público principal", "rel", { rel: "audiences" }),
