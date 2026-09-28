@@ -156,7 +156,7 @@ export async function verificar() {
     if (estado.chave && estado.chave.escopos.length) {
       for (const e of estado.chave.escopos) if (!estado.permissoes.includes(e)) estado.permissoes.push(e);
     }
-    const conta = await get(cfg.conta, "name,currency,account_status,min_daily_budget,amount_spent,business_name,timezone_name");
+    const conta = await get(cfg.conta, "name,currency,account_status,min_daily_budget,amount_spent,business_name,timezone_name,business{id,name}");
     estado.perfil = eu; estado.conta = conta;
     estado.moeda = conta.currency || "BRL";
     estado.minimoDiario = num(conta.min_daily_budget) / 100;

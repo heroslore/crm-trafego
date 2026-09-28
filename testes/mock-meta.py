@@ -63,7 +63,7 @@ class H(BaseHTTPRequestHandler):
         if caminho == "me/accounts":
             return self.responder({"data": [{"id": "9001", "name": "Loja do Ygor"}, {"id": "9002", "name": "Segunda página"}]})
         if caminho.startswith("act_"):
-            return self.responder({"id": caminho, "name": "Conta de teste", "currency": "BRL", "account_status": 1, "min_daily_budget": 600, "business_name": "Loja"})
+            return self.responder({"id": caminho, "name": "Conta de teste", "currency": "BRL", "account_status": 1, "min_daily_budget": 600, "business_name": "Loja", "business": {"id": "1899000000000001", "name": "Loja"}})
         if caminho.endswith("/posts"):
             return self.responder({"data": [{"id": "9001_777", "message": "Promoção de hoje", "created_time": "2026-09-20T10:00:00+0000"}]})
         if caminho == "search":
