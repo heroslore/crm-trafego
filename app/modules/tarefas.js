@@ -1,9 +1,9 @@
-import { db } from "../core/db.js?v=cb6be18a";
-import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, kanban, abas, prioridadeBadge, toast } from "../core/ui.js?v=cb6be18a";
-import { esc, dataBR, hoje, somaDias, agora, uid } from "../core/format.js?v=cb6be18a";
-import { bannerDemo, btnNovo } from "./comum.js?v=cb6be18a";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=cb6be18a";
-import { podeEditar, usuario } from "../core/auth.js?v=cb6be18a";
+import { db } from "../core/db.js?v=dd1de662";
+import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, kanban, abas, prioridadeBadge, toast } from "../core/ui.js?v=dd1de662";
+import { esc, dataBR, hoje, somaDias, agora, uid } from "../core/format.js?v=dd1de662";
+import { bannerDemo, btnNovo } from "./comum.js?v=dd1de662";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=dd1de662";
+import { podeEditar, usuario } from "../core/auth.js?v=dd1de662";
 
 let visao = "kanban", fOwner = "";
 const proximaData = (data, rec) => { const base = data || hoje(); return { diaria: somaDias(base, 1), semanal: somaDias(base, 7), quinzenal: somaDias(base, 15), mensal: somaDias(base, 30) }[rec] || null; };

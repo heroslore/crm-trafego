@@ -1,13 +1,13 @@
-import { db } from "../core/db.js?v=cb6be18a";
-import { kpis, serieDiaria, porEntidade, custosExtrasNoPeriodo, pacing } from "../core/metrics.js?v=cb6be18a";
-import { intervalo } from "../core/periods.js?v=cb6be18a";
-import { progresso, badge, toast } from "../core/ui.js?v=cb6be18a";
-import { cartao, tabela, abrirFormulario, vazio, kpi, abas, graficoLinhas, barrasH } from "../core/ui.js?v=cb6be18a";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje } from "../core/format.js?v=cb6be18a";
-import { bannerDemo, btnNovo } from "./comum.js?v=cb6be18a";
-import { blocoFunil } from "./comum.js?v=cb6be18a";
-import { rotulo as rotuloOpcao } from "../core/schema.js?v=cb6be18a";
-import { podeEditar } from "../core/auth.js?v=cb6be18a";
+import { db } from "../core/db.js?v=dd1de662";
+import { kpis, serieDiaria, porEntidade, custosExtrasNoPeriodo, pacing } from "../core/metrics.js?v=dd1de662";
+import { intervalo } from "../core/periods.js?v=dd1de662";
+import { progresso, badge, toast } from "../core/ui.js?v=dd1de662";
+import { cartao, tabela, abrirFormulario, vazio, kpi, abas, graficoLinhas, barrasH } from "../core/ui.js?v=dd1de662";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje } from "../core/format.js?v=dd1de662";
+import { bannerDemo, btnNovo } from "./comum.js?v=dd1de662";
+import { blocoFunil } from "./comum.js?v=dd1de662";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=dd1de662";
+import { podeEditar } from "../core/auth.js?v=dd1de662";
 
 let aba = "investimento";
 
