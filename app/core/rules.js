@@ -1,9 +1,9 @@
 // Classificações automáticas, alertas, oportunidades, central de decisões e textos do analista.
 // Nada aqui altera dados: só lê e sugere.
-import { db } from "./db.js?v=dd1de662";
-import { kpis, comparar, porEntidade, resumoProduto, mediaCampanhas, avaliar, serieDiaria, leadsNoPeriodo, atendimento, filaDeAtendimento, pacing, minutosEsperando } from "./metrics.js?v=dd1de662";
-import { intervalo, anterior } from "./periods.js?v=dd1de662";
-import { brl, pct, mult, dec, inteiro, hoje, somaDias, diasEntre, dataBR, variacao, num } from "./format.js?v=dd1de662";
+import { db } from "./db.js?v=1bb62cf8";
+import { kpis, comparar, porEntidade, resumoProduto, mediaCampanhas, avaliar, serieDiaria, leadsNoPeriodo, atendimento, filaDeAtendimento, pacing, minutosEsperando } from "./metrics.js?v=1bb62cf8";
+import { intervalo, anterior } from "./periods.js?v=1bb62cf8";
+import { brl, pct, mult, dec, inteiro, hoje, somaDias, diasEntre, dataBR, variacao, num } from "./format.js?v=1bb62cf8";
 
 const cfg = () => db.settings();
 

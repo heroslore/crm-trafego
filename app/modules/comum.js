@@ -1,10 +1,10 @@
 // Pedaços compartilhados pelos módulos.
-import { db } from "../core/db.js?v=dd1de662";
-import { kpi, badge, badgeOpcao, cartao, vazio, itemLista, prioridadeBadge, fmtMetrica, tabela } from "../core/ui.js?v=dd1de662";
-import { avaliar, serieDiaria, contagensAtivas, porEntidade, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=dd1de662";
-import { porEtapa, ROTULO_ETAPA, CORES_ETAPA, METRICA_DA_ETAPA } from "../core/funil.js?v=dd1de662";
-import { esc, brl, inteiro, pct, mult, dataBR, hoje, diasEntre, dec } from "../core/format.js?v=dd1de662";
-import { usuario, podeEditar } from "../core/auth.js?v=dd1de662";
+import { db } from "../core/db.js?v=1bb62cf8";
+import { kpi, badge, badgeOpcao, cartao, vazio, itemLista, prioridadeBadge, fmtMetrica, tabela } from "../core/ui.js?v=1bb62cf8";
+import { avaliar, serieDiaria, contagensAtivas, porEntidade, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=1bb62cf8";
+import { porEtapa, ROTULO_ETAPA, CORES_ETAPA, METRICA_DA_ETAPA } from "../core/funil.js?v=1bb62cf8";
+import { esc, brl, inteiro, pct, mult, dataBR, hoje, diasEntre, dec } from "../core/format.js?v=1bb62cf8";
+import { usuario, podeEditar } from "../core/auth.js?v=1bb62cf8";
 
 export const bannerDemo = () => db.temDemo() ? `<div class="demo-banner"><span>🧪 Há dados de demonstração (marcados com <b>[DEMO]</b> / "(demo)") para você conhecer o sistema. Eles não são dados reais da empresa.</span><a href="#/config?aba=dados" class="btn btn-pq">Remover dados de demonstração</a></div>` : "";
 export const btnNovo = (texto, attr) => podeEditar() ? `<button class="btn btn-primario" ${attr}>➕ ${texto}</button>` : "";
@@ -57,7 +57,10 @@ export function avisoBloqueio(reg, oQue = "anúncio") {
 export function blocoFunil(iv, { titulo = "Investimento por etapa do funil" } = {}) {
   const itens = porEntidade(iv, "campaign").filter((c) => c.k.spend > 0).map((c) => ({ registro: c.registro, k: c.k }));
   if (!itens.length) return cartao(titulo, vazio("Nenhuma campanha com investimento no período."));
-  const linhas = porEtapa(itens).filter((g) => g.n > 0 || g.spend > 0);
+  // Etapa sem gasto NÃO some: "não investimos nada em topo neste mês" é exatamente o tipo de
+  // coisa que a tela existe para mostrar. Escondê-la faria a divisão parecer completa quando
+  // está faltando um terço dela.
+  const linhas = porEtapa(itens);
   const total = linhas.reduce((t, g) => t + g.spend, 0);
   const celula = (g) => {
     const m = METRICA_DA_ETAPA[g.etapa];

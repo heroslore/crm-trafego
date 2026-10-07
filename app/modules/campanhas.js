@@ -1,19 +1,19 @@
-import { db } from "../core/db.js?v=dd1de662";
-import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=dd1de662";
-import { situacaoCampanha } from "../core/rules.js?v=dd1de662";
-import { blocoAnalise } from "../core/analise/ui.js?v=dd1de662";
-import { blocoPublico } from "../core/analise/publico-ui.js?v=dd1de662";
-import { etapaDe, ROTULO_ETAPA, CORES_ETAPA, METRICA_DA_ETAPA } from "../core/funil.js?v=dd1de662";
-import { META } from "../core/sync.js?v=dd1de662";
-import * as AcoesMeta from "../core/acoes-meta.js?v=dd1de662";
-import { listaDiagnostico, comparativoEtapas, ordenarAnalises } from "../core/analise/ui.js?v=dd1de662";
-import { analisarVarios } from "../core/analise/index.js?v=dd1de662";
-import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=dd1de662";
-import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=dd1de662";
-import { bannerDemo, btnNovo, linhaNumeros, avisoVendasNaoLancadas, badgeBloqueio, avisoBloqueio } from "./comum.js?v=dd1de662";
-import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=dd1de662";
-import { usuario } from "../core/auth.js?v=dd1de662";
-import { podeEditar } from "../core/auth.js?v=dd1de662";
+import { db } from "../core/db.js?v=1bb62cf8";
+import { kpis, serieDiaria, porEntidade, mediaCampanhas, efeitoDecisao, atendimento } from "../core/metrics.js?v=1bb62cf8";
+import { situacaoCampanha } from "../core/rules.js?v=1bb62cf8";
+import { blocoAnalise } from "../core/analise/ui.js?v=1bb62cf8";
+import { blocoPublico } from "../core/analise/publico-ui.js?v=1bb62cf8";
+import { etapaDe, ROTULO_ETAPA, CORES_ETAPA, METRICA_DA_ETAPA } from "../core/funil.js?v=1bb62cf8";
+import { META } from "../core/sync.js?v=1bb62cf8";
+import * as AcoesMeta from "../core/acoes-meta.js?v=1bb62cf8";
+import { listaDiagnostico, comparativoEtapas, ordenarAnalises } from "../core/analise/ui.js?v=1bb62cf8";
+import { analisarVarios } from "../core/analise/index.js?v=1bb62cf8";
+import { cartao, tabela, badge, badgeOpcao, chips, abrirFormulario, vazio, itemLista, graficoLinhas, kpi, prioridadeBadge, modal, fecharModal, toast, formulario, lerFormulario } from "../core/ui.js?v=1bb62cf8";
+import { esc, brl, inteiro, pct, mult, dataBR, dataCurta, hoje, dec, agora, horaCurta, variacao, seta } from "../core/format.js?v=1bb62cf8";
+import { bannerDemo, btnNovo, linhaNumeros, avisoVendasNaoLancadas, badgeBloqueio, avisoBloqueio } from "./comum.js?v=1bb62cf8";
+import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js?v=1bb62cf8";
+import { usuario } from "../core/auth.js?v=1bb62cf8";
+import { podeEditar } from "../core/auth.js?v=1bb62cf8";
 
 let filtroStatus = "ativa", filtroPlat = "";
 

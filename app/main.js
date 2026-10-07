@@ -1,39 +1,39 @@
 // Casca do aplicativo: menu, topo, período global, roteador, busca, notificações, perfil.
-import { db, garantirBase, inserirDemonstracao } from "./core/db.js?v=dd1de662";
-import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js?v=dd1de662";
-import { esc, hoje, somaDias, semAcento } from "./core/format.js?v=dd1de662";
-import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js?v=dd1de662";
-import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem, avisoColeta } from "./core/sync.js?v=dd1de662";
-import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js?v=dd1de662";
-import { alertas } from "./core/rules.js?v=dd1de662";
-import * as W from "./core/wame.js?v=dd1de662";
-import * as MetaApi from "./core/meta.js?v=dd1de662";
-import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js?v=dd1de662";
-import { rotulo as rotuloOpcao } from "./core/schema.js?v=dd1de662";
+import { db, garantirBase, inserirDemonstracao } from "./core/db.js?v=1bb62cf8";
+import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js?v=1bb62cf8";
+import { esc, hoje, somaDias, semAcento, dataBR } from "./core/format.js?v=1bb62cf8";
+import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js?v=1bb62cf8";
+import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem, avisoColeta, coletarAgora, coletarSeVelho } from "./core/sync.js?v=1bb62cf8";
+import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js?v=1bb62cf8";
+import { alertas } from "./core/rules.js?v=1bb62cf8";
+import * as W from "./core/wame.js?v=1bb62cf8";
+import * as MetaApi from "./core/meta.js?v=1bb62cf8";
+import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js?v=1bb62cf8";
+import { rotulo as rotuloOpcao } from "./core/schema.js?v=1bb62cf8";
 
-import dashboard from "./modules/dashboard.js?v=dd1de662";
-import hoje_ from "./modules/hoje.js?v=dd1de662";
-import inbox from "./modules/inbox.js?v=dd1de662";
-import decisoes from "./modules/decisoes.js?v=dd1de662";
-import campanhas from "./modules/campanhas.js?v=dd1de662";
-import anuncios from "./modules/anuncios.js?v=dd1de662";
-import criativos from "./modules/criativos.js?v=dd1de662";
-import produtos from "./modules/produtos.js?v=dd1de662";
-import publicos from "./modules/publicos.js?v=dd1de662";
-import leads from "./modules/leads.js?v=dd1de662";
-import vendas from "./modules/vendas.js?v=dd1de662";
-import clientes from "./modules/clientes.js?v=dd1de662";
-import financeiro from "./modules/financeiro.js?v=dd1de662";
-import testes from "./modules/testes.js?v=dd1de662";
-import planejamento from "./modules/planejamento.js?v=dd1de662";
-import tarefas from "./modules/tarefas.js?v=dd1de662";
-import calendario from "./modules/calendario.js?v=dd1de662";
-import briefings from "./modules/briefings.js?v=dd1de662";
-import ideias from "./modules/ideias.js?v=dd1de662";
-import relatorios from "./modules/relatorios.js?v=dd1de662";
-import calculadoras from "./modules/calculadoras.js?v=dd1de662";
-import concorrentes from "./modules/concorrentes.js?v=dd1de662";
-import config from "./modules/config.js?v=dd1de662";
+import dashboard from "./modules/dashboard.js?v=1bb62cf8";
+import hoje_ from "./modules/hoje.js?v=1bb62cf8";
+import inbox from "./modules/inbox.js?v=1bb62cf8";
+import decisoes from "./modules/decisoes.js?v=1bb62cf8";
+import campanhas from "./modules/campanhas.js?v=1bb62cf8";
+import anuncios from "./modules/anuncios.js?v=1bb62cf8";
+import criativos from "./modules/criativos.js?v=1bb62cf8";
+import produtos from "./modules/produtos.js?v=1bb62cf8";
+import publicos from "./modules/publicos.js?v=1bb62cf8";
+import leads from "./modules/leads.js?v=1bb62cf8";
+import vendas from "./modules/vendas.js?v=1bb62cf8";
+import clientes from "./modules/clientes.js?v=1bb62cf8";
+import financeiro from "./modules/financeiro.js?v=1bb62cf8";
+import testes from "./modules/testes.js?v=1bb62cf8";
+import planejamento from "./modules/planejamento.js?v=1bb62cf8";
+import tarefas from "./modules/tarefas.js?v=1bb62cf8";
+import calendario from "./modules/calendario.js?v=1bb62cf8";
+import briefings from "./modules/briefings.js?v=1bb62cf8";
+import ideias from "./modules/ideias.js?v=1bb62cf8";
+import relatorios from "./modules/relatorios.js?v=1bb62cf8";
+import calculadoras from "./modules/calculadoras.js?v=1bb62cf8";
+import concorrentes from "./modules/concorrentes.js?v=1bb62cf8";
+import config from "./modules/config.js?v=1bb62cf8";
 
 export const MODULOS = [dashboard, hoje_, inbox, decisoes, campanhas, anuncios, criativos, produtos, publicos, leads, vendas, clientes, financeiro, testes, planejamento, tarefas, calendario, briefings, ideias, relatorios, calculadoras, concorrentes, config];
 const SECOES = [
@@ -69,6 +69,22 @@ function lerHash() {
   estado.rota = { modulo: partes[0] || "dashboard", id: partes[1] || "", aba: new URLSearchParams(query || "").get("aba") || "" };
   if (!MODULOS.find((m) => m.id === estado.rota.modulo)) estado.rota.modulo = "dashboard";
 }
+// Coleta sob demanda. Enquanto roda, o botão diz o que está acontecendo: uma tela parada
+// por dez segundos sem explicação faz a pessoa clicar de novo e disparar tudo duas vezes.
+async function atualizarPelaMeta(botao) {
+  const antes = botao ? botao.textContent : "";
+  if (botao) { botao.disabled = true; botao.textContent = "Buscando na Meta…"; }
+  try {
+    const d = await coletarAgora();
+    toast(`Dados atualizados até ${dataBR((d.periodo || {}).fim || hoje())}.`);
+    render();
+  } catch (e) {
+    console.error(e);
+    toast("Não consegui atualizar: " + (e.message || "erro na Meta"), "erro");
+    if (botao) { botao.disabled = false; botao.textContent = antes; }
+  }
+}
+
 export function navegar(hash) { if (location.hash === hash) render(); else location.hash = hash; }
 function render() {
   lerHash();
@@ -79,7 +95,11 @@ function render() {
   try { m.render(root, ctx()); } catch (e) { console.error(e); root.innerHTML = `<div class="aviso aviso-erro">Erro ao montar a tela "${esc(m.titulo)}": ${esc(e.message)}</div>`; }
   // Coleta parada vale em qualquer tela: o número velho engana igual no Dashboard e na campanha.
   const av = avisoColeta();
-  if (av) root.insertAdjacentHTML("afterbegin", av);
+  if (av) {
+    root.insertAdjacentHTML("afterbegin", av);
+    const b = root.querySelector("[data-coletar-agora]");
+    if (b) b.addEventListener("click", () => atualizarPelaMeta(b));
+  }
   document.querySelectorAll("#menu a").forEach((a) => a.classList.toggle("ativa", a.dataset.modulo === m.id));
   document.body.classList.remove("menu-aberto");
   window.scrollTo(0, 0);
@@ -194,6 +214,13 @@ async function iniciar() {
   const r = await carregarMeta();
   if (r.ok && r.novo) { toast(r.remapeado ? "Dados da Meta reimportados com os campos novos." : "Dados da Meta atualizados."); verificarSemResposta(); render(); atualizarNotificacoes(); }
   if (nuvemLigada()) { await sincronizar("abrir"); iniciarPoll(); render(); }
+  // Dados velhos e chave no aparelho: busca sozinho, sem pedir nada. Em silêncio se falhar —
+  // abrir o CRM não pode virar uma tela de erro por causa de uma coleta de fundo.
+  coletarSeVelho().then((d) => {
+    if (!d) return;
+    toast(`Dados atualizados até ${dataBR((d.periodo || {}).fim || hoje())}.`);
+    render(); atualizarNotificacoes();
+  }).catch((e) => console.warn("coleta automática:", e.message));
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { carregarMeta().then((x) => { if (x.novo) render(); }); if (nuvemLigada()) sincronizar("voltar"); } });
   window.addEventListener("online", () => { if (nuvemLigada()) sincronizar("online"); });
   window.CRM = { db, estado, render, wame: W, meta: MetaApi };
