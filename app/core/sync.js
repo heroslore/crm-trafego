@@ -1,6 +1,7 @@
 // Integrações: dados da Meta (dados/meta.json) e nuvem no GitHub (crm.json em repositório privado).
 import { db } from "./db.js";
-import { agora, horaCurta, b64utf8, utf8b64, semAcento, hoje, diasEntre, dataBR } from "./format.js";
+import { coletar } from "./coleta.js";
+import { agora, horaCurta, b64utf8, utf8b64, semAcento, hoje, diasEntre, dataBR, esc } from "./format.js";
 
 export let META = null; // arquivo bruto, usado pelos recortes de público
 
@@ -15,6 +16,14 @@ export const VERSAO_MAPA = 4;
 // ninguém percebeu: a tela continuou mostrando número velho com cara de número novo, o que é
 // pior do que não mostrar nada — decisão de pausar campanha foi tomada em cima disso.
 export const DIAS_ATRASO_AVISO = 2;
+// A chave da Meta mora só no aparelho (nunca no banco nem no backup). Aqui só precisamos
+// saber SE existe, para decidir entre oferecer o botão ou mandar para o segredo do GitHub.
+export function temChaveLocal() {
+  try {
+    const c = JSON.parse(localStorage.getItem("crm-trafego-meta-chave") || "null");
+    return !!(c && c.token && c.conta);
+  } catch { return false; }
+}
 export function estadoDaColeta(meta = META) {
   if (!meta || !meta.gerado_em) return null;
   const dia = String(meta.gerado_em).slice(0, 10);
@@ -29,12 +38,20 @@ export function estadoDaColeta(meta = META) {
 export function avisoColeta(meta = META) {
   const c = estadoDaColeta(meta);
   if (!c || !c.parada) return "";
-  return `<div class="aviso aviso-alerta" style="margin-bottom:12px"><b>⚠️ Os números estão velhos: a coleta da Meta está ${c.texto}.</b>
-    O último dado é de ${dataBR(c.ultimo_dado || c.dia)}. Tudo nesta tela ignora o que aconteceu depois disso — inclusive gasto e mensagens de hoje.
-    A coleta roda sozinha todo dia pelo GitHub e só falha por falta da chave: confira o segredo <code>META_ACCESS_TOKEN</code> em
-    <a href="https://github.com/heroslore/crm-trafego/settings/secrets/actions" target="_blank" rel="noopener">Settings → Secrets → Actions</a>.</div>`;
+  // Com a chave no aparelho o CRM não depende de ninguém: o botão resolve ali mesmo. Sem ela,
+  // o caminho é o segredo no GitHub — e aí o aviso diz exatamente onde.
+  const local = temChaveLocal();
+  return `<div class="aviso aviso-alerta" style="margin-bottom:12px"><b>⚠️ Os números estão velhos: a última coleta foi ${esc(c.texto)}.</b>
+    O último dado é de ${dataBR(c.ultimo_dado || c.dia)}. Tudo nesta tela ignora o que aconteceu depois disso.
+    ${local
+      ? `<div style="margin-top:8px"><button class="btn btn-pq btn-primario" data-coletar-agora>🔄 Atualizar agora pela Meta</button>
+         <small class="sub" style="margin-left:8px">Usa a chave deste aparelho. Leva alguns segundos.</small></div>`
+      : `A coleta roda sozinha todo dia pelo GitHub e só falha por falta da chave: confira o segredo <code>META_ACCESS_TOKEN</code> em
+         <a href="https://github.com/heroslore/crm-trafego/settings/secrets/actions" target="_blank" rel="noopener">Settings → Secrets → Actions</a>,
+         ou configure a chave neste aparelho em <a href="#/config?aba=meta">Configurações → Meta</a> para atualizar por aqui.`}</div>`;
 }
 
+// ---------------------------------------------------------------- mapas da plataforma
 const STATUS_META = { ACTIVE: "ativa", PAUSED: "pausada", CAMPAIGN_PAUSED: "pausada", ADSET_PAUSED: "pausada", ARCHIVED: "finalizada", DELETED: "finalizada", IN_PROCESS: "producao", PENDING_REVIEW: "producao", WITH_ISSUES: "pausada", DISAPPROVED: "pausada" };
 const OBJETIVO_META = { OUTCOME_SALES: "vendas", CONVERSIONS: "vendas", OUTCOME_LEADS: "leads", LEAD_GENERATION: "leads", MESSAGES: "whatsapp", OUTCOME_ENGAGEMENT: "whatsapp", OUTCOME_AWARENESS: "reconhecimento", BRAND_AWARENESS: "reconhecimento", REACH: "reconhecimento", OUTCOME_TRAFFIC: "trafego", LINK_CLICKS: "trafego", VIDEO_VIEWS: "engajamento", POST_ENGAGEMENT: "engajamento" };
 const TIPO_CRIATIVO = { VIDEO: "video", PHOTO: "foto", SHARE: "foto", STATUS: "foto", LINK: "foto", ALBUM: "carrossel" };
@@ -45,14 +62,22 @@ function empresaPorNome(nome) {
   return "";
 }
 
+// ---------------------------------------------------------------- carregar o arquivo
 export async function carregarMeta({ forcar = false } = {}) {
   let dados = null;
   try {
     const r = await fetch("dados/meta.json?_=" + Date.now(), { cache: "no-store" });
     if (r.ok) dados = await r.json();
   } catch {}
-  if (!dados) { try { dados = JSON.parse(localStorage.getItem("crm-trafego-meta") || "null"); } catch {} if (!dados) return { ok: false }; }
-  else { try { localStorage.setItem("crm-trafego-meta", JSON.stringify(dados)); } catch {} }
+  // O que o navegador coletou pode ser MAIS NOVO que o arquivo do repositório — é o caso
+  // sempre que a coleta do GitHub está parada. Vence o mais recente, senão abrir o CRM
+  // desfaria a coleta local e a tela voltaria a mostrar número velho.
+  let cache = null;
+  try { cache = JSON.parse(localStorage.getItem("crm-trafego-meta") || "null"); } catch {}
+  const quando = (x) => String((x && x.gerado_em) || "");
+  if (cache && quando(cache) > quando(dados)) dados = cache;
+  else if (dados) { try { localStorage.setItem("crm-trafego-meta", JSON.stringify(dados)); } catch {} }
+  if (!dados) return { ok: false };
   META = dados;
   const cfg = db.settings();
   const mesmoArquivo = cfg.meta_gerado_em === dados.gerado_em && cfg.meta_importado;
@@ -62,6 +87,38 @@ export async function carregarMeta({ forcar = false } = {}) {
   aplicarMeta(dados);
   db.setSettings({ meta_gerado_em: dados.gerado_em, meta_importado: true, meta_mapa_versao: VERSAO_MAPA, meta_conta: dados.conta, meta_periodo: dados.periodo });
   return { ok: true, novo: true, remapeado: remapeando };
+}
+
+// ---------------------------------------------------------------- coleta pelo navegador
+// Mesma porta de entrada do arquivo: coleta, guarda, aplica. Quem chama não precisa saber
+// de onde vieram os dados.
+export async function coletarAgora({ dias = 45 } = {}) {
+  const dados = await coletar({ dias, base: META });
+  META = dados;
+  try { localStorage.setItem("crm-trafego-meta", JSON.stringify(dados)); } catch {}
+  aplicarMeta(dados);
+  db.setSettings({
+    meta_gerado_em: dados.gerado_em, meta_importado: true, meta_mapa_versao: VERSAO_MAPA,
+    meta_conta: dados.conta, meta_periodo: dados.periodo, meta_origem: "navegador",
+    meta_coletado_em: agora(),
+  });
+  return dados;
+}
+
+// Vale tentar coletar sozinho? Só com chave no aparelho, dados velhos, e sem ter tentado há
+// pouco — uma coleta por hora no máximo, para abrir o CRM não virar uma enxurrada de chamadas.
+export const HORAS_ENTRE_COLETAS = 1;
+export function devoColetar() {
+  const c = estadoDaColeta();
+  if (!c || !c.parada) return false;
+  const ultima = db.settings().meta_coleta_tentada_em;
+  if (!ultima) return true;
+  return (Date.now() - new Date(ultima).getTime()) / 36e5 >= HORAS_ENTRE_COLETAS;
+}
+export async function coletarSeVelho() {
+  if (!devoColetar()) return null;
+  db.setSettings({ meta_coleta_tentada_em: agora() });
+  return coletarAgora();
 }
 
 export function aplicarMeta(d) {

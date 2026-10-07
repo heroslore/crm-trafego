@@ -57,7 +57,10 @@ export function avisoBloqueio(reg, oQue = "anúncio") {
 export function blocoFunil(iv, { titulo = "Investimento por etapa do funil" } = {}) {
   const itens = porEntidade(iv, "campaign").filter((c) => c.k.spend > 0).map((c) => ({ registro: c.registro, k: c.k }));
   if (!itens.length) return cartao(titulo, vazio("Nenhuma campanha com investimento no período."));
-  const linhas = porEtapa(itens).filter((g) => g.n > 0 || g.spend > 0);
+  // Etapa sem gasto NÃO some: "não investimos nada em topo neste mês" é exatamente o tipo de
+  // coisa que a tela existe para mostrar. Escondê-la faria a divisão parecer completa quando
+  // está faltando um terço dela.
+  const linhas = porEtapa(itens);
   const total = linhas.reduce((t, g) => t + g.spend, 0);
   const celula = (g) => {
     const m = METRICA_DA_ETAPA[g.etapa];

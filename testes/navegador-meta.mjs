@@ -307,8 +307,19 @@ const aviso = await p.evaluate(async () => {
 });
 ok(aviso.dias > 1000, "conta há quantos dias a coleta parou");
 ok(/números estão velhos/.test(aviso.velho), "avisa quando a coleta está parada");
-ok(/META_ACCESS_TOKEN/.test(aviso.velho), "diz exatamente qual segredo conferir");
 ok(aviso.novo === "", "cala a boca quando a coleta está em dia");
+// Com chave no aparelho o aviso resolve ali mesmo; sem chave, manda para o segredo do GitHub.
+ok(/data-coletar-agora/.test(aviso.velho), "com a chave no aparelho, oferece atualizar na hora");
+const semChave = await p.evaluate(async () => {
+  const { avisoColeta } = await import("./app/core/sync.js");
+  const guardada = localStorage.getItem("crm-trafego-meta-chave");
+  localStorage.removeItem("crm-trafego-meta-chave");
+  const html = avisoColeta({ gerado_em: "2020-01-01T00:00:00+00:00", periodo: { fim: "2019-12-31" } });
+  if (guardada) localStorage.setItem("crm-trafego-meta-chave", guardada);
+  return html;
+});
+ok(/META_ACCESS_TOKEN/.test(semChave), "sem chave no aparelho, diz exatamente qual segredo conferir");
+ok(!/data-coletar-agora/.test(semChave), "e não oferece um botão que não teria como funcionar");
 
 
 console.log("\n[13] Anúncio bloqueado pela Meta não se disfarça de pausado");
@@ -452,6 +463,56 @@ await p.goto(BASE + "#/campanhas", { waitUntil: "networkidle" });
 await p.waitForTimeout(1500);
 const lista = await p.locator("main").innerText();
 ok(/régua da etapa/i.test(lista), "a lista de campanhas mostra a régua da etapa");
+
+
+console.log("\n[16] O CRM coleta sozinho, sem depender do GitHub");
+await p.goto(BASE + "#/dashboard", { waitUntil: "networkidle" });
+await p.waitForTimeout(1200);
+const col = await p.evaluate(async () => {
+  const { coletar } = await import("./app/core/coleta.js");
+  const d = await coletar({ dias: 7 });
+  const camp = d.diario_campanha.find((l) => l.campanha_id === "120200000000001");
+  const bloq = d.anuncios.find((a) => (a.problemas || []).length);
+  return {
+    campanhas: d.campanhas.length, conjuntos: d.conjuntos.length, anuncios: d.anuncios.length,
+    linhasCamp: d.diario_campanha.length, linhasAd: d.diario_anuncio.length,
+    origem: d.origem, temPublico: !!(d.publico && d.publico.idade_genero || []).length,
+    gasto: camp && camp.gasto, mensagens: camp && camp.mensagens,
+    video3s: camp && camp.video && camp.video.video_3s,
+    p50: camp && camp.video && camp.video.video_p50,
+    bloqueio: bloq && bloq.problemas[0].mensagem,
+    locais: (d.conjuntos[0] || {}).locais,
+  };
+});
+ok(col.campanhas === 2 && col.anuncios === 2, "trouxe campanhas e anúncios da conta");
+ok(col.origem === "navegador", "marca que os dados vieram do navegador, não do arquivo");
+ok(col.gasto === 50 && col.mensagens === 8, "gasto e mensagens do dia conferem");
+ok(col.video3s === 700 && col.p50 === 300, "a cadeia do vídeo chega inteira");
+ok(col.temPublico, "os recortes de público vêm junto");
+ok(/não pode ser publicado/.test(col.bloqueio || ""), "o motivo do bloqueio vem junto, sem repetir o resumo");
+ok(Array.isArray(col.locais) && /Eunápolis \(17 kilometer\)/.test(col.locais.join()), "a segmentação do conjunto é lida");
+
+// O arquivo do repositório é mais velho que a coleta: abrir o CRM não pode desfazê-la.
+const venceuOMaisNovo = await p.evaluate(async () => {
+  const { coletarAgora, carregarMeta } = await import("./app/core/sync.js");
+  const d = await coletarAgora({ dias: 7 });
+  const r = await carregarMeta({ forcar: true });
+  const cache = JSON.parse(localStorage.getItem("crm-trafego-meta") || "null");
+  return { coletado: d.gerado_em, depoisDeAbrir: cache && cache.gerado_em, origem: cache && cache.origem, ok: r.ok };
+});
+ok(venceuOMaisNovo.origem === "navegador" && venceuOMaisNovo.depoisDeAbrir === venceuOMaisNovo.coletado,
+   "recarregar o CRM não desfaz a coleta local");
+
+// O histórico antigo do arquivo não pode sumir só porque hoje baixamos 7 dias.
+const juntou = await p.evaluate(async () => {
+  const { juntarDiario } = await import("./app/core/coleta.js");
+  const antigo = [{ data: "2026-03-10", campanha_id: "c1", gasto: 5 }, { data: "2026-09-29", campanha_id: "c1", gasto: 9 }];
+  const novo = [{ data: "2026-09-29", campanha_id: "c1", gasto: 50 }];
+  const j = juntarDiario(antigo, novo, "2026-09-25");
+  return { n: j.length, marco: j.find((l) => l.data === "2026-03-10"), hoje: j.find((l) => l.data === "2026-09-29") };
+});
+ok(juntou.n === 2 && !!juntou.marco, "guarda o histórico anterior à janela baixada");
+ok(juntou.hoje.gasto === 50, "e a linha da janela vem da coleta nova, não da antiga");
 
 
 console.log("\nERROS DE JS:", erros.length);
