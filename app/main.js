@@ -1,39 +1,39 @@
 // Casca do aplicativo: menu, topo, período global, roteador, busca, notificações, perfil.
-import { db, garantirBase, inserirDemonstracao } from "./core/db.js?v=1bb62cf8";
-import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js?v=1bb62cf8";
-import { esc, hoje, somaDias, semAcento, dataBR } from "./core/format.js?v=1bb62cf8";
-import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js?v=1bb62cf8";
-import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem, avisoColeta, coletarAgora, coletarSeVelho } from "./core/sync.js?v=1bb62cf8";
-import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js?v=1bb62cf8";
-import { alertas } from "./core/rules.js?v=1bb62cf8";
-import * as W from "./core/wame.js?v=1bb62cf8";
-import * as MetaApi from "./core/meta.js?v=1bb62cf8";
-import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js?v=1bb62cf8";
-import { rotulo as rotuloOpcao } from "./core/schema.js?v=1bb62cf8";
+import { db, garantirBase, inserirDemonstracao } from "./core/db.js?v=b71c1ba8";
+import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js?v=b71c1ba8";
+import { esc, hoje, somaDias, semAcento, dataBR } from "./core/format.js?v=b71c1ba8";
+import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js?v=b71c1ba8";
+import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem, avisoColeta, coletarAgora, coletarAoAbrir } from "./core/sync.js?v=b71c1ba8";
+import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js?v=b71c1ba8";
+import { alertas } from "./core/rules.js?v=b71c1ba8";
+import * as W from "./core/wame.js?v=b71c1ba8";
+import * as MetaApi from "./core/meta.js?v=b71c1ba8";
+import { modal, fecharModal, modalAberto, toast, ordenar, prioridadeBadge } from "./core/ui.js?v=b71c1ba8";
+import { rotulo as rotuloOpcao } from "./core/schema.js?v=b71c1ba8";
 
-import dashboard from "./modules/dashboard.js?v=1bb62cf8";
-import hoje_ from "./modules/hoje.js?v=1bb62cf8";
-import inbox from "./modules/inbox.js?v=1bb62cf8";
-import decisoes from "./modules/decisoes.js?v=1bb62cf8";
-import campanhas from "./modules/campanhas.js?v=1bb62cf8";
-import anuncios from "./modules/anuncios.js?v=1bb62cf8";
-import criativos from "./modules/criativos.js?v=1bb62cf8";
-import produtos from "./modules/produtos.js?v=1bb62cf8";
-import publicos from "./modules/publicos.js?v=1bb62cf8";
-import leads from "./modules/leads.js?v=1bb62cf8";
-import vendas from "./modules/vendas.js?v=1bb62cf8";
-import clientes from "./modules/clientes.js?v=1bb62cf8";
-import financeiro from "./modules/financeiro.js?v=1bb62cf8";
-import testes from "./modules/testes.js?v=1bb62cf8";
-import planejamento from "./modules/planejamento.js?v=1bb62cf8";
-import tarefas from "./modules/tarefas.js?v=1bb62cf8";
-import calendario from "./modules/calendario.js?v=1bb62cf8";
-import briefings from "./modules/briefings.js?v=1bb62cf8";
-import ideias from "./modules/ideias.js?v=1bb62cf8";
-import relatorios from "./modules/relatorios.js?v=1bb62cf8";
-import calculadoras from "./modules/calculadoras.js?v=1bb62cf8";
-import concorrentes from "./modules/concorrentes.js?v=1bb62cf8";
-import config from "./modules/config.js?v=1bb62cf8";
+import dashboard from "./modules/dashboard.js?v=b71c1ba8";
+import hoje_ from "./modules/hoje.js?v=b71c1ba8";
+import inbox from "./modules/inbox.js?v=b71c1ba8";
+import decisoes from "./modules/decisoes.js?v=b71c1ba8";
+import campanhas from "./modules/campanhas.js?v=b71c1ba8";
+import anuncios from "./modules/anuncios.js?v=b71c1ba8";
+import criativos from "./modules/criativos.js?v=b71c1ba8";
+import produtos from "./modules/produtos.js?v=b71c1ba8";
+import publicos from "./modules/publicos.js?v=b71c1ba8";
+import leads from "./modules/leads.js?v=b71c1ba8";
+import vendas from "./modules/vendas.js?v=b71c1ba8";
+import clientes from "./modules/clientes.js?v=b71c1ba8";
+import financeiro from "./modules/financeiro.js?v=b71c1ba8";
+import testes from "./modules/testes.js?v=b71c1ba8";
+import planejamento from "./modules/planejamento.js?v=b71c1ba8";
+import tarefas from "./modules/tarefas.js?v=b71c1ba8";
+import calendario from "./modules/calendario.js?v=b71c1ba8";
+import briefings from "./modules/briefings.js?v=b71c1ba8";
+import ideias from "./modules/ideias.js?v=b71c1ba8";
+import relatorios from "./modules/relatorios.js?v=b71c1ba8";
+import calculadoras from "./modules/calculadoras.js?v=b71c1ba8";
+import concorrentes from "./modules/concorrentes.js?v=b71c1ba8";
+import config from "./modules/config.js?v=b71c1ba8";
 
 export const MODULOS = [dashboard, hoje_, inbox, decisoes, campanhas, anuncios, criativos, produtos, publicos, leads, vendas, clientes, financeiro, testes, planejamento, tarefas, calendario, briefings, ideias, relatorios, calculadoras, concorrentes, config];
 const SECOES = [
@@ -216,11 +216,13 @@ async function iniciar() {
   if (nuvemLigada()) { await sincronizar("abrir"); iniciarPoll(); render(); }
   // Dados velhos e chave no aparelho: busca sozinho, sem pedir nada. Em silêncio se falhar —
   // abrir o CRM não pode virar uma tela de erro por causa de uma coleta de fundo.
-  coletarSeVelho().then((d) => {
-    if (!d) return;
-    toast(`Dados atualizados até ${dataBR((d.periodo || {}).fim || hoje())}.`);
+  // Avisa só quando chegou dia novo. Abrir o CRM dez vezes no mesmo dia não pode render dez
+  // avisos de "atualizado" sem nada ter mudado — isso ensina a pessoa a ignorar os avisos.
+  coletarAoAbrir().then((r) => {
+    if (!r) return;
+    if (r.avancou) toast(`Dados atualizados até ${dataBR((r.dados.periodo || {}).fim || hoje())}.`);
     render(); atualizarNotificacoes();
-  }).catch((e) => console.warn("coleta automática:", e.message));
+  }).catch((e) => console.warn("coleta ao abrir:", e.message));
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { carregarMeta().then((x) => { if (x.novo) render(); }); if (nuvemLigada()) sincronizar("voltar"); } });
   window.addEventListener("online", () => { if (nuvemLigada()) sincronizar("online"); });
   window.CRM = { db, estado, render, wame: W, meta: MetaApi };

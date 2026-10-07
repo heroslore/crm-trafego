@@ -13,7 +13,7 @@
 //
 // Este arquivo é puro: recebe as linhas de recorte e devolve o diagnóstico. Quem lê o
 // dados/meta.json é o módulo da tela.
-import { num } from "../format.js?v=1bb62cf8";
+import { num } from "../format.js?v=b71c1ba8";
 
 // Mínimos por segmento. Abaixo de qualquer um deles, o custo por mensagem é ruído.
 export const MINIMOS_SEGMENTO = { impressoes: 800, gasto: 15 };

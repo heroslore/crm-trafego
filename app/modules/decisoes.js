@@ -1,8 +1,8 @@
-import { db } from "../core/db.js?v=1bb62cf8";
-import { centralDecisoes, oportunidades, alertas, analise } from "../core/rules.js?v=1bb62cf8";
-import { cartao, vazio, itemLista, prioridadeBadge, abas, chips } from "../core/ui.js?v=1bb62cf8";
-import { esc } from "../core/format.js?v=1bb62cf8";
-import { bannerDemo, tabelaOportunidades } from "./comum.js?v=1bb62cf8";
+import { db } from "../core/db.js?v=b71c1ba8";
+import { centralDecisoes, oportunidades, alertas, analise } from "../core/rules.js?v=b71c1ba8";
+import { cartao, vazio, itemLista, prioridadeBadge, abas, chips } from "../core/ui.js?v=b71c1ba8";
+import { esc } from "../core/format.js?v=b71c1ba8";
+import { bannerDemo, tabelaOportunidades } from "./comum.js?v=b71c1ba8";
 
 let aba = "atencao", prio = "";
 export default {

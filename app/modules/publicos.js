@@ -1,11 +1,11 @@
-import { db } from "../core/db.js?v=1bb62cf8";
-import { kpis, porEntidade } from "../core/metrics.js?v=1bb62cf8";
-import { META } from "../core/sync.js?v=1bb62cf8";
-import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, barrasH, abas, itemLista } from "../core/ui.js?v=1bb62cf8";
-import { esc, brl, inteiro, pct, mult, dataBR } from "../core/format.js?v=1bb62cf8";
-import { bannerDemo, btnNovo } from "./comum.js?v=1bb62cf8";
-import { blocoPublico } from "../core/analise/publico-ui.js?v=1bb62cf8";
-import { rotulo as rotuloOpcao } from "../core/schema.js?v=1bb62cf8";
+import { db } from "../core/db.js?v=b71c1ba8";
+import { kpis, porEntidade } from "../core/metrics.js?v=b71c1ba8";
+import { META } from "../core/sync.js?v=b71c1ba8";
+import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, barrasH, abas, itemLista } from "../core/ui.js?v=b71c1ba8";
+import { esc, brl, inteiro, pct, mult, dataBR } from "../core/format.js?v=b71c1ba8";
+import { bannerDemo, btnNovo } from "./comum.js?v=b71c1ba8";
+import { blocoPublico } from "../core/analise/publico-ui.js?v=b71c1ba8";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=b71c1ba8";
 
 let aba = "diagnostico";
 export default {

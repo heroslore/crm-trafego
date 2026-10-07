@@ -8,7 +8,7 @@
 //
 // A régua do topo é o custo de colocar UMA PESSOA na base: gasto ÷ quantas assistiram metade
 // do vídeo. É esse público que depois alimenta o remarketing.
-import { num } from "./format.js?v=1bb62cf8";
+import { num } from "./format.js?v=b71c1ba8";
 
 export const ETAPAS = [
   ["topo", "Topo — encher a base"],

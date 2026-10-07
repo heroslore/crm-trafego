@@ -12,8 +12,8 @@
 // A forma do resultado é IGUAL à de dados/meta.json, de propósito: assim o mesmo aplicarMeta()
 // serve para o arquivo e para a coleta daqui, e as duas fontes podem conviver — o arquivo traz
 // o histórico antigo, o navegador preenche o buraco até hoje.
-import * as M from "./meta.js?v=1bb62cf8";
-import { num, hoje, somaDias } from "./format.js?v=1bb62cf8";
+import * as M from "./meta.js?v=b71c1ba8";
+import { num, hoje, somaDias } from "./format.js?v=b71c1ba8";
 
 export const VERSAO_COLETA = 1;
 

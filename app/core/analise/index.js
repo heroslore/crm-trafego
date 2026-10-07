@@ -2,18 +2,18 @@
 // O caminho é sempre o mesmo, na ordem:
 //   DADOS BRUTOS → MÉTRICAS CALCULADAS → BENCHMARKS → REGRAS → SCORE → RECOMENDAÇÕES → (interface)
 // Nada aqui altera dados: a análise só lê.
-import { db } from "../db.js?v=1bb62cf8";
-import { kpis, serieDiaria, porEntidade, atendimento, plataformaBase } from "../metrics.js?v=1bb62cf8";
-import { anterior } from "../periods.js?v=1bb62cf8";
-import { META } from "../sync.js?v=1bb62cf8";
-import { num, hoje, somaDias, diasEntre, pct, brl, inteiro, dec } from "../format.js?v=1bb62cf8";
-import { metricasCalculadas, contagemOuNulo, numeroOuNulo, razao } from "./metricas.js?v=1bb62cf8";
-import { construirBenchmarks, mesclarReferencia, MENOR_MELHOR } from "./benchmarks.js?v=1bb62cf8";
-import { confianca, MINIMOS } from "./confianca.js?v=1bb62cf8";
-import { cartoesEtapa, diagnosticos, saudePublico, fadiga, gargaloRelativo } from "./regras.js?v=1bb62cf8";
-import { pontuar } from "./score.js?v=1bb62cf8";
-import { plano, gargalos, pontosFortes, resumo10s } from "./recomendacoes.js?v=1bb62cf8";
-import { consideraVendas, normalizarModoVenda } from "../vendas-modo.js?v=1bb62cf8";
+import { db } from "../db.js?v=b71c1ba8";
+import { kpis, serieDiaria, porEntidade, atendimento, plataformaBase } from "../metrics.js?v=b71c1ba8";
+import { anterior } from "../periods.js?v=b71c1ba8";
+import { META } from "../sync.js?v=b71c1ba8";
+import { num, hoje, somaDias, diasEntre, pct, brl, inteiro, dec } from "../format.js?v=b71c1ba8";
+import { metricasCalculadas, contagemOuNulo, numeroOuNulo, razao } from "./metricas.js?v=b71c1ba8";
+import { construirBenchmarks, mesclarReferencia, MENOR_MELHOR } from "./benchmarks.js?v=b71c1ba8";
+import { confianca, MINIMOS } from "./confianca.js?v=b71c1ba8";
+import { cartoesEtapa, diagnosticos, saudePublico, fadiga, gargaloRelativo } from "./regras.js?v=b71c1ba8";
+import { pontuar } from "./score.js?v=b71c1ba8";
+import { plano, gargalos, pontosFortes, resumo10s } from "./recomendacoes.js?v=b71c1ba8";
+import { consideraVendas, normalizarModoVenda } from "../vendas-modo.js?v=b71c1ba8";
 
 export const CHAVES_BENCH = ["ctr", "cpc", "cpm", "frequencia", "cpl", "custo_conversa", "cpa", "roas", "conversao", "taxa_lead", "taxa_pagina", "margem", "retencao_inicial", "retencao_metade", "retencao_fim", "taxa_thruplay"];
 const NIVEIS_FILTRO = { campanha: "campaign_id", conjunto: "ad_set_id", anuncio: "ad_id", criativo: "creative_id" };
@@ -75,7 +75,7 @@ export function entidadesDoNivel(nivel, ivRef, modoVendas = "auto") {
 
 // Modos de venda (parcial / completo / nunca) moram em core/vendas-modo.js, porque metrics.js
 // também depende deles. Continuam saindo daqui para não quebrar quem já importava.
-export { MODOS_VENDA, MODO_VENDA_PADRAO, normalizarModoVenda, consideraVendas } from "../vendas-modo.js?v=1bb62cf8";
+export { MODOS_VENDA, MODO_VENDA_PADRAO, normalizarModoVenda, consideraVendas } from "../vendas-modo.js?v=b71c1ba8";
 
 function amostrasDe(nivel, registro, todos) {
   const tipo = TIPO_ENTIDADE[nivel] || "campaign";

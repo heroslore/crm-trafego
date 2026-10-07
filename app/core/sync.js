@@ -1,7 +1,7 @@
 // Integrações: dados da Meta (dados/meta.json) e nuvem no GitHub (crm.json em repositório privado).
-import { db } from "./db.js?v=1bb62cf8";
-import { coletar } from "./coleta.js?v=1bb62cf8";
-import { agora, horaCurta, b64utf8, utf8b64, semAcento, hoje, diasEntre, dataBR, esc } from "./format.js?v=1bb62cf8";
+import { db } from "./db.js?v=b71c1ba8";
+import { coletar } from "./coleta.js?v=b71c1ba8";
+import { agora, horaCurta, b64utf8, utf8b64, semAcento, hoje, diasEntre, dataBR, esc } from "./format.js?v=b71c1ba8";
 
 export let META = null; // arquivo bruto, usado pelos recortes de público
 
@@ -107,18 +107,50 @@ export async function coletarAgora({ dias = 45 } = {}) {
 
 // Vale tentar coletar sozinho? Só com chave no aparelho, dados velhos, e sem ter tentado há
 // pouco — uma coleta por hora no máximo, para abrir o CRM não virar uma enxurrada de chamadas.
-export const HORAS_ENTRE_COLETAS = 1;
+// Quando buscar na Meta ao abrir o CRM. "sempre" é o padrão: a pessoa abre a tela para
+// decidir onde colocar dinheiro, e decidir em cima de número de ontem é o erro que o sistema
+// inteiro existe para evitar.
+export const MODOS_ATUALIZACAO = [
+  ["sempre", "Sempre que eu abrir o CRM (recomendado)"],
+  ["velho", "Só quando os dados estiverem com dois dias ou mais"],
+  ["nunca", "Nunca — eu atualizo no botão"],
+];
+export const MODO_ATUALIZACAO_PADRAO = "sempre";
+export const normalizarModoAtualizacao = (m) => (MODOS_ATUALIZACAO.some(([v]) => v === m) ? m : MODO_ATUALIZACAO_PADRAO);
+
+// Trava curta só contra disparo repetido: recarregar três vezes seguidas não deve virar três
+// coletas. Dois minutos não atrapalham quem quer dado fresco — a Meta não muda nesse intervalo.
+export const MINUTOS_ENTRE_COLETAS = 2;
+
+// Quantos dias baixar. Em vez de 45 fixos toda vez, cobre só o buraco entre o último dado e
+// hoje. Abrir o CRM de hora em hora passa a custar uma janela de 3 dias, não de 45.
+export const DIAS_MIN = 3, DIAS_MAX = 45;
+export function diasParaCobrir(meta = META) {
+  const ultimo = (meta && meta.periodo && meta.periodo.fim) || "";
+  if (!ultimo) return DIAS_MAX;
+  const faltando = diasEntre(ultimo, hoje()) + 1;
+  return Math.min(DIAS_MAX, Math.max(DIAS_MIN, faltando));
+}
+
 export function devoColetar() {
-  const c = estadoDaColeta();
-  if (!c || !c.parada) return false;
+  if (!temChaveLocal()) return false;
+  const modo = normalizarModoAtualizacao(db.settings().meta_atualizar_ao_abrir);
+  if (modo === "nunca") return false;
+  if (modo === "velho") { const c = estadoDaColeta(); if (!c || !c.parada) return false; }
   const ultima = db.settings().meta_coleta_tentada_em;
   if (!ultima) return true;
-  return (Date.now() - new Date(ultima).getTime()) / 36e5 >= HORAS_ENTRE_COLETAS;
+  return (Date.now() - new Date(ultima).getTime()) / 6e4 >= MINUTOS_ENTRE_COLETAS;
 }
-export async function coletarSeVelho() {
+
+// Devolve { dados, avancou } — avancou diz se chegou dia novo. Sem isso, abrir o CRM dez
+// vezes no mesmo dia mostraria dez avisos de "atualizado" sem nada ter mudado.
+export async function coletarAoAbrir() {
   if (!devoColetar()) return null;
   db.setSettings({ meta_coleta_tentada_em: agora() });
-  return coletarAgora();
+  const antes = (META && META.periodo && META.periodo.fim) || "";
+  const dados = await coletarAgora({ dias: diasParaCobrir() });
+  const depois = (dados.periodo && dados.periodo.fim) || "";
+  return { dados, avancou: depois > antes };
 }
 
 export function aplicarMeta(d) {
