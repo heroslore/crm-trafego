@@ -3,7 +3,7 @@ import { cartao, tabela, badge, badgeOpcao, abrirFormulario, vazio, abas, toast,
 import { esc, dataBR, horaCurta, brl, inteiro } from "../core/format.js";
 import { rotulo as rotuloOpcao, OPCOES } from "../core/schema.js";
 import { PERMISSOES, ehAdmin, podeEditar, usuario } from "../core/auth.js";
-import { nuvem, nuvemLigada, conectar, desconectar, sincronizar, carregarMeta, META } from "../core/sync.js";
+import { nuvem, nuvemLigada, conectar, desconectar, sincronizar, carregarMeta, META, MODOS_ATUALIZACAO, normalizarModoAtualizacao, MINUTOS_ENTRE_COLETAS } from "../core/sync.js";
 import { lerCSV, lerXLSX, mapearColunas, importar, CAMPOS_IMPORT } from "../core/importer.js";
 import * as W from "../core/wame.js";
 import { REFERENCIA_PADRAO, mesclarReferencia, MENOR_MELHOR } from "../core/analise/benchmarks.js";
@@ -66,6 +66,7 @@ function abaAnalise() {
     ${podeEditar() ? `<button class="btn btn-primario" data-salvar-analise style="margin-top:12px">💾 Salvar referências</button> <button class="btn" data-restaurar-analise style="margin-top:12px">↩️ Voltar ao padrão</button>` : ""}`);
 }
 function abaMeta() {
+  const modoAtualizar = normalizarModoAtualizacao(db.settings().meta_atualizar_ao_abrir);
   const c = MetaApi.cfg, e = MetaApi.estado;
   const temGestao = e.permissoes.includes("ads_management");
   const contaNome = e.conta ? `${e.conta.name || ""} · ${e.conta.currency || ""}${e.conta.account_status != 1 ? " · ⚠️ conta com restrição" : ""}` : "";
@@ -91,6 +92,11 @@ function abaMeta() {
     </div>
     <label class="check" style="margin-top:10px"><input type="checkbox" id="mtLigado"${c.ligado ? " checked" : ""}> <b>Permitir que o CRM altere campanhas nesta conta</b> (pausar, orçamento, duplicar, criar)</label>
     <p class="sub">Desligado, os botões somem das telas e o CRM volta a só ler. É o freio de mão.</p>
+    <div class="form-grade" style="margin-top:12px"><div class="campo largo">
+      <label>Buscar os dados na Meta ao abrir o CRM</label>
+      <select data-mt-atualizar>${MODOS_ATUALIZACAO.map(([v, t]) => `<option value="${esc(v)}"${modoAtualizar === v ? " selected" : ""}>${esc(t)}</option>`).join("")}</select>
+      <small>Em "sempre", o CRM baixa só o intervalo entre o último dado e hoje — não os 45 dias inteiros —, então custa pouco. Recarregar várias vezes seguidas não repete a busca: existe um intervalo mínimo de ${MINUTOS_ENTRE_COLETAS} minutos. Isso dispensa a coleta diária do GitHub.</small>
+    </div></div>
     <div class="aviso aviso-alerta" style="margin-top:10px"><b>Onde essa chave fica.</b> Só neste aparelho, no armazenamento do navegador — nunca no banco, no backup nem na nuvem. Quem tem essa chave gasta o dinheiro da conta de anúncios, então ela não é compartilhada entre a equipe: cada pessoa que precisar controlar campanhas cola a dela no próprio aparelho. No celular da sua funcionária, sem chave, os botões simplesmente não aparecem.</div>
     <div id="mtResultado"></div>
     ${podeEditar() ? `<div class="linha-btns" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primario" data-mt-salvar>💾 Salvar e testar</button><button class="btn" data-mt-testar>🔌 Testar chave</button><button class="btn" data-mt-escrita title="Reenvia para uma campanha o status que ela já tem: prova que o comando funciona sem alterar nada">🧪 Testar comando (não altera nada)</button>${MetaApi.configurado() ? `<button class="btn btn-perigo" data-mt-esquecer>🗑️ Esquecer a chave deste aparelho</button>` : ""}</div>` : ""}
@@ -251,6 +257,10 @@ export default {
         ligado: root.querySelector("#mtLigado").checked,
       });
       await testarMeta();
+    });
+    on("[data-mt-atualizar]", "change", (el) => {
+      db.setSettings({ meta_atualizar_ao_abrir: el.value });
+      toast("Preferência salva.");
     });
     on("[data-mt-testar]", "click", testarMeta);
     on("[data-mt-escrita]", "click", async () => {

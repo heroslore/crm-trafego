@@ -3,7 +3,7 @@ import { db, garantirBase, inserirDemonstracao } from "./core/db.js";
 import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js";
 import { esc, hoje, somaDias, semAcento, dataBR } from "./core/format.js";
 import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js";
-import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem, avisoColeta, coletarAgora, coletarSeVelho } from "./core/sync.js";
+import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem, avisoColeta, coletarAgora, coletarAoAbrir } from "./core/sync.js";
 import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js";
 import { alertas } from "./core/rules.js";
 import * as W from "./core/wame.js";
@@ -216,11 +216,13 @@ async function iniciar() {
   if (nuvemLigada()) { await sincronizar("abrir"); iniciarPoll(); render(); }
   // Dados velhos e chave no aparelho: busca sozinho, sem pedir nada. Em silêncio se falhar —
   // abrir o CRM não pode virar uma tela de erro por causa de uma coleta de fundo.
-  coletarSeVelho().then((d) => {
-    if (!d) return;
-    toast(`Dados atualizados até ${dataBR((d.periodo || {}).fim || hoje())}.`);
+  // Avisa só quando chegou dia novo. Abrir o CRM dez vezes no mesmo dia não pode render dez
+  // avisos de "atualizado" sem nada ter mudado — isso ensina a pessoa a ignorar os avisos.
+  coletarAoAbrir().then((r) => {
+    if (!r) return;
+    if (r.avancou) toast(`Dados atualizados até ${dataBR((r.dados.periodo || {}).fim || hoje())}.`);
     render(); atualizarNotificacoes();
-  }).catch((e) => console.warn("coleta automática:", e.message));
+  }).catch((e) => console.warn("coleta ao abrir:", e.message));
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { carregarMeta().then((x) => { if (x.novo) render(); }); if (nuvemLigada()) sincronizar("voltar"); } });
   window.addEventListener("online", () => { if (nuvemLigada()) sincronizar("online"); });
   window.CRM = { db, estado, render, wame: W, meta: MetaApi };

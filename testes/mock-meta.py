@@ -83,7 +83,7 @@ class H(BaseHTTPRequestHandler):
                 {"id": "120600000000777", "name": "Anúncio vídeo 1", "campaign_id": "120200000000001",
                  "adset_id": "120400000000777", "status": "ACTIVE", "effective_status": "ACTIVE",
                  "created_time": "2026-09-02T10:00:00+0000",
-                 "creative": {"thumbnail_url": "http://exemplo/t.jpg", "body": "Gás na porta de casa", "object_type": "VIDEO"}},
+                 "creative": {"thumbnail_url": "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "body": "Gás na porta de casa", "object_type": "VIDEO"}},
                 {"id": "120600000000778", "name": "Anúncio reprovado", "campaign_id": "120200000000002",
                  "adset_id": "120400000000777", "status": "ACTIVE", "effective_status": "WITH_ISSUES",
                  "created_time": "2026-09-06T10:00:00+0000",
@@ -158,7 +158,7 @@ class H(BaseHTTPRequestHandler):
             dados = {k: v[0] for k, v in parse_qs(bruto).items()}
         CHAMADAS.append({"metodo": "POST", "caminho": caminho, "dados": {k: v for k, v in dados.items() if k != "access_token"}})
         if caminho.endswith("/adimages"):
-            return self.responder({"images": {"imagem.jpg": {"hash": "hash-de-teste", "url": "http://exemplo/img.jpg"}}})
+            return self.responder({"images": {"imagem.jpg": {"hash": "hash-de-teste", "url": "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"}}})
         if "explode" in caminho:
             return self.erro("Invalid parameter", 100, "O orçamento é menor que o mínimo permitido para esta conta.")
         # Anúncio com o número de WhatsApp desconectado da Página: a Meta revalida o anúncio
