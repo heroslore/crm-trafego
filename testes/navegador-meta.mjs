@@ -515,6 +515,52 @@ ok(juntou.n === 2 && !!juntou.marco, "guarda o histórico anterior à janela bai
 ok(juntou.hoje.gasto === 50, "e a linha da janela vem da coleta nova, não da antiga");
 
 
+console.log("\n[17] Atualizar ao abrir, toda vez");
+const atual = await p.evaluate(async () => {
+  const { devoColetar, diasParaCobrir, normalizarModoAtualizacao, MINUTOS_ENTRE_COLETAS } = await import("./app/core/sync.js");
+  const { db } = await import("./app/core/db.js");
+  const r = {};
+  r.padrao = normalizarModoAtualizacao(undefined);
+  r.invalido = normalizarModoAtualizacao("qualquer coisa");
+
+  db.setSettings({ meta_atualizar_ao_abrir: "sempre", meta_coleta_tentada_em: null });
+  r.sempreColeta = devoColetar();                       // dados de hoje, mas o modo é sempre
+  db.setSettings({ meta_coleta_tentada_em: new Date().toISOString() });
+  r.travaCurta = devoColetar();                         // acabou de coletar: não repete
+  db.setSettings({ meta_coleta_tentada_em: new Date(Date.now() - (MINUTOS_ENTRE_COLETAS + 1) * 60000).toISOString() });
+  r.depoisDaTrava = devoColetar();
+
+  db.setSettings({ meta_atualizar_ao_abrir: "nunca", meta_coleta_tentada_em: null });
+  r.nunca = devoColetar();
+  db.setSettings({ meta_atualizar_ao_abrir: "velho" });
+  r.velhoComDadoDeHoje = devoColetar();                 // só coleta se estiver parada
+
+  const h = new Date().toISOString().slice(0, 10);
+  r.diasComDadoDeHoje = diasParaCobrir({ periodo: { fim: h } });
+  r.diasComBuraco = diasParaCobrir({ periodo: { fim: "2026-09-20" } });
+  r.diasSemNada = diasParaCobrir(null);
+
+  db.setSettings({ meta_atualizar_ao_abrir: "sempre" });
+  return r;
+});
+ok(atual.padrao === "sempre", "o padrão é buscar sempre que abrir");
+ok(atual.invalido === "sempre", "valor estranho na configuração não desliga a atualização");
+ok(atual.sempreColeta === true, "em 'sempre', coleta mesmo com dado de hoje");
+ok(atual.travaCurta === false, "recarregar em seguida não dispara outra coleta");
+ok(atual.depoisDaTrava === true, "passada a trava curta, volta a coletar");
+ok(atual.nunca === false, "em 'nunca', não busca sozinho");
+ok(atual.velhoComDadoDeHoje === false, "em 'só quando velho', dado de hoje não dispara nada");
+ok(atual.diasComDadoDeHoje === 3, "com dado de hoje baixa a janela mínima, não 45 dias");
+ok(atual.diasComBuraco > 3 && atual.diasComBuraco <= 45, `com buraco, cobre o buraco (${atual.diasComBuraco} dias)`);
+ok(atual.diasSemNada === 45, "sem dado nenhum, baixa a janela cheia");
+
+await p.goto(BASE + "#/config?aba=meta", { waitUntil: "networkidle" });
+await p.waitForTimeout(1400);
+const cfgTxt = await p.locator("main").innerText();
+ok(/ao abrir o CRM/.test(cfgTxt), "a preferência aparece em Configurações → Meta");
+ok(await p.locator("[data-mt-atualizar]").count() === 1, "e é um campo que dá para mudar");
+
+
 console.log("\nERROS DE JS:", erros.length);
 for (const e of erros.slice(0, 10)) console.log(" -", e);
 console.log(falhas ? `\n${falhas} verificação(ões) falharam.` : "\nTodas as verificações passaram.");
