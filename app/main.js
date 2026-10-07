@@ -1,9 +1,9 @@
 // Casca do aplicativo: menu, topo, período global, roteador, busca, notificações, perfil.
 import { db, garantirBase, inserirDemonstracao } from "./core/db.js";
 import { PERIODOS, intervalo, rotulo as rotuloPeriodo } from "./core/periods.js";
-import { esc, hoje, somaDias, semAcento } from "./core/format.js";
+import { esc, hoje, somaDias, semAcento, dataBR } from "./core/format.js";
 import { carregarUsuario, usuario, entrar, pode, PERMISSOES } from "./core/auth.js";
-import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem, avisoColeta } from "./core/sync.js";
+import { carregarMeta, nuvemLer, nuvemLigada, sincronizar, iniciarPoll, agendarEnvio, onNuvem, avisoColeta, coletarAgora, coletarSeVelho } from "./core/sync.js";
 import { iniciarAutomacoes, verificarSemResposta } from "./core/automations.js";
 import { alertas } from "./core/rules.js";
 import * as W from "./core/wame.js";
@@ -69,6 +69,22 @@ function lerHash() {
   estado.rota = { modulo: partes[0] || "dashboard", id: partes[1] || "", aba: new URLSearchParams(query || "").get("aba") || "" };
   if (!MODULOS.find((m) => m.id === estado.rota.modulo)) estado.rota.modulo = "dashboard";
 }
+// Coleta sob demanda. Enquanto roda, o botão diz o que está acontecendo: uma tela parada
+// por dez segundos sem explicação faz a pessoa clicar de novo e disparar tudo duas vezes.
+async function atualizarPelaMeta(botao) {
+  const antes = botao ? botao.textContent : "";
+  if (botao) { botao.disabled = true; botao.textContent = "Buscando na Meta…"; }
+  try {
+    const d = await coletarAgora();
+    toast(`Dados atualizados até ${dataBR((d.periodo || {}).fim || hoje())}.`);
+    render();
+  } catch (e) {
+    console.error(e);
+    toast("Não consegui atualizar: " + (e.message || "erro na Meta"), "erro");
+    if (botao) { botao.disabled = false; botao.textContent = antes; }
+  }
+}
+
 export function navegar(hash) { if (location.hash === hash) render(); else location.hash = hash; }
 function render() {
   lerHash();
@@ -79,7 +95,11 @@ function render() {
   try { m.render(root, ctx()); } catch (e) { console.error(e); root.innerHTML = `<div class="aviso aviso-erro">Erro ao montar a tela "${esc(m.titulo)}": ${esc(e.message)}</div>`; }
   // Coleta parada vale em qualquer tela: o número velho engana igual no Dashboard e na campanha.
   const av = avisoColeta();
-  if (av) root.insertAdjacentHTML("afterbegin", av);
+  if (av) {
+    root.insertAdjacentHTML("afterbegin", av);
+    const b = root.querySelector("[data-coletar-agora]");
+    if (b) b.addEventListener("click", () => atualizarPelaMeta(b));
+  }
   document.querySelectorAll("#menu a").forEach((a) => a.classList.toggle("ativa", a.dataset.modulo === m.id));
   document.body.classList.remove("menu-aberto");
   window.scrollTo(0, 0);
@@ -194,6 +214,13 @@ async function iniciar() {
   const r = await carregarMeta();
   if (r.ok && r.novo) { toast(r.remapeado ? "Dados da Meta reimportados com os campos novos." : "Dados da Meta atualizados."); verificarSemResposta(); render(); atualizarNotificacoes(); }
   if (nuvemLigada()) { await sincronizar("abrir"); iniciarPoll(); render(); }
+  // Dados velhos e chave no aparelho: busca sozinho, sem pedir nada. Em silêncio se falhar —
+  // abrir o CRM não pode virar uma tela de erro por causa de uma coleta de fundo.
+  coletarSeVelho().then((d) => {
+    if (!d) return;
+    toast(`Dados atualizados até ${dataBR((d.periodo || {}).fim || hoje())}.`);
+    render(); atualizarNotificacoes();
+  }).catch((e) => console.warn("coleta automática:", e.message));
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { carregarMeta().then((x) => { if (x.novo) render(); }); if (nuvemLigada()) sincronizar("voltar"); } });
   window.addEventListener("online", () => { if (nuvemLigada()) sincronizar("online"); });
   window.CRM = { db, estado, render, wame: W, meta: MetaApi };
