@@ -1,8 +1,8 @@
-import { db } from "../core/db.js?v=b71c1ba8";
-import { cartao, toast } from "../core/ui.js?v=b71c1ba8";
-import { esc, hoje, semanaISO, NOMES_DIAS, uid, somaDias, dataBR } from "../core/format.js?v=b71c1ba8";
-import { bannerDemo } from "./comum.js?v=b71c1ba8";
-import { podeEditar } from "../core/auth.js?v=b71c1ba8";
+import { db } from "../core/db.js?v=ce456545";
+import { cartao, toast } from "../core/ui.js?v=ce456545";
+import { esc, hoje, semanaISO, NOMES_DIAS, uid, somaDias, dataBR } from "../core/format.js?v=ce456545";
+import { bannerDemo } from "./comum.js?v=ce456545";
+import { podeEditar } from "../core/auth.js?v=ce456545";
 
 export default {
   id: "planejamento", titulo: "Planejamento", icone: "🗓️",

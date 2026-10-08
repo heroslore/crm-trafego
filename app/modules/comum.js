@@ -1,10 +1,10 @@
 // Pedaços compartilhados pelos módulos.
-import { db } from "../core/db.js?v=b71c1ba8";
-import { kpi, badge, badgeOpcao, cartao, vazio, itemLista, prioridadeBadge, fmtMetrica, tabela } from "../core/ui.js?v=b71c1ba8";
-import { avaliar, serieDiaria, contagensAtivas, porEntidade, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=b71c1ba8";
-import { porEtapa, ROTULO_ETAPA, CORES_ETAPA, METRICA_DA_ETAPA } from "../core/funil.js?v=b71c1ba8";
-import { esc, brl, inteiro, pct, mult, dataBR, hoje, diasEntre, dec } from "../core/format.js?v=b71c1ba8";
-import { usuario, podeEditar } from "../core/auth.js?v=b71c1ba8";
+import { db } from "../core/db.js?v=ce456545";
+import { kpi, badge, badgeOpcao, cartao, vazio, itemLista, prioridadeBadge, fmtMetrica, tabela } from "../core/ui.js?v=ce456545";
+import { avaliar, serieDiaria, contagensAtivas, porEntidade, METRICAS_ROTULOS, MENOR_MELHOR } from "../core/metrics.js?v=ce456545";
+import { porEtapa, ROTULO_ETAPA, CORES_ETAPA, METRICA_DA_ETAPA } from "../core/funil.js?v=ce456545";
+import { esc, brl, inteiro, pct, mult, dataBR, hoje, diasEntre, dec } from "../core/format.js?v=ce456545";
+import { usuario, podeEditar } from "../core/auth.js?v=ce456545";
 
 export const bannerDemo = () => db.temDemo() ? `<div class="demo-banner"><span>🧪 Há dados de demonstração (marcados com <b>[DEMO]</b> / "(demo)") para você conhecer o sistema. Eles não são dados reais da empresa.</span><a href="#/config?aba=dados" class="btn btn-pq">Remover dados de demonstração</a></div>` : "";
 export const btnNovo = (texto, attr) => podeEditar() ? `<button class="btn btn-primario" ${attr}>➕ ${texto}</button>` : "";

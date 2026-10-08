@@ -1,10 +1,10 @@
-import { db } from "../core/db.js?v=b71c1ba8";
-import { alertasCalendario } from "../core/rules.js?v=b71c1ba8";
-import { cartao, abrirFormulario, vazio, itemLista, badge } from "../core/ui.js?v=b71c1ba8";
-import { esc, hoje, dataBR, NOMES_MESES, somaDias } from "../core/format.js?v=b71c1ba8";
-import { bannerDemo, btnNovo } from "./comum.js?v=b71c1ba8";
-import { rotulo as rotuloOpcao } from "../core/schema.js?v=b71c1ba8";
-import { podeEditar } from "../core/auth.js?v=b71c1ba8";
+import { db } from "../core/db.js?v=ce456545";
+import { alertasCalendario } from "../core/rules.js?v=ce456545";
+import { cartao, abrirFormulario, vazio, itemLista, badge } from "../core/ui.js?v=ce456545";
+import { esc, hoje, dataBR, NOMES_MESES, somaDias } from "../core/format.js?v=ce456545";
+import { bannerDemo, btnNovo } from "./comum.js?v=ce456545";
+import { rotulo as rotuloOpcao } from "../core/schema.js?v=ce456545";
+import { podeEditar } from "../core/auth.js?v=ce456545";
 
 let mes = hoje().slice(0, 7);
 const COR = { campanha: "var(--acento)", promocao: "var(--laranja)", comemorativa: "var(--vermelho)", lancamento: "var(--verde)", video: "var(--roxo)", publicacao: "var(--azul)", reels: "var(--ciano)", stories: "var(--ciano)", trafego: "var(--acento)", outro: "var(--cinza)" };
