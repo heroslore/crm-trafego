@@ -561,6 +561,40 @@ ok(/ao abrir o CRM/.test(cfgTxt), "a preferência aparece em Configurações →
 ok(await p.locator("[data-mt-atualizar]").count() === 1, "e é um campo que dá para mudar");
 
 
+console.log("\n[18] Anúncio sem entrega no período não é confundido com amostra pequena");
+// Caso real: um anúncio criado em 06/10 aberto com o filtro em 24–27/09. O CRM mandava
+// "deixar rodar até 1.000 impressões" para um anúncio que já tinha 5.472, em outras datas.
+await p.evaluate(async () => {
+  const { db } = await import("./app/core/db.js");
+  const ag = new Date().toISOString();
+  db.insert("ads", { id: "ad-fora", name: "Dia das Crianças", campaign_id: "camp-meta",
+    ad_set_id: "set-meta", status: "ativa", external_id: "120249832777120617", created_at: ag });
+  for (const [d, imp, gasto] of [["2026-10-06", 3000, 30], ["2026-10-07", 2472, 26.75]]) {
+    db.insert("campaign_metrics", { id: "mf" + d, date: d, campaign_id: "camp-meta", ad_id: "ad-fora",
+      spend: gasto, impressions: imp, clicks: 18, link_clicks: 15, results: 4, source: "meta", created_at: ag });
+  }
+  // Filtro global na janela ERRADA, de propósito. Pelo estado em memória, não pelo
+  // armazenamento: a gravação do banco é adiada e recarregar aqui perderia os registros
+  // recém-criados.
+  window.CRM.estado.periodo = { tipo: "custom", inicio: "2026-09-24", fim: "2026-09-27" };
+});
+await p.goto(BASE + "#/anuncios/ad-fora", { waitUntil: "networkidle" });
+await p.waitForTimeout(1600);
+const fora = await p.locator("main").innerText();
+ok(/não teve nenhuma entrega/.test(fora), "diz que não houve entrega no período, em vez de 'amostra insuficiente'");
+ok(/06\/10\/2026/.test(fora) && /07\/10\/2026/.test(fora), "mostra quando o anúncio realmente rodou");
+ok(/5\.472 impressões/.test(fora), "mostra o volume que existe fora da janela");
+ok(!/Deixar rodar até atingir volume/.test(fora), "e para de mandar esperar volume que já existe");
+ok(await p.locator("[data-ir-periodo]").count() > 0, "oferece pular para o período certo");
+await p.screenshot({ path: `${SAIDA}/sem-entrega-no-periodo.png`, fullPage: false });
+
+await p.locator("[data-ir-periodo]").first().click();
+await p.waitForTimeout(1500);
+const dentro = await p.locator("main").innerText();
+ok(!/não teve nenhuma entrega/.test(dentro), "clicando no botão, a análise de verdade aparece");
+ok(/Diagnóstico por etapa/.test(dentro), "e com o diagnóstico completo");
+
+
 console.log("\nERROS DE JS:", erros.length);
 for (const e of erros.slice(0, 10)) console.log(" -", e);
 console.log(falhas ? `\n${falhas} verificação(ões) falharam.` : "\nTodas as verificações passaram.");
