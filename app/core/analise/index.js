@@ -280,8 +280,14 @@ export function analisar({ nivel = "campanha", registro, iv, minimos = null, bas
   const pl = plano(achados, cartoes, conf);
   const resumo = resumo10s({ escopo: registro, score, cartoes, achados, gargalos: garg, fortes, conf, m });
 
+  // Entrega zerada no período é um caso à parte de "amostra pequena": o escopo pode ter
+  // rodado muito bem FORA da janela escolhida. Sem distinguir os dois, a tela manda deixar
+  // rodar para juntar volume um anúncio que já tem volume de sobra, só em outras datas.
+  const semEntregaNoPeriodo = num(k.impressions) === 0 && num(k.spend) === 0;
+  const janela = semEntregaNoPeriodo ? janelaDeEntrega(nivel, registro.id) : null;
+
   return {
-    leve,
+    leve, semEntregaNoPeriodo, janela,
     filhos: leve ? [] : filhosDoEscopo(nivel, registro, iv),
     recortes: !leve && nivel === "campanha" ? recortesDaCampanha(registro.external_id) : null,
     usarVendas, vendasParciais, modoVendas: b.modoVendas,

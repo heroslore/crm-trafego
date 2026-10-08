@@ -324,7 +324,28 @@ function recortesHtml(a) {
 }
 
 // ---------------------------------------------------------------- seção completa
+// Entrega zerada na janela escolhida: a tela diz isso, e nada mais. Diagnosticar aqui seria
+// descrever o vazio — e foi o que ela fazia, recomendando "deixe rodar até 1.000 impressões"
+// para um anúncio que já tinha 5.472, em outras datas.
+function semEntregaHtml(a) {
+  const j = a.janela;
+  const nome = { campanha: "Esta campanha", conjunto: "Este conjunto", anuncio: "Este anúncio", criativo: "Este criativo" }[a.nivel] || "Este escopo";
+  const criado = a.registro && (a.registro.created_at_date || a.registro.start_date || String(a.registro.created_at || "").slice(0, 10));
+  return cartao(
+    `🧠 Análise inteligente <small>sem entrega no período</small>`,
+    `<div class="aviso aviso-info" style="margin:0">
+       <b>${esc(nome)} não teve nenhuma entrega entre ${dataBR(a.iv.inicio)} e ${dataBR(a.iv.fim)}.</b>
+       ${j
+         ? `Ele rodou de <b>${dataBR(j.inicio)}</b> a <b>${dataBR(j.fim)}</b>: ${inteiro(j.dias)} dia(s), ${brl(j.gasto)} e ${inteiro(j.impressoes)} impressões.
+            Não é falta de volume — é a janela escolhida no topo da tela.`
+         : `Não há nenhum dia com entrega registrada para ele${criado ? `, e ele foi criado em ${dataBR(criado)}` : ""}.
+            Se acabou de subir, é normal: os números aparecem algumas horas depois do primeiro gasto.`}
+       ${j ? `<div style="margin-top:10px"><button class="btn btn-pq btn-primario" data-ir-periodo data-inicio="${esc(j.inicio)}" data-fim="${esc(j.fim)}">📅 Analisar o período em que ele rodou</button></div>` : ""}
+     </div>`);
+}
+
 export function secaoAnalise(a) {
+  if (a.semEntregaNoPeriodo) return semEntregaHtml(a);
   const m = a.m;
   const grupo = (titulo, corpo) => `<section class="an-sec"><h2>${esc(titulo)}</h2>${corpo}</section>`;
   const perf = [m.ctr, m.ctr_todos, m.cpc, m.cpm, m.frequencia].filter(Boolean);
